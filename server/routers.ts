@@ -38,7 +38,7 @@ export const appRouter = router({
     submitLead: publicProcedure
       .input(z.object({
         productCode: z.literal("MIDAD-001"),
-        fullName: z.string().trim().min(2).max(160).refine(value => value.split(/\s+/).filter(Boolean).length >= 2 && /[A-Za-z\u0600-\u06FF]/.test(value), "الاسم الكامل غير صالح"),
+        fullName: z.string().trim().min(2).max(160).transform(value => value.replace(/\s+/g, " ")).refine(value => value.split(" ").filter(Boolean).length >= 2 && /^[A-Za-z\u0600-\u06FF ]+$/.test(value), "الاسم الكامل غير صالح"),
         email: z.string().trim().email().max(320),
         whatsapp: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).refine(value => /^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(value), "رقم واتساب غير صالح"),
         consent: z.boolean().refine(value => value, "الموافقة مطلوبة"),
