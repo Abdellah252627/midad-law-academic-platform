@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, storageGetSignedUrl } = vi.hoisted(() => ({
+const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, storageGetSignedUrl } = vi.hoisted(() => ({
   getPurchaseRequests: vi.fn(),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
   rejectPurchaseRequest: vi.fn(),
+  createAuditLog: vi.fn(),
   storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/proof.pdf"),
 }));
 
-vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest }));
+vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog }));
 vi.mock("./storage", () => ({ storageGetSignedUrl }));
 
 import { appRouter } from "./routers";

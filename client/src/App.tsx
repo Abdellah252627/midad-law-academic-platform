@@ -8,6 +8,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminAccount from "./pages/AdminAccount";
 import AdminLeads from "./pages/AdminLeads";
 import AdminPurchases from "./pages/AdminPurchases";
+import AdminFiles from "./pages/AdminFiles";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
 import NotFound from "./pages/NotFound";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
@@ -23,6 +25,8 @@ function Router() {
       <Route path="/admin/account" component={AdminAccount} />
       <Route path="/admin/leads" component={AdminLeads} />
       <Route path="/admin/purchases" component={AdminPurchases} />
+      <Route path="/admin/files" component={AdminFiles} />
+      <Route path="/admin/audit-logs" component={AdminAuditLogs} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -12,6 +12,11 @@ vi.mock("./db", async () => {
     saveLandingProduct: vi.fn(),
     saveLandingChapter: vi.fn(),
     saveLandingFaq: vi.fn(),
+    createAuditLog: vi.fn(),
+    deleteLandingChapter: vi.fn(),
+    restoreLandingChapter: vi.fn(),
+    deleteLandingFaq: vi.fn(),
+    restoreLandingFaq: vi.fn(),
   };
 });
 
@@ -56,6 +61,11 @@ describe("admin landing content procedures", () => {
     vi.mocked(db.saveLandingProduct).mockResolvedValue(undefined);
     vi.mocked(db.saveLandingChapter).mockResolvedValue(12);
     vi.mocked(db.saveLandingFaq).mockResolvedValue(9);
+    vi.mocked(db.createAuditLog).mockResolvedValue(undefined);
+    vi.mocked(db.deleteLandingChapter).mockResolvedValue(undefined);
+    vi.mocked(db.restoreLandingChapter).mockResolvedValue(undefined);
+    vi.mocked(db.deleteLandingFaq).mockResolvedValue(undefined);
+    vi.mocked(db.restoreLandingFaq).mockResolvedValue(undefined);
   });
 
   it("allows an admin to read and save published product content", async () => {
@@ -74,6 +84,7 @@ describe("admin landing content procedures", () => {
       isPublished: 1,
     });
     expect(db.saveLandingProduct).toHaveBeenCalledWith(expect.objectContaining({ productCode: "MIDAD-001", isPublished: 1 }));
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_product", entityId: "MIDAD-001" }));
   });
 
   it("allows an admin to save a chapter and FAQ with publication state", async () => {
@@ -98,6 +109,18 @@ describe("admin landing content procedures", () => {
     expect(faqId).toBe(9);
     expect(db.saveLandingChapter).toHaveBeenCalledWith(expect.objectContaining({ isPublished: 1 }));
     expect(db.saveLandingFaq).toHaveBeenCalledWith(expect.objectContaining({ isPublished: 1 }));
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_chapter", entityId: "12" }));
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_faq", entityId: "9" }));
+  });
+
+  it("records delete and restore actions for chapters and FAQs", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    await caller.admin.deleteChapter({ id: 12 });
+    await caller.admin.restoreChapter({ id: 12 });
+    await caller.admin.deleteFaq({ id: 9 });
+    await caller.admin.restoreFaq({ id: 9 });
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.delete", entityType: "landing_chapter", entityId: "12" }));
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.restore", entityType: "landing_faq", entityId: "9" }));
   });
 
   it("keeps public content limited to the published result", async () => {

@@ -36,6 +36,7 @@ export const sampleDownloadLeads = mysqlTable("sample_download_leads", {
   whatsapp: varchar("whatsapp", { length: 32 }).notNull(),
   consentVersion: varchar("consentVersion", { length: 32 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
 });
 
 export const landingProducts = mysqlTable("landing_products", {
@@ -49,6 +50,7 @@ export const landingProducts = mysqlTable("landing_products", {
   priceMad: int("priceMad").notNull(),
   isPublished: int("isPublished").default(1).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
 });
 
 export const landingChapters = mysqlTable("landing_chapters", {
@@ -60,6 +62,7 @@ export const landingChapters = mysqlTable("landing_chapters", {
   questionsJson: text("questionsJson").notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   isPublished: int("isPublished").default(1).notNull(),
+  deletedAt: timestamp("deletedAt"),
 });
 
 export const landingFaqs = mysqlTable("landing_faqs", {
@@ -69,6 +72,31 @@ export const landingFaqs = mysqlTable("landing_faqs", {
   answer: text("answer").notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   isPublished: int("isPublished").default(1).notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+
+export const productFiles = mysqlTable("product_files", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull(),
+  fileType: mysqlEnum("fileType", ["pdf", "cover", "sample"]).notNull(),
+  fileKey: varchar("fileKey", { length: 512 }).notNull(),
+  fileName: varchar("fileName", { length: 220 }).notNull(),
+  contentType: varchar("contentType", { length: 100 }).notNull(),
+  version: int("version").default(1).notNull(),
+  isActive: int("isActive").default(1).notNull(),
+  uploadedByUserId: int("uploadedByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const auditLogs = mysqlTable("audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  actorUserId: int("actorUserId").notNull(),
+  action: varchar("action", { length: 80 }).notNull(),
+  entityType: varchar("entityType", { length: 80 }).notNull(),
+  entityId: varchar("entityId", { length: 80 }),
+  productCode: varchar("productCode", { length: 32 }),
+  metadataJson: text("metadataJson"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -83,3 +111,7 @@ export type LandingChapter = typeof landingChapters.$inferSelect;
 export type InsertLandingChapter = typeof landingChapters.$inferInsert;
 export type LandingFaq = typeof landingFaqs.$inferSelect;
 export type InsertLandingFaq = typeof landingFaqs.$inferInsert;
+export type ProductFile = typeof productFiles.$inferSelect;
+export type InsertProductFile = typeof productFiles.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;

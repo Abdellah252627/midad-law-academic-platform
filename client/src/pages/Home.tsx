@@ -99,6 +99,7 @@ export default function Home() {
   let { user, loading, error, isAuthenticated, logout } = useAuth();
   const landingQuery = trpc.landing.published.useQuery(landingInput, { retry: false });
   const publishedProduct = landingQuery.data?.product;
+  const activeCoverUrl = landingQuery.data?.coverUrl ?? bookCover;
   const productPriceMad = publishedProduct?.priceMad ?? 19;
   const chapters = landingQuery.data?.chapters?.length
     ? landingQuery.data.chapters.map(chapter => [chapter.chapterNumber, chapter.title, chapter.excerpt] as [string, string, string])
@@ -285,7 +286,7 @@ export default function Home() {
               <div className="relative w-[min(72vw,310px)] rotate-[4deg] transition duration-500 hover:rotate-0 hover:scale-[1.025] sm:w-[330px]">
                 <div className="absolute -inset-4 rounded-[24px] bg-[#b9854a]/10 blur-xl" />
                 <div className="relative overflow-hidden rounded-[6px] border-[7px] border-[#eadfce] bg-[#172b3a] shadow-[28px_30px_0_rgba(185,133,74,0.15),0_30px_55px_rgba(23,43,58,0.28)]">
-                  <img src={bookCover} alt="غلاف ملخص مدخل إلى القانون والعلوم القانونية" className="aspect-[3/4] w-full object-cover" />
+                  <img src={activeCoverUrl} alt="غلاف ملخص مدخل إلى القانون والعلوم القانونية" className="aspect-[3/4] w-full object-cover" />
                 </div>
               </div>
               <div className="absolute bottom-[10%] right-[2%] hidden max-w-[190px] rounded-[15px] border border-[#ded4c5] bg-[#fbf8f2]/90 p-4 shadow-[0_18px_35px_rgba(23,43,58,0.1)] backdrop-blur-md sm:block">

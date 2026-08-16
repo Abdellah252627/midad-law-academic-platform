@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
+const { createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42 }),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
+  getActiveProductFile: vi.fn().mockResolvedValue({ fileKey: "product-files/MIDAD-001/pdf/active.pdf", fileType: "pdf" }),
   storagePut: vi.fn().mockResolvedValue({ key: "purchase-proofs/test-proof.pdf", url: "/private" }),
   storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/midad.pdf"),
 }));
 
-vi.mock("./db", () => ({ createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest }));
+vi.mock("./db", () => ({ createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 
 import { appRouter } from "./routers";
@@ -54,6 +55,20 @@ describe("purchase.createTransferRequest", () => {
     getPurchaseRequestById.mockResolvedValueOnce({ id: 12, productCode: "MIDAD-001", customerEmail: "student@example.com", status: "approved" });
     const caller = appRouter.createCaller(createPublicContext());
     await expect(caller.purchase.getDownloadLink({ requestId: 12, customerEmail: "student@example.com" })).resolves.toEqual({ url: "https://signed.example/midad.pdf", expiresInMinutes: 15 });
+    expect(getActiveProductFile).toHaveBeenCalledWith("MIDAD-001", "pdf");
+  });
+
+  it("falls back to the configured PDF key when no active PDF version exists", async () => {
+    getActiveProductFile.mockResolvedValueOnce(undefined);
+    storageGetSignedUrl.mockResolvedValueOnce("https://signed.example/fallback-midad.pdf");
+    getPurchaseRequestById.mockResolvedValueOnce({ id: 13, productCode: "MIDAD-001", customerEmail: "student@example.com", status: "approved" });
+    const caller = appRouter.createCaller(createPublicContext());
+
+    await expect(caller.purchase.getDownloadLink({ requestId: 13, customerEmail: "student@example.com" })).resolves.toEqual({
+      url: "https://signed.example/fallback-midad.pdf",
+      expiresInMinutes: 15,
+    });
+    expect(storageGetSignedUrl).toHaveBeenCalledWith(expect.stringContaining("MIDAD-001"));
   });
 
   it("stores a pending request and a private proof key", async () => {

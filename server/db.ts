@@ -1,6 +1,6 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, landingChapters, landingFaqs, landingProducts, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AuditLog, InsertAuditLog, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -106,7 +106,40 @@ export async function createSampleDownloadLead(input: InsertSampleDownloadLead) 
 export async function getSampleDownloadLeads() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(sampleDownloadLeads).orderBy(desc(sampleDownloadLeads.createdAt));
+  return db.select().from(sampleDownloadLeads).where(isNull(sampleDownloadLeads.deletedAt)).orderBy(desc(sampleDownloadLeads.createdAt));
+}
+
+export async function getProductFiles(productCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(productFiles).where(eq(productFiles.productCode, productCode)).orderBy(desc(productFiles.createdAt));
+}
+
+export async function getActiveProductFile(productCode: string, fileType: "pdf" | "cover" | "sample") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(productFiles).where(eq(productFiles.productCode, productCode));
+  return rows.find(file => file.fileType === fileType && file.isActive === 1);
+}
+
+export async function createProductFile(input: InsertProductFile) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(productFiles).set({ isActive: 0 }).where(and(eq(productFiles.productCode, input.productCode), eq(productFiles.fileType, input.fileType)));
+  const result = await db.insert(productFiles).values(input);
+  return Number(result[0].insertId);
+}
+
+export async function createAuditLog(input: InsertAuditLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(auditLogs).values(input);
+}
+
+export async function getAuditLogs(limit = 100) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
 }
 
 export async function getPurchaseRequestById(id: number) {
@@ -140,9 +173,9 @@ export async function getPublishedLandingContent(productCode: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const [productRows, chapters, faqs] = await Promise.all([
-    db.select().from(landingProducts).where(eq(landingProducts.productCode, productCode)).limit(1),
-    db.select().from(landingChapters).where(eq(landingChapters.productCode, productCode)).orderBy(asc(landingChapters.sortOrder)),
-    db.select().from(landingFaqs).where(eq(landingFaqs.productCode, productCode)).orderBy(asc(landingFaqs.sortOrder)),
+    db.select().from(landingProducts).where(and(eq(landingProducts.productCode, productCode), isNull(landingProducts.deletedAt))).limit(1),
+    db.select().from(landingChapters).where(and(eq(landingChapters.productCode, productCode), isNull(landingChapters.deletedAt))).orderBy(asc(landingChapters.sortOrder)),
+    db.select().from(landingFaqs).where(and(eq(landingFaqs.productCode, productCode), isNull(landingFaqs.deletedAt))).orderBy(asc(landingFaqs.sortOrder)),
   ]);
   return {
     product: productRows.find(row => row.isPublished === 1),
@@ -184,7 +217,13 @@ export async function saveLandingChapter(input: InsertLandingChapter) {
 export async function deleteLandingChapter(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.delete(landingChapters).where(eq(landingChapters.id, id));
+  await db.update(landingChapters).set({ deletedAt: new Date(), isPublished: 0 }).where(eq(landingChapters.id, id));
+}
+
+export async function restoreLandingChapter(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(landingChapters).set({ deletedAt: null, isPublished: 1 }).where(eq(landingChapters.id, id));
 }
 
 export async function saveLandingFaq(input: InsertLandingFaq) {
@@ -201,6 +240,12 @@ export async function saveLandingFaq(input: InsertLandingFaq) {
 export async function deleteLandingFaq(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.delete(landingFaqs).where(eq(landingFaqs.id, id));
+  await db.update(landingFaqs).set({ deletedAt: new Date(), isPublished: 0 }).where(eq(landingFaqs.id, id));
+}
+
+export async function restoreLandingFaq(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(landingFaqs).set({ deletedAt: null, isPublished: 1 }).where(eq(landingFaqs.id, id));
 }
 

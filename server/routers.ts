@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getLandingAdminContent, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeads, rejectPurchaseRequest, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getActiveProductFile, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeads, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -35,7 +35,14 @@ export const appRouter = router({
     }),
   }),
   landing: router({
-    published: publicProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getPublishedLandingContent(input.productCode)),
+    published: publicProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(async ({ input }) => {
+      const content = await getPublishedLandingContent(input.productCode);
+      const activeCover = await getActiveProductFile(input.productCode, "cover");
+      return {
+        ...content,
+        coverUrl: activeCover ? await storageGetSignedUrl(activeCover.fileKey) : null,
+      };
+    }),
   }),
   sample: router({
     submitLead: publicProcedure
@@ -47,7 +54,8 @@ export const appRouter = router({
         consent: z.boolean().refine(value => value, "الموافقة مطلوبة"),
       }))
       .mutation(async ({ input }) => {
-        const key = SAMPLE_PDF_KEYS[input.productCode];
+        const activeSample = await getActiveProductFile(input.productCode, "sample");
+        const key = activeSample?.fileKey ?? SAMPLE_PDF_KEYS[input.productCode];
         if (!key) throw new Error("ملف العينة غير مهيأ");
         await createSampleDownloadLead({
           productCode: input.productCode,
@@ -61,11 +69,13 @@ export const appRouter = router({
   }),
   admin: router({
     landingContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getLandingAdminContent(input.productCode)),
-    saveProduct: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingProduct(input)),
-    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingChapter(input)),
-    deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteLandingChapter(input.id)),
-    saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingFaq(input)),
-    deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteLandingFaq(input.id)),
+    saveProduct: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { await saveLandingProduct(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_product", entityId: input.productCode, productCode: input.productCode, metadataJson: JSON.stringify({ priceMad: input.priceMad, isPublished: input.isPublished }) }); return { success: true as const }; }),
+    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
+    deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_chapter", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
+    restoreChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await restoreLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_chapter", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
+    saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingFaq(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_faq", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ isPublished: input.isPublished }) }); return id; }),
+    deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
+    restoreFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await restoreLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
     sampleLeads: adminProcedure.query(async () => {
       const leads = await getSampleDownloadLeads();
       return { leads, total: leads.length };
@@ -86,6 +96,7 @@ export const appRouter = router({
     approvePurchase: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const request = await approvePurchaseRequest(input.requestId, ctx.user.id);
       if (!request) throw new Error("طلب الشراء غير موجود");
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.approve", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: null });
       const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
       if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
       return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key), expiresInMinutes: 15 };
@@ -93,8 +104,29 @@ export const appRouter = router({
     rejectPurchase: adminProcedure.input(z.object({ requestId: z.number().int().positive(), reason: z.string().trim().min(3).max(500) })).mutation(async ({ input, ctx }) => {
       const request = await rejectPurchaseRequest(input.requestId, input.reason, ctx.user.id);
       if (!request) throw new Error("طلب الشراء غير موجود");
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.reject", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: JSON.stringify({ reason: input.reason }) });
       return { success: true as const, requestId: request.id };
     }),
+    files: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getProductFiles(input.productCode)),
+    fileUrl: adminProcedure.input(z.object({ fileId: z.number().int().positive() })).query(async ({ input }) => {
+      const files = await getProductFiles("MIDAD-001");
+      const file = files.find(item => item.id === input.fileId);
+      if (!file) throw new Error("الملف غير موجود");
+      return { url: await storageGetSignedUrl(file.fileKey), fileName: file.fileName, contentType: file.contentType };
+    }),
+    uploadFile: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), fileType: z.enum(["pdf", "cover", "sample"]), fileName: z.string().trim().min(1).max(220), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), base64: z.string().min(100).max(14_000_000) })).mutation(async ({ input, ctx }) => {
+      const expectedType = input.fileType === "pdf" || input.fileType === "sample" ? "application/pdf" : input.contentType;
+      if (input.fileType === "cover" && input.contentType === "application/pdf") throw new Error("صورة الغلاف يجب أن تكون JPG أو PNG");
+      if (input.fileType !== "cover" && input.contentType !== "application/pdf") throw new Error("ملف المنتج يجب أن يكون PDF");
+      const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
+      const uploaded = await storagePut(`product-files/${input.productCode}/${input.fileType}/${Date.now()}-${randomUUID()}-${safeName}`, Buffer.from(input.base64, "base64"), expectedType);
+      const existing = await getProductFiles(input.productCode);
+      const version = (existing.filter(item => item.fileType === input.fileType).reduce((max, item) => Math.max(max, item.version), 0) || 0) + 1;
+      const fileId = await createProductFile({ productCode: input.productCode, fileType: input.fileType, fileKey: uploaded.key, fileName: input.fileName, contentType: expectedType, version, isActive: 1, uploadedByUserId: ctx.user.id });
+      await createAuditLog({ actorUserId: ctx.user.id, action: "file.upload", entityType: "product_file", entityId: String(fileId), productCode: input.productCode, metadataJson: JSON.stringify({ fileType: input.fileType, version, fileName: input.fileName }) });
+      return { success: true as const, fileId, version };
+    }),
+    auditLogs: adminProcedure.query(() => getAuditLogs()),
   }),
   purchase: router({
     createTransferRequest: publicProcedure
@@ -143,7 +175,8 @@ export const appRouter = router({
         if (request.status !== "approved") {
           throw new Error("لم تتم الموافقة على الطلب بعد");
         }
-        const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+        const activePdf = await getActiveProductFile(request.productCode, "pdf");
+        const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
         if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
         return { url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
       }),
@@ -152,9 +185,10 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const request = await approvePurchaseRequest(input.requestId);
         if (!request) throw new Error("طلب الشراء غير موجود");
-        const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+        const activePdf = await getActiveProductFile(request.productCode, "pdf");
+        const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
         if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
-        return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key) };
+        return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key), expiresInMinutes: 15 };
       }),
   }),
 });
