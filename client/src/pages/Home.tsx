@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -44,12 +46,58 @@ function scrollToPurchase() {
 }
 
 export default function Home() {
+  // The useAuth hook provides authentication state.
+  // To implement login/logout, call logout(), or start login from an event
+  // handler: onClick={() => startLogin()} (imported from "@/const"). Never call
+  // startLogin() during render (no href={startLogin()}) — it mints a one-time
+  // nonce cookie and must run only at the moment of navigation.
+  let { user, loading, error, isAuthenticated, logout } = useAuth();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [transferSent, setTransferSent] = useState<number | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
+  const createTransferRequest = trpc.purchase.createTransferRequest.useMutation();
+
+  const resetTransferFlow = () => {
+    setTransferOpen(false);
+    setShowBankDetails(false);
+    setTransferSent(null);
+    setProofFile(null);
+    setForm({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
+    createTransferRequest.reset();
+  };
 
   const handleCheckout = () => {
-    toast("الدفع الإلكتروني سيُفعّل في خطوة الربط التالية", {
-      description: "هذه نسخة العرض التجريبي لصفحة الهبوط.",
+    resetTransferFlow();
+    setTransferOpen(true);
+  };
+
+  const handleTransferSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    let proof: { fileName: string; contentType: "image/jpeg" | "image/png" | "application/pdf"; base64: string } | undefined;
+    if (proofFile) {
+      if (!["image/jpeg", "image/png", "application/pdf"].includes(proofFile.type) || proofFile.size > 5 * 1024 * 1024) {
+        toast.error("نوع أو حجم إثبات الدفع غير صالح", { description: "استخدم PDF أو JPG أو PNG بحجم لا يتجاوز 5MB." });
+        return;
+      }
+      const bytes = new Uint8Array(await proofFile.arrayBuffer());
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 0x8000) {
+        const chunk = bytes.subarray(index, index + 0x8000);
+        for (let offset = 0; offset < chunk.length; offset += 1) binary += String.fromCharCode(chunk[offset] ?? 0);
+      }
+      proof = { fileName: proofFile.name, contentType: proofFile.type as "image/jpeg" | "image/png" | "application/pdf", base64: btoa(binary) };
+    }
+    createTransferRequest.mutate({ productCode: "MIDAD-001", ...form, proof }, {
+      onSuccess: ({ requestId }) => {
+        setTransferSent(requestId);
+        toast.success("تم تسجيل طلبك للمراجعة", { description: "سنراجع التحويل يدوياً ثم نرسل رابط الملف إلى بريدك." });
+      },
+      onError: () => toast.error("تعذر تسجيل الطلب", { description: "تحقق من البيانات وحاول مرة أخرى." }),
     });
   };
 
@@ -211,6 +259,36 @@ export default function Home() {
       </main>
 
       <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p></footer>
-    </div>
+      {transferOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
+          <div className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-[24px] bg-[#f7f3eb] p-6 text-[#172b3a] shadow-2xl sm:p-9">
+            <div className="flex items-start justify-between gap-5">
+              <div><div className="section-kicker">طلب شراء / تحويل بنكي</div><h2 id="transfer-title" className="mt-3 font-display text-2xl font-black">احجز نسختك بـ 19 درهماً</h2></div>
+              <button type="button" onClick={resetTransferFlow} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج الشراء"><X size={17} /></button>
+            </div>
+            {transferSent ? (
+              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، سنرسل رابط تنزيل PDF إلى بريدك الإلكتروني. لا تعِد إرسال الطلب ما دام قيد المراجعة.</p><button type="button" onClick={resetTransferFlow} className="mt-5 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
+            ) : !showBankDetails ? (
+                <div className="mt-7 space-y-5">
+                  <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل 19 درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>
+                  <button type="button" onClick={() => setShowBankDetails(true)} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d]">إظهار تعليمات التحويل</button>
+                </div>
+              ) : (
+              <form onSubmit={handleTransferSubmit} className="mt-7 space-y-4">
+                <button type="button" onClick={() => setShowBankDetails(false)} className="inline-flex items-center gap-2 text-xs font-extrabold text-[#89663b] hover:text-[#172b3a]"><ArrowUpLeft size={14} /> العودة إلى تعليمات التحويل</button>
+                <div className="rounded-[16px] border border-[#b9854a]/35 bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]"><strong className="text-[#172b3a]">بيانات التحويل:</strong><br />المستفيد: M MOUHAMITI ABDELLAH<br />RIB: 007430000270870030001970<br /><span className="text-[#89663b]">المبلغ: 19 درهماً · احتفظ بمرجع العملية.</span></div>
+                <label className="block text-sm font-bold">الاسم الكامل<input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
+                <label className="block text-sm font-bold">البريد الإلكتروني<input required type="email" value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
+                <label className="block text-sm font-bold">الهاتف <span className="font-normal text-[#768087]">(اختياري)</span><input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
+                <label className="block text-sm font-bold">مرجع التحويل أو رقم العملية<input required value={form.transactionReference} onChange={(e) => setForm({ ...form, transactionReference: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
+                <label className="block text-sm font-bold">إثبات الدفع <span className="font-normal text-[#768087]">(PDF أو JPG أو PNG، حتى 5MB)</span><input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} className="mt-2 block w-full rounded-[12px] border border-dashed border-[#d9d0c2] bg-white px-4 py-3 text-sm" /></label>
+                <button disabled={createTransferRequest.isPending} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-60">{createTransferRequest.isPending ? "جارٍ تسجيل الطلب…" : "إرسال طلب المراجعة"}</button>
+                <p className="text-center font-body text-[11px] leading-[1.8] text-[#8b9290]">التسليم ليس فورياً؛ يتم إرسال الرابط بعد التحقق اليدوي من التحويل. يمكنك إغلاق النافذة وإعادة المحاولة دون فقدان بياناتك.</p>
+              </form>
+              )}
+          </div>
+        </div>
+      )}
+      </div>
   );
 }

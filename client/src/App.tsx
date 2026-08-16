@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 // This shell keeps the public experience focused: one RTL landing page, one clear CTA,
 // and no distracting route branches before checkout is connected.
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={Home} />
