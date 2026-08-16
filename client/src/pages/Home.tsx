@@ -263,6 +263,18 @@ export default function Home() {
       </main>
 
       <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p></footer>
+
+      <a
+        href="https://wa.me/212664173090?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20MIDAD-001"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="تواصل معنا عبر واتساب"
+        title="تواصل معنا عبر واتساب"
+        className="fixed bottom-5 left-5 z-[60] inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_12px_30px_rgba(37,211,102,0.32)] transition duration-200 hover:scale-105 hover:bg-[#1ebe5d] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/35 active:scale-95 sm:bottom-7 sm:left-7"
+      >
+        <svg viewBox="0 0 32 32" className="h-7 w-7 fill-current" aria-hidden="true" focusable="false"><path d="M16 3.2A12.7 12.7 0 0 0 5 22.2L3.3 28.7l6.7-1.7A12.8 12.8 0 1 0 16 3.2Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-3.9 1 1-3.8-.3-.4a10.2 10.2 0 1 1 9.2 4.9Zm5.6-7.6c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-1.6-.8-2.7-1.5-3.8-3.2-.3-.5.3-.5.8-1.7.1-.2.1-.4 0-.6l-.6-1.5c-.2-.4-.4-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.1 3.3 5.2 4.6 1.9.8 2.6.9 3.5.8.6-.1 1.9-.8 2.1-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.2-.6-.3Z" /></svg>
+      </a>
+
       {transferOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
           <div className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-[24px] bg-[#f7f3eb] p-6 text-[#172b3a] shadow-2xl sm:p-9">
