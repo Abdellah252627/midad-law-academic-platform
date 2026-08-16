@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, getPurchaseRequestById } from "./db";
+import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, getPurchaseRequestById, getSampleDownloadLeads } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -10,6 +10,19 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } as const;
 const SAMPLE_PDF_KEYS = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" } as const;
 const SAMPLE_CONSENT_VERSION = "2026-08-16";
+
+function csvCell(value: string | number | Date | null) {
+  const raw = value instanceof Date ? value.toISOString() : String(value ?? "");
+  const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+export function buildSampleLeadsCsv(leads: Array<{ id: number; productCode: string; fullName: string; email: string; whatsapp: string; consentVersion: string; createdAt: Date }>) {
+  const header = ["المعرف", "المنتج", "الاسم الكامل", "البريد الإلكتروني", "واتساب", "نسخة الموافقة", "تاريخ التسجيل"];
+  const rows = leads.map(lead => [lead.id, lead.productCode, lead.fullName, lead.email, lead.whatsapp, lead.consentVersion, lead.createdAt]);
+  const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
+  return `\uFEFF${csv}`;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -42,6 +55,16 @@ export const appRouter = router({
         });
         return { success: true as const, url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
       }),
+  }),
+  admin: router({
+    sampleLeads: adminProcedure.query(async () => {
+      const leads = await getSampleDownloadLeads();
+      return { leads, total: leads.length };
+    }),
+    sampleLeadsCsv: adminProcedure.query(async () => {
+      const leads = await getSampleDownloadLeads();
+      return { filename: `midad-sample-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
+    }),
   }),
   purchase: router({
     createTransferRequest: publicProcedure
