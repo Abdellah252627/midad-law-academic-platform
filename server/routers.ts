@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getLandingAdminContent, getPublishedLandingContent, getPurchaseRequestById, getSampleDownloadLeads, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
+import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getLandingAdminContent, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeads, rejectPurchaseRequest, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -74,6 +74,27 @@ export const appRouter = router({
       const leads = await getSampleDownloadLeads();
       return { filename: `midad-sample-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
     }),
+    purchaseRequests: adminProcedure.query(async () => {
+      const requests = await getPurchaseRequests();
+      return { requests, total: requests.length };
+    }),
+    purchaseProofUrl: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).query(async ({ input }) => {
+      const request = await getPurchaseRequestById(input.requestId);
+      if (!request?.proofKey) return { url: null };
+      return { url: await storageGetSignedUrl(request.proofKey), contentType: request.proofContentType };
+    }),
+    approvePurchase: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const request = await approvePurchaseRequest(input.requestId, ctx.user.id);
+      if (!request) throw new Error("طلب الشراء غير موجود");
+      const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+      if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
+      return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+    }),
+    rejectPurchase: adminProcedure.input(z.object({ requestId: z.number().int().positive(), reason: z.string().trim().min(3).max(500) })).mutation(async ({ input, ctx }) => {
+      const request = await rejectPurchaseRequest(input.requestId, input.reason, ctx.user.id);
+      if (!request) throw new Error("طلب الشراء غير موجود");
+      return { success: true as const, requestId: request.id };
+    }),
   }),
   purchase: router({
     createTransferRequest: publicProcedure
@@ -107,6 +128,7 @@ export const appRouter = router({
           customerPhone: input.customerPhone || null,
           transactionReference: input.transactionReference,
           proofKey,
+          proofContentType: input.proof?.contentType ?? null,
           status: "pending",
         });
         return { success: true as const, requestId: result.id };

@@ -22,6 +22,20 @@
       "when": 1786885387330,
       "tag": "0002_purple_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786895000000,
+      "tag": "0003_bootstrap_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786911479727,
+      "tag": "0004_sad_vulture",
+      "breakpoints": true
     }
   ]
 }

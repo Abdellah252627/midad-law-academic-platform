@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { FileCog, LogOut, PanelLeft, ShieldAlert, Users } from "lucide-react";
+import { FileCog, LogOut, PanelLeft, ReceiptText, ShieldAlert, UserRound, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -29,6 +29,7 @@ import { Button } from "./ui/button";
 
 const menuItems = [
   { icon: FileCog, label: "إدارة صفحة الهبوط", path: "/admin" },
+  { icon: ReceiptText, label: "طلبات الشراء والدفع", path: "/admin/purchases" },
   { icon: Users, label: "بيانات المهتمين", path: "/admin/leads" },
 ];
 
@@ -224,11 +225,18 @@ function DashboardLayoutContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
+                  onClick={() => setLocation("/admin/account")}
+                  className="cursor-pointer"
+                >
+                  <UserRound className="mr-2 h-4 w-4" />
+                  <span>حسابي</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>تسجيل الخروج</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

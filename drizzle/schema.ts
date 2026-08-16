@@ -20,7 +20,10 @@ export const purchaseRequests = mysqlTable("purchase_requests", {
   customerPhone: varchar("customerPhone", { length: 32 }),
   transactionReference: varchar("transactionReference", { length: 120 }).notNull(),
   proofKey: varchar("proofKey", { length: 512 }),
+  proofContentType: varchar("proofContentType", { length: 80 }),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  rejectionReason: varchar("rejectionReason", { length: 500 }),
+  reviewedByUserId: int("reviewedByUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   reviewedAt: timestamp("reviewedAt"),
 });

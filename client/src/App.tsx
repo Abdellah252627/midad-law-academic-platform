@@ -5,7 +5,9 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminAccount from "./pages/AdminAccount";
 import AdminLeads from "./pages/AdminLeads";
+import AdminPurchases from "./pages/AdminPurchases";
 import NotFound from "./pages/NotFound";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
@@ -18,7 +20,9 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/account" component={AdminAccount} />
       <Route path="/admin/leads" component={AdminLeads} />
+      <Route path="/admin/purchases" component={AdminPurchases} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -116,10 +116,23 @@ export async function getPurchaseRequestById(id: number) {
   return rows[0];
 }
 
-export async function approvePurchaseRequest(id: number) {
+export async function getPurchaseRequests() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(purchaseRequests).set({ status: "approved", reviewedAt: new Date() }).where(eq(purchaseRequests.id, id));
+  return db.select().from(purchaseRequests).orderBy(desc(purchaseRequests.createdAt));
+}
+
+export async function approvePurchaseRequest(id: number, reviewedByUserId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(purchaseRequests).set({ status: "approved", rejectionReason: null, reviewedByUserId: reviewedByUserId ?? null, reviewedAt: new Date() }).where(eq(purchaseRequests.id, id));
+  return getPurchaseRequestById(id);
+}
+
+export async function rejectPurchaseRequest(id: number, rejectionReason: string, reviewedByUserId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(purchaseRequests).set({ status: "rejected", rejectionReason, reviewedByUserId: reviewedByUserId ?? null, reviewedAt: new Date() }).where(eq(purchaseRequests.id, id));
   return getPurchaseRequestById(id);
 }
 
