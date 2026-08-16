@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
+import { InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, landingChapters, landingFaqs, landingProducts, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -123,4 +123,71 @@ export async function approvePurchaseRequest(id: number) {
   return getPurchaseRequestById(id);
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getPublishedLandingContent(productCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const [productRows, chapters, faqs] = await Promise.all([
+    db.select().from(landingProducts).where(eq(landingProducts.productCode, productCode)).limit(1),
+    db.select().from(landingChapters).where(eq(landingChapters.productCode, productCode)).orderBy(asc(landingChapters.sortOrder)),
+    db.select().from(landingFaqs).where(eq(landingFaqs.productCode, productCode)).orderBy(asc(landingFaqs.sortOrder)),
+  ]);
+  return {
+    product: productRows.find(row => row.isPublished === 1),
+    chapters: chapters.filter(row => row.isPublished === 1),
+    faqs: faqs.filter(row => row.isPublished === 1),
+  };
+}
+
+export async function getLandingAdminContent(productCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const [products, chapters, faqs] = await Promise.all([
+    db.select().from(landingProducts).where(eq(landingProducts.productCode, productCode)).limit(1),
+    db.select().from(landingChapters).where(eq(landingChapters.productCode, productCode)).orderBy(asc(landingChapters.sortOrder)),
+    db.select().from(landingFaqs).where(eq(landingFaqs.productCode, productCode)).orderBy(asc(landingFaqs.sortOrder)),
+  ]);
+  return { product: products[0], chapters, faqs };
+}
+
+export async function saveLandingProduct(input: InsertLandingProduct) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(landingProducts).values(input).onDuplicateKeyUpdate({
+    set: { title: input.title, category: input.category, university: input.university, track: input.track ?? null, description: input.description, priceMad: input.priceMad, isPublished: input.isPublished ?? 1 },
+  });
+}
+
+export async function saveLandingChapter(input: InsertLandingChapter) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (input.id) {
+    await db.update(landingChapters).set({ productCode: input.productCode, chapterNumber: input.chapterNumber, title: input.title, excerpt: input.excerpt, questionsJson: input.questionsJson, sortOrder: input.sortOrder, isPublished: input.isPublished ?? 1 }).where(eq(landingChapters.id, input.id));
+    return input.id;
+  }
+  const result = await db.insert(landingChapters).values(input);
+  return Number(result[0].insertId);
+}
+
+export async function deleteLandingChapter(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(landingChapters).where(eq(landingChapters.id, id));
+}
+
+export async function saveLandingFaq(input: InsertLandingFaq) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (input.id) {
+    await db.update(landingFaqs).set({ productCode: input.productCode, question: input.question, answer: input.answer, sortOrder: input.sortOrder, isPublished: input.isPublished ?? 1 }).where(eq(landingFaqs.id, input.id));
+    return input.id;
+  }
+  const result = await db.insert(landingFaqs).values(input);
+  return Number(result[0].insertId);
+}
+
+export async function deleteLandingFaq(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(landingFaqs).where(eq(landingFaqs.id, id));
+}
+

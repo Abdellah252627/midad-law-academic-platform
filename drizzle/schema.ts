@@ -35,9 +35,48 @@ export const sampleDownloadLeads = mysqlTable("sample_download_leads", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const landingProducts = mysqlTable("landing_products", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull().unique(),
+  title: varchar("title", { length: 220 }).notNull(),
+  category: varchar("category", { length: 120 }).notNull(),
+  university: varchar("university", { length: 180 }).notNull(),
+  track: varchar("track", { length: 180 }),
+  description: text("description").notNull(),
+  priceMad: int("priceMad").notNull(),
+  isPublished: int("isPublished").default(1).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const landingChapters = mysqlTable("landing_chapters", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull(),
+  chapterNumber: varchar("chapterNumber", { length: 8 }).notNull(),
+  title: varchar("title", { length: 220 }).notNull(),
+  excerpt: text("excerpt").notNull(),
+  questionsJson: text("questionsJson").notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isPublished: int("isPublished").default(1).notNull(),
+});
+
+export const landingFaqs = mysqlTable("landing_faqs", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull(),
+  question: varchar("question", { length: 300 }).notNull(),
+  answer: text("answer").notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isPublished: int("isPublished").default(1).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
 export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
 export type SampleDownloadLead = typeof sampleDownloadLeads.$inferSelect;
 export type InsertSampleDownloadLead = typeof sampleDownloadLeads.$inferInsert;
+export type LandingProduct = typeof landingProducts.$inferSelect;
+export type InsertLandingProduct = typeof landingProducts.$inferInsert;
+export type LandingChapter = typeof landingChapters.$inferSelect;
+export type InsertLandingChapter = typeof landingChapters.$inferInsert;
+export type LandingFaq = typeof landingFaqs.$inferSelect;
+export type InsertLandingFaq = typeof landingFaqs.$inferInsert;

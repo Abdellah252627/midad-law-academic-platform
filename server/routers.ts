@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, getPurchaseRequestById, getSampleDownloadLeads } from "./db";
+import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getLandingAdminContent, getPublishedLandingContent, getPurchaseRequestById, getSampleDownloadLeads, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -34,6 +34,9 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+  landing: router({
+    published: publicProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getPublishedLandingContent(input.productCode)),
+  }),
   sample: router({
     submitLead: publicProcedure
       .input(z.object({
@@ -57,6 +60,12 @@ export const appRouter = router({
       }),
   }),
   admin: router({
+    landingContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getLandingAdminContent(input.productCode)),
+    saveProduct: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingProduct(input)),
+    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingChapter(input)),
+    deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteLandingChapter(input.id)),
+    saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(({ input }) => saveLandingFaq(input)),
+    deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteLandingFaq(input.id)),
     sampleLeads: adminProcedure.query(async () => {
       const leads = await getSampleDownloadLeads();
       return { leads, total: leads.length };

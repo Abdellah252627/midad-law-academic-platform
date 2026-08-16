@@ -21,8 +21,18 @@ import { toast } from "sonner";
 const bookCover = "/manus-storage/midad-book-cover_a427e97b.png";
 const heroTexture = "/manus-storage/midad-hero-texture_780e9e01.png";
 const brandMark = "/manus-storage/midad-mark_68d51083.png";
+const landingInput = { productCode: "MIDAD-001" as const };
 
-const chapters = [
+function parseQuestions(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+const fallbackChapters = [
   ["01", "مفهوم القانون ووظائفه", "المفاهيم التي تمنحك نقطة البداية."],
   ["02", "القاعدة القانونية وخصائصها", "الإلزام والعموم والتجريد والجزاء."],
   ["03", "تصنيفات القواعد القانونية", "خريطة مختصرة للأنواع والتقسيمات."],
@@ -33,7 +43,7 @@ const chapters = [
   ["08", "الالتزام", "المفهوم والمصادر والآثار."],
 ];
 
-const chapterPreviews = [
+const fallbackChapterPreviews = [
   { number: "01", title: "مفهوم القانون ووظائفه", excerpt: "القانون مجموعة قواعد عامة ومجردة تهدف إلى تنظيم سلوك الأفراد داخل المجتمع، وتستمد أهميتها من اقترانها بجزاء يضمن احترامها.", questions: ["ما الفرق بين القاعدة القانونية والقاعدة الأخلاقية؟", "ما الوظيفة التي يحققها القانون داخل المجتمع؟"] },
   { number: "02", title: "القاعدة القانونية وخصائصها", excerpt: "تتميز القاعدة القانونية بالعموم والتجريد والإلزام، ولا تخاطب شخصاً بعينه أو واقعة منفردة، بل تضع نموذجاً ينطبق على الحالات المتشابهة.", questions: ["ماذا نعني بكون القاعدة القانونية عامة ومجردة؟", "ما المقصود بالجزاء القانوني؟"] },
   { number: "03", title: "تصنيفات القواعد القانونية", excerpt: "يساعد تصنيف القواعد إلى آمرة ومكملة، وإلى موضوعية وشكلية، على فهم نطاق تطبيقها ومعرفة ما إذا كان يجوز للأفراد الاتفاق على مخالفتها.", questions: ["كيف تميز القاعدة الآمرة عن القاعدة المكملة؟", "لماذا يفيد تقسيم القانون إلى قواعد موضوعية وشكلية؟"] },
@@ -44,7 +54,7 @@ const chapterPreviews = [
   { number: "08", title: "الالتزام", excerpt: "الالتزام رابطة قانونية بين دائن ومدين، يلتزم بموجبها المدين بأداء عمل أو الامتناع عنه أو نقل حق، ويقابلها حق للدائن في المطالبة بالتنفيذ.", questions: ["ما أطراف الالتزام وما محله؟", "ما الفرق بين الالتزام المدني والالتزام الطبيعي؟"] },
 ];
 
-const faqs = [
+const fallbackFaqs = [
   ["هل هذا ملخص رسمي صادر عن جامعة ابن زهر؟", "لا. هذا منتج تعليمي رقمي أصلي مستقل، موجّه إلى الطلبة للمراجعة الذاتية. لا يمثل مقرراً رسمياً أو وثيقة صادرة عن الجامعة، ولا يعني أن الجامعة راجعت المنتج أو اعتمدته."],
   ["هل يضمن الملخص النجاح في الامتحان؟", "لا يمكن لأي ملخص أن يضمن نتيجة امتحان. صُمّم المنتج للمساعدة في الفهم والتنظيم والمراجعة، ويُفضّل استخدامه إلى جانب المحاضرات والمراجع التي يحددها الأستاذ."],
   ["هل يمكنني قراءة الملف على الهاتف؟", "نعم. الملف بصيغة PDF ومهيأ للقراءة الرقمية بالعربية، مع تنسيق مناسب للهاتف والحاسوب والطباعة الشخصية."],
@@ -87,6 +97,18 @@ export default function Home() {
   // startLogin() during render (no href={startLogin()}) — it mints a one-time
   // nonce cookie and must run only at the moment of navigation.
   let { user, loading, error, isAuthenticated, logout } = useAuth();
+  const landingQuery = trpc.landing.published.useQuery(landingInput, { retry: false });
+  const publishedProduct = landingQuery.data?.product;
+  const productPriceMad = publishedProduct?.priceMad ?? 19;
+  const chapters = landingQuery.data?.chapters?.length
+    ? landingQuery.data.chapters.map(chapter => [chapter.chapterNumber, chapter.title, chapter.excerpt] as [string, string, string])
+    : fallbackChapters;
+  const chapterPreviews = landingQuery.data?.chapters?.length
+    ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, questions: parseQuestions(chapter.questionsJson) }))
+    : fallbackChapterPreviews;
+  const faqs = landingQuery.data?.faqs?.length
+    ? landingQuery.data.faqs.map(faq => [faq.question, faq.answer] as [string, string])
+    : fallbackFaqs;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -252,7 +274,7 @@ export default function Home() {
               <div className="mt-12 flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-[#d9d0c2] pt-6 text-[12px] font-bold text-[#68747a]">
                 <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> PDF مهيأ للهاتف</span>
                 <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> مراجعة تطبيقية</span>
-                <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> 19 درهماً</span>
+                <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> {productPriceMad} درهماً</span>
               </div>
             </div>
 
@@ -391,20 +413,20 @@ export default function Home() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="transfer-title">
           <div className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-[24px] bg-[#f7f3eb] p-6 text-[#172b3a] shadow-2xl sm:p-9">
             <div className="flex items-start justify-between gap-5">
-              <div><div className="section-kicker">طلب شراء / تحويل بنكي</div><h2 id="transfer-title" className="mt-3 font-display text-2xl font-black">احجز نسختك بـ 19 درهماً</h2></div>
+              <div><div className="section-kicker">طلب شراء / تحويل بنكي</div><h2 id="transfer-title" className="mt-3 font-display text-2xl font-black">احجز نسختك بـ {productPriceMad} درهماً</h2></div>
               <button type="button" onClick={resetTransferFlow} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج الشراء"><X size={17} /></button>
             </div>
             {transferSent ? (
               <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
             ) : !showBankDetails ? (
                 <div className="mt-7 space-y-5">
-                  <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل 19 درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>
+                  <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل {productPriceMad} درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>
                   <button type="button" onClick={() => setShowBankDetails(true)} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d]">إظهار تعليمات التحويل</button>
                 </div>
               ) : (
               <form onSubmit={handleTransferSubmit} className="mt-7 space-y-4">
                 <button type="button" onClick={() => setShowBankDetails(false)} className="inline-flex items-center gap-2 text-xs font-extrabold text-[#89663b] hover:text-[#172b3a]"><ArrowUpLeft size={14} /> العودة إلى تعليمات التحويل</button>
-                <div className="rounded-[16px] border border-[#b9854a]/35 bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]"><strong className="text-[#172b3a]">بيانات التحويل:</strong><br />المستفيد: M MOUHAMITI ABDELLAH<br />RIB: 007430000270870030001970<br /><span className="text-[#89663b]">المبلغ: 19 درهماً · احتفظ بمرجع العملية.</span></div>
+                <div className="rounded-[16px] border border-[#b9854a]/35 bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]"><strong className="text-[#172b3a]">بيانات التحويل:</strong><br />المستفيد: M MOUHAMITI ABDELLAH<br />RIB: 007430000270870030001970<br /><span className="text-[#89663b]">المبلغ: {productPriceMad} درهماً · احتفظ بمرجع العملية.</span></div>
                 <label className="block text-sm font-bold">الاسم الكامل<input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">البريد الإلكتروني<input required type="email" value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">الهاتف <span className="font-normal text-[#768087]">(اختياري)</span><input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
