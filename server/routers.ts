@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getActiveProductFile, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeads, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getActiveProductFile, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -69,6 +69,7 @@ export const appRouter = router({
   }),
   admin: router({
     landingContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getLandingAdminContent(input.productCode)),
+    previewContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(async ({ input }) => { const content = await getLandingAdminContent(input.productCode); return { product: content?.product, chapters: (content?.chapters ?? []).filter(item => !item.deletedAt), faqs: (content?.faqs ?? []).filter(item => !item.deletedAt) }; }),
     saveProduct: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { await saveLandingProduct(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_product", entityId: input.productCode, productCode: input.productCode, metadataJson: JSON.stringify({ priceMad: input.priceMad, isPublished: input.isPublished }) }); return { success: true as const }; }),
     saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
     deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_chapter", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
@@ -76,13 +77,20 @@ export const appRouter = router({
     saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingFaq(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_faq", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ isPublished: input.isPublished }) }); return id; }),
     deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
     restoreFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await restoreLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
-    sampleLeads: adminProcedure.query(async () => {
-      const leads = await getSampleDownloadLeads();
-      return { leads, total: leads.length };
+    sampleLeads: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), productCode: z.literal("MIDAD-001").optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(25) }).optional()).query(async ({ input }) => {
+      const options = input ?? { page: 1, pageSize: 25 };
+      const [leads, total] = await Promise.all([getSampleDownloadLeads(options), getSampleDownloadLeadCount(options)]);
+      return { leads, total, page: options.page, pageSize: options.pageSize, totalPages: Math.max(1, Math.ceil(total / options.pageSize)) };
     }),
     sampleLeadsCsv: adminProcedure.query(async () => {
       const leads = await getSampleDownloadLeads();
       return { filename: `midad-sample-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
+    }),
+    sampleLeadsSelectedCsv: adminProcedure.input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(500) })).mutation(async ({ input }) => {
+      const uniqueIds = Array.from(new Set(input.ids));
+      const leads = await getSampleDownloadLeadsByIds(uniqueIds);
+      if (leads.length !== uniqueIds.length) throw new Error("بعض التسجيلات المحددة غير موجودة أو محذوفة");
+      return { filename: `midad-selected-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
     }),
     purchaseRequests: adminProcedure.query(async () => {
       const requests = await getPurchaseRequests();

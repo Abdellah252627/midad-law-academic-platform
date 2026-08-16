@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { AuditLog, InsertAuditLog, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -103,10 +103,41 @@ export async function createSampleDownloadLead(input: InsertSampleDownloadLead) 
   return { id: Number(result[0].insertId) };
 }
 
-export async function getSampleDownloadLeads() {
+export async function getSampleDownloadLeads(options?: { search?: string; productCode?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(sampleDownloadLeads).where(isNull(sampleDownloadLeads.deletedAt)).orderBy(desc(sampleDownloadLeads.createdAt));
+  const conditions = [isNull(sampleDownloadLeads.deletedAt)];
+  const search = options?.search?.trim();
+  if (search) {
+    conditions.push(like(sampleDownloadLeads.fullName, `%${search}%`));
+  }
+  if (options?.productCode) {
+    conditions.push(eq(sampleDownloadLeads.productCode, options.productCode));
+  }
+  const pageSize = Math.min(Math.max(options?.pageSize ?? 25, 1), 100);
+  const page = Math.max(options?.page ?? 1, 1);
+  const offset = (page - 1) * pageSize;
+  return db.select().from(sampleDownloadLeads).where(and(...conditions)).orderBy(desc(sampleDownloadLeads.createdAt)).limit(pageSize).offset(offset);
+}
+
+export async function getSampleDownloadLeadsByIds(ids: number[]) {
+  if (!ids.length) return [];
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(sampleDownloadLeads)
+    .where(and(inArray(sampleDownloadLeads.id, ids), isNull(sampleDownloadLeads.deletedAt)))
+    .orderBy(desc(sampleDownloadLeads.createdAt));
+}
+
+export async function getSampleDownloadLeadCount(options?: { search?: string; productCode?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const conditions = [isNull(sampleDownloadLeads.deletedAt)];
+  const search = options?.search?.trim();
+  if (search) conditions.push(like(sampleDownloadLeads.fullName, `%${search}%`));
+  if (options?.productCode) conditions.push(eq(sampleDownloadLeads.productCode, options.productCode));
+  const rows = await db.select({ total: count() }).from(sampleDownloadLeads).where(and(...conditions));
+  return Number(rows[0]?.total ?? 0);
 }
 
 export async function getProductFiles(productCode: string) {

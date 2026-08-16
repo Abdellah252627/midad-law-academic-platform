@@ -123,6 +123,15 @@ describe("admin landing content procedures", () => {
     expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.restore", entityType: "landing_faq", entityId: "9" }));
   });
 
+  it("returns a safe empty preview when the draft product is missing", async () => {
+    vi.mocked(db.getLandingAdminContent).mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(adminContext);
+    const preview = await caller.admin.previewContent({ productCode: "MIDAD-001" });
+    expect(preview.product).toBeUndefined();
+    expect(preview.chapters).toEqual([]);
+    expect(preview.faqs).toEqual([]);
+  });
+
   it("keeps public content limited to the published result", async () => {
     const caller = appRouter.createCaller(anonymousContext);
     const content = await caller.landing.published({ productCode: "MIDAD-001" });

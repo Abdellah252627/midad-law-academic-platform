@@ -10,6 +10,7 @@ import AdminLeads from "./pages/AdminLeads";
 import AdminPurchases from "./pages/AdminPurchases";
 import AdminFiles from "./pages/AdminFiles";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
+import AdminPreview from "./pages/AdminPreview";
 import NotFound from "./pages/NotFound";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/admin/purchases" component={AdminPurchases} />
       <Route path="/admin/files" component={AdminFiles} />
       <Route path="/admin/audit-logs" component={AdminAuditLogs} />
+      <Route path="/admin/preview" component={AdminPreview} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

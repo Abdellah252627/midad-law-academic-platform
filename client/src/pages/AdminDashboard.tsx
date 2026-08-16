@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { Link } from "wouter";
 import { Check, FileText, HelpCircle, Loader2, RotateCcw, Save, Settings2, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -42,7 +43,7 @@ function AdminDashboardContent() {
   return <div dir="rtl" className="mx-auto max-w-7xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
       <p className="text-xs font-bold tracking-[0.18em] text-[#d5a15f]">MIDAD / CONTROL CENTER</p>
-      <div className="mt-2 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="font-display text-3xl font-bold">إدارة صفحة الهبوط</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">عدّل المحتوى من هنا ثم انشره للزوار دون تعديل الكود. لا تظهر هذه الواجهة إلا لحسابات الإدارة.</p></div><span className="rounded-full bg-white/10 px-4 py-2 text-xs font-bold">{productCode}</span></div>
+      <div className="mt-2 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="font-display text-3xl font-bold">إدارة صفحة الهبوط</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">عدّل المحتوى من هنا ثم انشره للزوار دون تعديل الكود. لا تظهر هذه الواجهة إلا لحسابات الإدارة.</p></div><div className="flex flex-wrap items-center gap-2"><Link href="/admin/preview" className="inline-flex items-center gap-2 rounded-full bg-[#d5a15f] px-4 py-2 text-xs font-bold text-[#173247] transition hover:bg-[#e2b875]">معاينة قبل النشر</Link><span className="rounded-full bg-white/10 px-4 py-2 text-xs font-bold">{productCode}</span></div></div>
     </header>
     <nav className="grid gap-3 sm:grid-cols-3" aria-label="أقسام إدارة المحتوى">
       {[ ["product", Settings2, "بيانات المنتج"], ["chapters", FileText, "المعاينات"], ["faqs", HelpCircle, "الأسئلة الشائعة"] ].map(([key, Icon, label]) => <button key={key as string} onClick={() => setTab(key as Tab)} className={`flex items-center gap-3 rounded-2xl border p-4 text-right transition ${tab === key ? "border-[#b9854a] bg-[#fffaf2] text-[#173247] shadow-sm" : "border-[#e3d9ca] bg-white text-[#68747a] hover:border-[#b9854a]/60"}`}><Icon className="h-5 w-5" /><span className="font-bold">{label as string}</span></button>)}

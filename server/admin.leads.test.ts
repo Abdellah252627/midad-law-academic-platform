@@ -4,7 +4,7 @@ import { appRouter, buildSampleLeadsCsv } from "./routers";
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
-  return { ...actual, getSampleDownloadLeads: vi.fn() };
+  return { ...actual, getSampleDownloadLeads: vi.fn(), getSampleDownloadLeadCount: vi.fn(), getSampleDownloadLeadsByIds: vi.fn() };
 });
 import type { TrpcContext } from "./_core/context";
 
@@ -39,12 +39,25 @@ const sampleRows = [{
 describe("admin leads protection and CSV", () => {
   beforeEach(() => {
     vi.mocked(db.getSampleDownloadLeads).mockResolvedValue(sampleRows);
+    vi.mocked(db.getSampleDownloadLeadCount).mockResolvedValue(1);
+    vi.mocked(db.getSampleDownloadLeadsByIds).mockResolvedValue(sampleRows);
   });
 
   it("returns leads and total for an admin", async () => {
     const caller = appRouter.createCaller(adminContext);
     const result = await caller.admin.sampleLeads();
-    expect(result).toEqual({ leads: sampleRows, total: 1 });
+    expect(result).toEqual({ leads: sampleRows, total: 1, page: 1, pageSize: 25, totalPages: 1 });
+  });
+
+  it("forwards search and pagination inputs for an admin", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    vi.mocked(db.getSampleDownloadLeads).mockResolvedValue(sampleRows);
+    vi.mocked(db.getSampleDownloadLeadCount).mockResolvedValue(26);
+    const result = await caller.admin.sampleLeads({ search: "طالب", page: 2, pageSize: 25 });
+    expect(db.getSampleDownloadLeads).toHaveBeenCalledWith({ search: "طالب", page: 2, pageSize: 25 });
+    expect(db.getSampleDownloadLeadCount).toHaveBeenCalledWith({ search: "طالب", page: 2, pageSize: 25 });
+    expect(result.totalPages).toBe(2);
+    expect(result.page).toBe(2);
   });
 
   it("returns a dated UTF-8 CSV file for an admin", async () => {
@@ -53,6 +66,20 @@ describe("admin leads protection and CSV", () => {
     expect(result.filename).toMatch(/^midad-sample-leads-\d{4}-\d{2}-\d{2}\.csv$/);
     expect(result.csv).toContain("طالب قانون");
     expect(result.csv.startsWith("\uFEFF")).toBe(true);
+  });
+
+  it("exports only selected leads and deduplicates ids", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    const result = await caller.admin.sampleLeadsSelectedCsv({ ids: [1, 1] });
+    expect(db.getSampleDownloadLeadsByIds).toHaveBeenCalledWith([1]);
+    expect(result.filename).toMatch(/^midad-selected-leads-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(result.csv).toContain("طالب قانون");
+  });
+
+  it("rejects selected export when any requested lead is missing", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    vi.mocked(db.getSampleDownloadLeadsByIds).mockResolvedValue([]);
+    await expect(caller.admin.sampleLeadsSelectedCsv({ ids: [999] })).rejects.toThrow("بعض التسجيلات المحددة");
   });
 
   it("rejects anonymous access to leads and CSV procedures", async () => {
@@ -65,6 +92,7 @@ describe("admin leads protection and CSV", () => {
     const caller = appRouter.createCaller(userContext);
     await expect(caller.admin.sampleLeads()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.sampleLeadsCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.sampleLeadsSelectedCsv({ ids: [1] })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("adds UTF-8 BOM, escapes CSV values, and neutralizes spreadsheet formulas", () => {
