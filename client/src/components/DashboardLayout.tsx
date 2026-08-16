@@ -72,6 +72,9 @@ export default function DashboardLayout({
             <p dir="rtl" className="text-sm text-muted-foreground text-center max-w-sm">
               هذه اللوحة مخصصة لحسابات الإدارة. تابع لفتح صفحة تسجيل الدخول الآمنة.
             </p>
+            <p dir="rtl" role="note" className="max-w-sm text-center text-xs leading-6 text-muted-foreground">
+              إذا تعذر التحقق الخارجي أو ظهرت رسالة CAPTCHA، أعد المحاولة من متصفح بشري صالح دون تعطيل الحماية أو تجاوزها.
+            </p>
           </div>
           <Button
             onClick={() => startLogin()}
@@ -91,6 +94,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider
+      className="relative isolate"
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
@@ -163,7 +167,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r-0"
+          className="border-r-0 z-30"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-16 justify-center">
@@ -256,9 +260,9 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset className="min-w-0 w-full overflow-x-hidden">
+      <SidebarInset className="relative z-0 min-w-0 w-full overflow-x-hidden">
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="relative z-40 flex h-14 items-center justify-between border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <div className="flex items-center gap-3">
