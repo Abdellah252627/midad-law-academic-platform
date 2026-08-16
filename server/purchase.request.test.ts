@@ -35,15 +35,14 @@ describe("purchase.createTransferRequest", () => {
     })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("rejects a different product code", async () => {
+  it("accepts a valid product code without forcing MIDAD-001", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     await expect(caller.purchase.createTransferRequest({
-      // @ts-expect-error intentional invalid literal for runtime validation
       productCode: "OTHER-001",
       customerName: "طالب قانون",
       customerEmail: "student@example.com",
       transactionReference: "TX-1234",
-    })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    })).resolves.toEqual({ success: true, requestId: 42 });
   });
 
   it("blocks download until the request is approved", async () => {

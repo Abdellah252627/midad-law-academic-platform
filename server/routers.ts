@@ -1,14 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
 const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } as const;
-const SAMPLE_PDF_KEYS = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" } as const;
+const SAMPLE_PDF_KEYS: Record<string, string> = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" };
+const PRODUCT_CODE_SCHEMA = z.string().trim().regex(/^[A-Z0-9-]{3,32}$/, "رمز المنتج غير صالح");
 const SAMPLE_CONSENT_VERSION = "2026-08-16";
 
 function csvCell(value: string | number | Date | null) {
@@ -35,13 +36,13 @@ export const appRouter = router({
     }),
   }),
   analytics: router({
-    track: publicProcedure.input(z.object({ eventType: z.enum(["page_view", "sample_download"]), productCode: z.literal("MIDAD-001"), visitorKey: z.string().trim().min(16).max(120) })).mutation(async ({ input }) => {
+    track: publicProcedure.input(z.object({ eventType: z.enum(["page_view", "sample_download"]), productCode: PRODUCT_CODE_SCHEMA, visitorKey: z.string().trim().min(16).max(120) })).mutation(async ({ input }) => {
       await createAnalyticsEvent(input);
       return { success: true as const };
     }),
   }),
   landing: router({
-    published: publicProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(async ({ input }) => {
+    published: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(async ({ input }) => {
       const content = await getPublishedLandingContent(input.productCode);
       const activeCover = await getActiveProductFile(input.productCode, "cover");
       return {
@@ -54,7 +55,7 @@ export const appRouter = router({
   sample: router({
     submitLead: publicProcedure
       .input(z.object({
-        productCode: z.literal("MIDAD-001"),
+        productCode: PRODUCT_CODE_SCHEMA,
         fullName: z.string().trim().min(2).max(160).transform(value => value.replace(/\s+/g, " ")).refine(value => value.split(" ").filter(Boolean).length >= 2 && /^[A-Za-z\u0600-\u06FF ]+$/.test(value), "الاسم الكامل غير صالح"),
         email: z.string().trim().email().max(320),
         whatsapp: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).refine(value => /^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(value), "رقم واتساب غير صالح"),
@@ -76,16 +77,16 @@ export const appRouter = router({
       }),
   }),
   admin: router({
-    landingContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getLandingAdminContent(input.productCode)),
-    previewContent: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(async ({ input }) => { const content = await getLandingAdminContent(input.productCode); return { product: content?.product, chapters: (content?.chapters ?? []).filter(item => !item.deletedAt), faqs: (content?.faqs ?? []).filter(item => !item.deletedAt) }; }),
-    saveProduct: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { await saveLandingProduct(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_product", entityId: input.productCode, productCode: input.productCode, metadataJson: JSON.stringify({ priceMad: input.priceMad, isPublished: input.isPublished }) }); return { success: true as const }; }),
-    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
-    deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_chapter", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
-    restoreChapter: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await restoreLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_chapter", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
-    saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: z.literal("MIDAD-001"), question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingFaq(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_faq", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ isPublished: input.isPublished }) }); return id; }),
-    deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await deleteLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
-    restoreFaq: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await restoreLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_faq", entityId: String(input.id), productCode: "MIDAD-001", metadataJson: null }); return { success: true as const }; }),
-    sampleLeads: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), productCode: z.literal("MIDAD-001").optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(25) }).optional()).query(async ({ input }) => {
+    landingContent: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(({ input }) => getLandingAdminContent(input.productCode)),
+    previewContent: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(async ({ input }) => { const content = await getLandingAdminContent(input.productCode); return { product: content?.product, chapters: (content?.chapters ?? []).filter(item => !item.deletedAt), faqs: (content?.faqs ?? []).filter(item => !item.deletedAt) }; }),
+    saveProduct: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA, title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { await saveLandingProduct(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_product", entityId: input.productCode, productCode: input.productCode, metadataJson: JSON.stringify({ priceMad: input.priceMad, isPublished: input.isPublished }) }); return { success: true as const }; }),
+    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: PRODUCT_CODE_SCHEMA, chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
+    deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await deleteLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_chapter", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
+    restoreChapter: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await restoreLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_chapter", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
+    saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: PRODUCT_CODE_SCHEMA, question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingFaq(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_faq", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ isPublished: input.isPublished }) }); return id; }),
+    deleteFaq: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await deleteLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_faq", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
+    restoreFaq: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await restoreLandingFaq(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_faq", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
+    sampleLeads: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), productCode: PRODUCT_CODE_SCHEMA.optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(25) }).optional()).query(async ({ input }) => {
       const options = input ?? { page: 1, pageSize: 25 };
       const [leads, total] = await Promise.all([getSampleDownloadLeads(options), getSampleDownloadLeadCount(options)]);
       return { leads, total, page: options.page, pageSize: options.pageSize, totalPages: Math.max(1, Math.ceil(total / options.pageSize)) };
@@ -123,14 +124,13 @@ export const appRouter = router({
       await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.reject", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: JSON.stringify({ reason: input.reason }) });
       return { success: true as const, requestId: request.id };
     }),
-    files: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(({ input }) => getProductFiles(input.productCode)),
+    files: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(({ input }) => getProductFiles(input.productCode)),
     fileUrl: adminProcedure.input(z.object({ fileId: z.number().int().positive() })).query(async ({ input }) => {
-      const files = await getProductFiles("MIDAD-001");
-      const file = files.find(item => item.id === input.fileId);
+      const file = await getProductFileById(input.fileId);
       if (!file) throw new Error("الملف غير موجود");
       return { url: await storageGetSignedUrl(file.fileKey), fileName: file.fileName, contentType: file.contentType };
     }),
-    uploadFile: adminProcedure.input(z.object({ productCode: z.literal("MIDAD-001"), fileType: z.enum(["pdf", "cover", "sample"]), fileName: z.string().trim().min(1).max(220), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), base64: z.string().min(100).max(14_000_000) })).mutation(async ({ input, ctx }) => {
+    uploadFile: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA, fileType: z.enum(["pdf", "cover", "sample"]), fileName: z.string().trim().min(1).max(220), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), base64: z.string().min(100).max(14_000_000) })).mutation(async ({ input, ctx }) => {
       const expectedType = input.fileType === "pdf" || input.fileType === "sample" ? "application/pdf" : input.contentType;
       if (input.fileType === "cover" && input.contentType === "application/pdf") throw new Error("صورة الغلاف يجب أن تكون JPG أو PNG");
       if (input.fileType !== "cover" && input.contentType !== "application/pdf") throw new Error("ملف المنتج يجب أن يكون PDF");
@@ -142,10 +142,10 @@ export const appRouter = router({
       await createAuditLog({ actorUserId: ctx.user.id, action: "file.upload", entityType: "product_file", entityId: String(fileId), productCode: input.productCode, metadataJson: JSON.stringify({ fileType: input.fileType, version, fileName: input.fileName }) });
       return { success: true as const, fileId, version };
     }),
-    settings: adminProcedure.query(() => getAppSettings()),
-    saveSetting: adminProcedure.input(z.object({ settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+    settings: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA }).default({ productCode: DEFAULT_PRODUCT_CODE })).query(({ input }) => getAppSettings(input.productCode)),
+    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
       await upsertAppSetting({ ...input, updatedByUserId: ctx.user.id });
-      await createAuditLog({ actorUserId: ctx.user.id, action: "settings.save", entityType: "app_setting", entityId: input.settingKey, productCode: "MIDAD-001", metadataJson: null });
+      await createAuditLog({ actorUserId: ctx.user.id, action: "settings.save", entityType: "app_setting", entityId: input.settingKey, productCode: input.productCode, metadataJson: null });
       return { success: true as const };
     }),
     analyticsSummary: adminProcedure.query(() => getAnalyticsSummary()),
@@ -154,7 +154,7 @@ export const appRouter = router({
   purchase: router({
     createTransferRequest: publicProcedure
       .input(z.object({
-        productCode: z.literal("MIDAD-001"),
+        productCode: PRODUCT_CODE_SCHEMA,
         customerName: z.string().trim().min(2).max(160),
         customerEmail: z.string().trim().email().max(320),
         customerPhone: z.string().trim().max(32).optional(),

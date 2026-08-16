@@ -98,6 +98,7 @@ export const analyticsEvents = mysqlTable("analytics_events", {
 
 export const appSettings = mysqlTable("app_settings", {
   settingKey: varchar("settingKey", { length: 120 }).primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull().default("MIDAD-001"),
   settingValue: text("settingValue").notNull(),
   description: varchar("description", { length: 300 }),
   updatedByUserId: int("updatedByUserId"),

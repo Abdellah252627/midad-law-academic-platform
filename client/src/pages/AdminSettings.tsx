@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { Loader2, Save, Settings2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -14,13 +15,13 @@ const fields = [
 type SettingKey = (typeof fields)[number]["key"];
 
 function AdminSettingsContent() {
-  const query = trpc.admin.settings.useQuery();
+  const query = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
   const utils = trpc.useUtils();
   const save = trpc.admin.saveSetting.useMutation({
     onSuccess: () => {
       toast.success("تم حفظ الإعدادات");
-      void utils.admin.settings.invalidate();
-      void utils.landing.published.invalidate({ productCode: "MIDAD-001" });
+      void utils.admin.settings.invalidate({ productCode: DEFAULT_PRODUCT_CODE });
+      void utils.landing.published.invalidate({ productCode: DEFAULT_PRODUCT_CODE });
     },
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
@@ -44,7 +45,7 @@ function AdminSettingsContent() {
         toast.error(`أدخل قيمة: ${field.label}`);
         return;
       }
-      save.mutate({ settingKey: field.key, settingValue: value, description: field.description });
+      save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: values[field.key].trim(), description: field.description });
     }
   };
 

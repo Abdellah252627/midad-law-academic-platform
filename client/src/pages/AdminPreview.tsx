@@ -2,8 +2,9 @@ import { Link } from "wouter";
 import { ArrowRight, Eye, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 
-const productCode = "MIDAD-001" as const;
+const productCode = DEFAULT_PRODUCT_CODE;
 
 export default function AdminPreview() {
   const query = trpc.admin.previewContent.useQuery({ productCode });

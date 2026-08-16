@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `productCode` varchar(32) DEFAULT 'MIDAD-001' NOT NULL;

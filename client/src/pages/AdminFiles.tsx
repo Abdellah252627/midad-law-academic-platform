@@ -7,8 +7,9 @@ import { AlertCircle, CheckCircle2, FileImage, FileText, Loader2, Upload } from 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 
-const PRODUCT_CODE = "MIDAD-001" as const;
+const PRODUCT_CODE = DEFAULT_PRODUCT_CODE;
 
 type FileType = "pdf" | "cover" | "sample";
 
@@ -60,7 +61,7 @@ export default function AdminFiles() {
   return (
     <div className="space-y-6" dir="rtl">
       <div>
-        <p className="text-sm text-muted-foreground">MIDAD-001</p>
+        <p className="text-sm text-muted-foreground">{PRODUCT_CODE}</p>
         <h1 className="text-2xl font-bold tracking-tight">إدارة الملفات والإصدارات</h1>
         <p className="mt-2 text-sm text-muted-foreground">ارفع نسخة جديدة بدون لمس الكود. النسخة السابقة تبقى محفوظة كسجل تاريخي ولا تُستخدم للتسليم.</p>
       </div>

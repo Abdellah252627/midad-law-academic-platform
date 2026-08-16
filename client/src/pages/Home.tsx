@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -21,7 +22,7 @@ import { toast } from "sonner";
 const bookCover = "/manus-storage/midad-book-cover_a427e97b.png";
 const heroTexture = "/manus-storage/midad-hero-texture_780e9e01.png";
 const brandMark = "/manus-storage/midad-mark_68d51083.png";
-const landingInput = { productCode: "MIDAD-001" as const };
+const landingInput = { productCode: DEFAULT_PRODUCT_CODE };
 
 function parseQuestions(value: string) {
   try {
@@ -103,14 +104,14 @@ export default function Home() {
     const storageKey = "midad-anonymous-visitor";
     const visitorKey = localStorage.getItem(storageKey) ?? crypto.randomUUID();
     localStorage.setItem(storageKey, visitorKey);
-    trackAnalytics.mutate({ eventType: "page_view", productCode: "MIDAD-001", visitorKey });
+    trackAnalytics.mutate({ eventType: "page_view", productCode: DEFAULT_PRODUCT_CODE, visitorKey });
   }, []);
   const publishedProduct = landingQuery.data?.product;
   const activeCoverUrl = landingQuery.data?.coverUrl ?? bookCover;
   const appSettings = landingQuery.data?.settings ?? {};
   const productPriceMad = publishedProduct?.priceMad ?? Number(appSettings.defaultPriceMad ?? 19);
   const whatsappNumber = appSettings.whatsappNumber ?? "0664173090";
-  const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, "").replace(/^0/, "212")}?text=${encodeURIComponent("السلام عليكم، أرغب في الاستفسار عن MIDAD-001")}`;
+  const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, "").replace(/^0/, "212")}?text=${encodeURIComponent("السلام عليكم، أرغب في الاستفسار عن ${DEFAULT_PRODUCT_CODE}")}`;
   const bankBeneficiary = appSettings.bankBeneficiary ?? "M MOUHAMITI ABDELLAH";
   const bankRib = appSettings.bankRib ?? "007430000270870030001970";
   const chapters = landingQuery.data?.chapters?.length
@@ -166,7 +167,7 @@ export default function Home() {
     }
     try {
       const normalizedFullName = sampleForm.fullName.trim().replace(/\s+/g, " ");
-      const result = await submitSampleLead.mutateAsync({ productCode: "MIDAD-001", ...sampleForm, fullName: normalizedFullName, consent: sampleForm.consent });
+      const result = await submitSampleLead.mutateAsync({ productCode: DEFAULT_PRODUCT_CODE, ...sampleForm, fullName: normalizedFullName, consent: sampleForm.consent });
       const link = document.createElement("a");
       link.href = result.url;
       link.target = "_blank";
@@ -202,7 +203,7 @@ export default function Home() {
       }
       proof = { fileName: proofFile.name, contentType: proofFile.type as "image/jpeg" | "image/png" | "application/pdf", base64: btoa(binary) };
     }
-    createTransferRequest.mutate({ productCode: "MIDAD-001", ...form, proof }, {
+    createTransferRequest.mutate({ productCode: DEFAULT_PRODUCT_CODE, ...form, proof }, {
       onSuccess: ({ requestId }) => {
         setTransferSent(requestId);
         toast.success("تم تسجيل طلبك للمراجعة", { description: "سنراجع التحويل يدوياً ثم نرسل رابط الملف إلى بريدك." });
@@ -345,7 +346,7 @@ export default function Home() {
               <div><div className="section-kicker">02 / جرّب قبل أن تشتري</div><h2 className="mt-4 max-w-[650px] font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">قطعة من كل محور،<br /><span className="text-[#b9854a]">لتعرف طريقة مِداد.</span></h2></div>
               <p className="max-w-[380px] font-body text-[15px] leading-[1.95] text-[#68747a]">اقرأ الفكرة، اختبر فهمك، ثم احتفظ بالنسخة الكاملة للمراجعة المنظمة.</p>
             </div>
-            <div className="mb-8 flex flex-col items-start justify-between gap-5 rounded-[18px] border border-[#d8c4a8] bg-[#f4eadb] px-6 py-5 sm:flex-row sm:items-center sm:px-8"><div><p className="font-display text-base font-extrabold text-[#172b3a]">تريد رؤية الملخص قبل الشراء؟</p><p className="mt-1 font-body text-sm leading-[1.8] text-[#68747a]">حمّل عينة مجانية قصيرة من MIDAD-001 وتعرّف على أسلوب التنظيم والشرح.</p></div><button type="button" onClick={() => setSampleOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2"><Download size={16} /> حمّل العينة المجانية</button></div>
+            <div className="mb-8 flex flex-col items-start justify-between gap-5 rounded-[18px] border border-[#d8c4a8] bg-[#f4eadb] px-6 py-5 sm:flex-row sm:items-center sm:px-8"><div><p className="font-display text-base font-extrabold text-[#172b3a]">تريد رؤية الملخص قبل الشراء؟</p><p className="mt-1 font-body text-sm leading-[1.8] text-[#68747a]">حمّل عينة مجانية قصيرة من {DEFAULT_PRODUCT_CODE} وتعرّف على أسلوب التنظيم والشرح.</p></div><button type="button" onClick={() => setSampleOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2"><Download size={16} /> حمّل العينة المجانية</button></div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {chapterPreviews.map((preview) => (
                 <article key={preview.number} className="group flex min-h-[345px] flex-col rounded-[18px] border border-[#ded6c9] bg-[#f7f3eb] p-6 transition duration-300 hover:-translate-y-1 hover:border-[#b9854a]/60 hover:shadow-[0_18px_38px_rgba(23,43,58,0.08)]">
@@ -377,8 +378,8 @@ export default function Home() {
         <section id="purchase" className="relative overflow-hidden bg-[#172b3a] py-24 text-[#f7f3eb] lg:py-32">
           <div className="absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(circle_at_20%_60%,rgba(185,133,74,0.18),transparent_50%)]" />
           <div className="relative mx-auto grid max-w-[1100px] gap-12 px-5 lg:grid-cols-[1fr_380px] lg:items-center lg:px-8">
-            <div><div className="section-kicker text-[#cfa56f]">04 / العرض الأولي</div><h2 className="mt-5 max-w-[600px] font-display text-4xl font-black leading-[1.2] tracking-[-0.05em] md:text-6xl">مراجعتك القادمة<br /><span className="text-[#cfa56f]">تبدأ من هنا.</span></h2><p className="mt-7 max-w-[530px] font-body text-[15px] leading-[2] text-[#c3ced0]">احصل على النسخة الأولى من MIDAD-001 بصيغة PDF، وابدأ بناء صورة أوضح عن مدخل القانون والعلوم القانونية.</p><div className="mt-9 flex flex-wrap gap-5 text-xs font-bold text-[#d5dfdf]"><span className="inline-flex items-center gap-2"><Check size={15} className="text-[#cfa56f]" /> نسخة رقمية عربية</span><span className="inline-flex items-center gap-2"><Check size={15} className="text-[#cfa56f]" /> مراجعة تطبيقية</span></div></div>
-            <div className="relative rounded-[24px] border border-white/15 bg-[#f7f3eb] p-7 text-[#172b3a] shadow-[0_25px_70px_rgba(0,0,0,0.22)] sm:p-9"><div className="flex items-start justify-between"><div><span className="font-display text-[11px] font-black tracking-[0.15em] text-[#b9854a]">MIDAD-001</span><h3 className="mt-3 font-display text-xl font-black leading-[1.4]">مدخل إلى القانون<br />والعلوم القانونية</h3></div><div className="rounded-full bg-[#e8eee9] p-3 text-[#b9854a]"><BookOpen size={19} /></div></div><div className="my-7 border-t border-[#ded6c9]" /><div className="flex items-end justify-between"><div><span className="font-body text-xs text-[#768087]">السعر الأولي</span><div className="mt-1 flex items-baseline gap-2"><span className="font-display text-5xl font-black text-[#172b3a]">19</span><span className="font-display text-sm font-black text-[#b9854a]">درهماً</span></div></div><span className="rounded-full bg-[#b9854a]/10 px-3 py-2 text-[10px] font-extrabold text-[#89663b]">نسخة المراجعة الأولى</span></div><button onClick={handleCheckout} className="mt-8 flex w-full items-center justify-center gap-3 rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] hover:shadow-[0_12px_25px_rgba(185,133,74,0.3)] active:scale-[0.98]">احصل على الملخص الآن <ArrowLeft size={17} /></button><p className="mt-4 text-center font-body text-[11px] leading-[1.8] text-[#8b9290]">الدفع والتسليم الإلكتروني قيد الربط في الإصدار التالي.</p></div>
+            <div><div className="section-kicker text-[#cfa56f]">04 / العرض الأولي</div><h2 className="mt-5 max-w-[600px] font-display text-4xl font-black leading-[1.2] tracking-[-0.05em] md:text-6xl">مراجعتك القادمة<br /><span className="text-[#cfa56f]">تبدأ من هنا.</span></h2><p className="mt-7 max-w-[530px] font-body text-[15px] leading-[2] text-[#c3ced0]">احصل على النسخة الأولى من {DEFAULT_PRODUCT_CODE} بصيغة PDF، وابدأ بناء صورة أوضح عن مدخل القانون والعلوم القانونية.</p><div className="mt-9 flex flex-wrap gap-5 text-xs font-bold text-[#d5dfdf]"><span className="inline-flex items-center gap-2"><Check size={15} className="text-[#cfa56f]" /> نسخة رقمية عربية</span><span className="inline-flex items-center gap-2"><Check size={15} className="text-[#cfa56f]" /> مراجعة تطبيقية</span></div></div>
+            <div className="relative rounded-[24px] border border-white/15 bg-[#f7f3eb] p-7 text-[#172b3a] shadow-[0_25px_70px_rgba(0,0,0,0.22)] sm:p-9"><div className="flex items-start justify-between"><div><span className="font-display text-[11px] font-black tracking-[0.15em] text-[#b9854a]">{DEFAULT_PRODUCT_CODE}</span><h3 className="mt-3 font-display text-xl font-black leading-[1.4]">مدخل إلى القانون<br />والعلوم القانونية</h3></div><div className="rounded-full bg-[#e8eee9] p-3 text-[#b9854a]"><BookOpen size={19} /></div></div><div className="my-7 border-t border-[#ded6c9]" /><div className="flex items-end justify-between"><div><span className="font-body text-xs text-[#768087]">السعر الأولي</span><div className="mt-1 flex items-baseline gap-2"><span className="font-display text-5xl font-black text-[#172b3a]">19</span><span className="font-display text-sm font-black text-[#b9854a]">درهماً</span></div></div><span className="rounded-full bg-[#b9854a]/10 px-3 py-2 text-[10px] font-extrabold text-[#89663b]">نسخة المراجعة الأولى</span></div><button onClick={handleCheckout} className="mt-8 flex w-full items-center justify-center gap-3 rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] hover:shadow-[0_12px_25px_rgba(185,133,74,0.3)] active:scale-[0.98]">احصل على الملخص الآن <ArrowLeft size={17} /></button><p className="mt-4 text-center font-body text-[11px] leading-[1.8] text-[#8b9290]">الدفع والتسليم الإلكتروني قيد الربط في الإصدار التالي.</p></div>
           </div>
         </section>
 
@@ -406,7 +407,7 @@ export default function Home() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="sample-title">
           <div className="w-full max-w-[520px] rounded-[24px] bg-[#f7f3eb] p-6 text-[#172b3a] shadow-2xl sm:p-9">
             <div className="flex items-start justify-between gap-5">
-              <div><div className="section-kicker">عينة مجانية / MIDAD-001</div><h2 id="sample-title" className="mt-3 font-display text-2xl font-black">جرّب أسلوب مِداد قبل الشراء</h2></div>
+              <div><div className="section-kicker">عينة مجانية / {DEFAULT_PRODUCT_CODE}</div><h2 id="sample-title" className="mt-3 font-display text-2xl font-black">جرّب أسلوب مِداد قبل الشراء</h2></div>
               <button type="button" onClick={() => setSampleOpen(false)} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج العينة"><X size={17} /></button>
             </div>
             <p className="mt-5 rounded-[14px] bg-[#efe8dc] p-4 font-body text-[13px] leading-[1.9] text-[#68747a]">أدخل بياناتك مرة واحدة لفتح عينة PDF قصيرة. نستخدمها فقط للتواصل المتعلق بالمنتج وتحسين تجربة مِداد، ولا نبيع بياناتك أو نشاركها لأغراض تسويقية خارجية.</p>

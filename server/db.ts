@@ -146,6 +146,13 @@ export async function getProductFiles(productCode: string) {
   return db.select().from(productFiles).where(eq(productFiles.productCode, productCode)).orderBy(desc(productFiles.createdAt));
 }
 
+export async function getProductFileById(fileId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(productFiles).where(eq(productFiles.id, fileId)).limit(1);
+  return rows[0];
+}
+
 export async function getActiveProductFile(productCode: string, fileType: "pdf" | "cover" | "sample") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
@@ -185,22 +192,33 @@ export async function getAnalyticsSummary() {
   return { todayVisitors: uniqueTodayVisitors, todaySampleDownloads: sampleDownloadsToday, todayPurchaseRequests: purchaseRequestsToday, todayConversionRate: sampleDownloadsToday ? Number(((purchaseRequestsToday / sampleDownloadsToday) * 100).toFixed(1)) : 0, weekVisitors, weekSampleDownloads: weekSamples, weekPurchaseRequests: weekPurchases, weekConversionRate: weekSamples ? Number(((weekPurchases / weekSamples) * 100).toFixed(1)) : 0 };
 }
 
-export async function getAppSettings() {
-  const db = await getDb();
-  if (!db) throw new Error("Database is not available");
-  return db.select().from(appSettings).orderBy(appSettings.settingKey);
+const DEFAULT_PRODUCT_CODE = "MIDAD-001";
+
+function settingsStorageKey(productCode: string, settingKey: string) {
+  return productCode === DEFAULT_PRODUCT_CODE ? settingKey : `${productCode}:${settingKey}`;
 }
 
-export async function getAppSettingsMap() {
-  const rows = await getAppSettings();
-  return Object.fromEntries(rows.map((row: AppSetting) => [row.settingKey, row.settingValue]));
-}
-
-export async function upsertAppSetting(input: { settingKey: string; settingValue: string; description?: string | null; updatedByUserId: number }) {
+export async function getAppSettings(productCode = DEFAULT_PRODUCT_CODE) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.insert(appSettings).values(input).onDuplicateKeyUpdate({
-    set: { settingValue: input.settingValue, description: input.description ?? null, updatedByUserId: input.updatedByUserId },
+  return db.select().from(appSettings).where(eq(appSettings.productCode, productCode)).orderBy(appSettings.settingKey);
+}
+
+export async function getAppSettingsMap(productCode = DEFAULT_PRODUCT_CODE) {
+  const rows = await getAppSettings(productCode);
+  return Object.fromEntries(rows.map((row: AppSetting) => {
+    const key = row.settingKey.includes(":") ? row.settingKey.split(":").slice(1).join(":") : row.settingKey;
+    return [key, row.settingValue];
+  }));
+}
+
+export async function upsertAppSetting(input: { productCode?: string; settingKey: string; settingValue: string; description?: string | null; updatedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const productCode = input.productCode ?? DEFAULT_PRODUCT_CODE;
+  const storageKey = settingsStorageKey(productCode, input.settingKey);
+  await db.insert(appSettings).values({ ...input, settingKey: storageKey, productCode }).onDuplicateKeyUpdate({
+    set: { settingValue: input.settingValue, description: input.description ?? null, updatedByUserId: input.updatedByUserId, productCode },
   });
 }
 

@@ -1,12 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { Link } from "wouter";
 import { Check, FileText, HelpCircle, Loader2, RotateCcw, Save, Settings2, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type Tab = "product" | "chapters" | "faqs";
-const productCode = "MIDAD-001" as const;
+const productCode = DEFAULT_PRODUCT_CODE;
 const contentInput = { productCode };
 
 const emptyChapter = { chapterNumber: "01", title: "", excerpt: "", questionsJson: "[]", sortOrder: 0, isPublished: 1 as 0 | 1 };
