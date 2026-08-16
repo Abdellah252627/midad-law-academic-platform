@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, storagePut } = vi.hoisted(() => ({
+const { createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42 }),
+  getPurchaseRequestById: vi.fn(),
+  approvePurchaseRequest: vi.fn(),
   storagePut: vi.fn().mockResolvedValue({ key: "purchase-proofs/test-proof.pdf", url: "/private" }),
+  storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/midad.pdf"),
 }));
 
-vi.mock("./db", () => ({ createPurchaseRequest }));
-vi.mock("./storage", () => ({ storagePut }));
+vi.mock("./db", () => ({ createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest }));
+vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -39,6 +42,18 @@ describe("purchase.createTransferRequest", () => {
       customerEmail: "student@example.com",
       transactionReference: "TX-1234",
     })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("blocks download until the request is approved", async () => {
+    getPurchaseRequestById.mockResolvedValueOnce({ id: 11, productCode: "MIDAD-001", customerEmail: "student@example.com", status: "pending" });
+    const caller = appRouter.createCaller(createPublicContext());
+    await expect(caller.purchase.getDownloadLink({ requestId: 11, customerEmail: "student@example.com" })).rejects.toThrow("لم تتم الموافقة");
+  });
+
+  it("returns a signed URL only for an approved matching request", async () => {
+    getPurchaseRequestById.mockResolvedValueOnce({ id: 12, productCode: "MIDAD-001", customerEmail: "student@example.com", status: "approved" });
+    const caller = appRouter.createCaller(createPublicContext());
+    await expect(caller.purchase.getDownloadLink({ requestId: 12, customerEmail: "student@example.com" })).resolves.toEqual({ url: "https://signed.example/midad.pdf", expiresInMinutes: 15 });
   });
 
   it("stores a pending request and a private proof key", async () => {

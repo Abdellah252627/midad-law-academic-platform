@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { createPurchaseRequest } from "./db";
-import { storagePut } from "./storage";
+import { approvePurchaseRequest, createPurchaseRequest, getPurchaseRequestById } from "./db";
+import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router } from "./_core/trpc";
+
+const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } as const;
 
 export const appRouter = router({
   system: systemRouter,
@@ -52,6 +54,29 @@ export const appRouter = router({
           status: "pending",
         });
         return { success: true as const, requestId: result.id };
+      }),
+    getDownloadLink: publicProcedure
+      .input(z.object({ requestId: z.number().int().positive(), customerEmail: z.string().trim().email().max(320) }))
+      .query(async ({ input }) => {
+        const request = await getPurchaseRequestById(input.requestId);
+        if (!request || request.customerEmail.toLowerCase() !== input.customerEmail.toLowerCase()) {
+          throw new Error("طلب التنزيل غير موجود");
+        }
+        if (request.status !== "approved") {
+          throw new Error("لم تتم الموافقة على الطلب بعد");
+        }
+        const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+        if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
+        return { url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+      }),
+    approveTransferRequest: adminProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const request = await approvePurchaseRequest(input.requestId);
+        if (!request) throw new Error("طلب الشراء غير موجود");
+        const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+        if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
+        return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key) };
       }),
   }),
 });

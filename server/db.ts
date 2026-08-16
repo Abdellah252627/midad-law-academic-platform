@@ -96,4 +96,18 @@ export async function createPurchaseRequest(input: InsertPurchaseRequest) {
   return { id: Number(result[0].insertId) };
 }
 
+export async function getPurchaseRequestById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(purchaseRequests).where(eq(purchaseRequests.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function approvePurchaseRequest(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(purchaseRequests).set({ status: "approved", reviewedAt: new Date() }).where(eq(purchaseRequests.id, id));
+  return getPurchaseRequestById(id);
+}
+
 // TODO: add feature queries here as your schema grows.

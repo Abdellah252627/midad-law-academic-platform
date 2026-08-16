@@ -61,6 +61,10 @@ export default function Home() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
   const createTransferRequest = trpc.purchase.createTransferRequest.useMutation();
+  const downloadQuery = trpc.purchase.getDownloadLink.useQuery(
+    { requestId: transferSent ?? 0, customerEmail: form.customerEmail },
+    { enabled: false, retry: false },
+  );
 
   const resetTransferFlow = () => {
     setTransferOpen(false);
@@ -267,7 +271,7 @@ export default function Home() {
               <button type="button" onClick={resetTransferFlow} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج الشراء"><X size={17} /></button>
             </div>
             {transferSent ? (
-              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، سنرسل رابط تنزيل PDF إلى بريدك الإلكتروني. لا تعِد إرسال الطلب ما دام قيد المراجعة.</p><button type="button" onClick={resetTransferFlow} className="mt-5 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
+              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
             ) : !showBankDetails ? (
                 <div className="mt-7 space-y-5">
                   <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل 19 درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>
