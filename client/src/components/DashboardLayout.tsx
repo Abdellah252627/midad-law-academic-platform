@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BarChart3, FileCog, Files, LogOut, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users } from "lucide-react";
+import { BarChart3, ExternalLink, FileCog, Files, LogOut, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -187,6 +187,15 @@ function DashboardLayoutContent({
                 </div>
               ) : null}
             </div>
+            <a
+              href="/"
+              aria-label="عرض صفحة الهبوط العامة"
+              title="عرض صفحة الهبوط العامة"
+              className="mx-2 mt-2 flex h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate group-data-[collapsible=icon]:hidden">صفحة الهبوط</span>
+            </a>
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
