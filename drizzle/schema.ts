@@ -25,7 +25,19 @@ export const purchaseRequests = mysqlTable("purchase_requests", {
   reviewedAt: timestamp("reviewedAt"),
 });
 
+export const sampleDownloadLeads = mysqlTable("sample_download_leads", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull(),
+  fullName: varchar("fullName", { length: 160 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  whatsapp: varchar("whatsapp", { length: 32 }).notNull(),
+  consentVersion: varchar("consentVersion", { length: 32 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
 export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
+export type SampleDownloadLead = typeof sampleDownloadLeads.$inferSelect;
+export type InsertSampleDownloadLead = typeof sampleDownloadLeads.$inferInsert;

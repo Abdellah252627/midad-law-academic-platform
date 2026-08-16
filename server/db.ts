@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertPurchaseRequest, InsertUser, purchaseRequests, users } from "../drizzle/schema";
+import { InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -93,6 +93,13 @@ export async function createPurchaseRequest(input: InsertPurchaseRequest) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const result = await db.insert(purchaseRequests).values(input);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function createSampleDownloadLead(input: InsertSampleDownloadLead) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(sampleDownloadLeads).values(input);
   return { id: Number(result[0].insertId) };
 }
 

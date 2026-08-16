@@ -56,6 +56,30 @@ function scrollToPurchase() {
   document.getElementById("purchase")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+type SampleFieldErrors = { fullName?: string; email?: string; whatsapp?: string; consent?: string };
+
+function validateSampleForm(form: { fullName: string; email: string; whatsapp: string; consent: boolean }): SampleFieldErrors {
+  const errors: SampleFieldErrors = {};
+  if (!/^(?=.*[A-Za-z\u0600-\u06FF])(?=.*\s+.*[A-Za-z\u0600-\u06FF]).{2,160}$/.test(form.fullName.trim())) errors.fullName = "أدخل اسماً كاملاً مكوناً من كلمتين على الأقل.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = "أدخل بريداً إلكترونياً صالحاً.";
+  const normalizedWhatsapp = form.whatsapp.replace(/[\s()-]/g, "");
+  if (!/^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(normalizedWhatsapp)) errors.whatsapp = "أدخل رقم واتساب مغربياً بصيغة 06XXXXXXXX أو +2126XXXXXXXX.";
+  if (!form.consent) errors.consent = "الموافقة مطلوبة لفتح العينة.";
+  return errors;
+}
+
+function extractSampleFieldErrors(error: unknown): SampleFieldErrors {
+  const candidate = error as { message?: string; data?: { zodError?: { fieldErrors?: Record<string, string[]> } } };
+  const fieldErrors = candidate.data?.zodError?.fieldErrors;
+  if (fieldErrors) return Object.fromEntries(Object.entries(fieldErrors).map(([key, messages]) => [key, messages[0]])) as SampleFieldErrors;
+  const message = candidate.message ?? "تعذر تجهيز العينة.";
+  if (message.includes("واتساب")) return { whatsapp: message };
+  if (message.includes("الاسم")) return { fullName: message };
+  if (message.includes("البريد")) return { email: message };
+  if (message.includes("الموافقة")) return { consent: message };
+  return {};
+}
+
 export default function Home() {
   // The useAuth hook provides authentication state.
   // To implement login/logout, call logout(), or start login from an event
@@ -70,6 +94,11 @@ export default function Home() {
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [transferSent, setTransferSent] = useState<number | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [sampleOpen, setSampleOpen] = useState(false);
+  const [sampleForm, setSampleForm] = useState({ fullName: "", email: "", whatsapp: "", consent: false });
+  const [sampleError, setSampleError] = useState("");
+  const [sampleFieldErrors, setSampleFieldErrors] = useState<SampleFieldErrors>({});
+  const submitSampleLead = trpc.sample.submitLead.useMutation();
   const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
   const createTransferRequest = trpc.purchase.createTransferRequest.useMutation();
   const downloadQuery = trpc.purchase.getDownloadLink.useQuery(
@@ -89,6 +118,36 @@ export default function Home() {
   const handleCheckout = () => {
     resetTransferFlow();
     setTransferOpen(true);
+  };
+
+  const handleSampleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSampleError("");
+    const localErrors = validateSampleForm(sampleForm);
+    setSampleFieldErrors(localErrors);
+    if (Object.keys(localErrors).length > 0) {
+      setSampleError("يرجى تصحيح الحقول المشار إليها قبل المتابعة.");
+      return;
+    }
+    try {
+      const result = await submitSampleLead.mutateAsync({ productCode: "MIDAD-001", ...sampleForm, consent: sampleForm.consent });
+      const link = document.createElement("a");
+      link.href = result.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.click();
+      setSampleOpen(false);
+      setSampleError("");
+      setSampleFieldErrors({});
+      setSampleForm({ fullName: "", email: "", whatsapp: "", consent: false });
+      toast.success("تم التحقق من بياناتك", { description: "ستفتح العينة المجانية في نافذة جديدة. الرابط صالح لمدة 15 دقيقة." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "تعذر تجهيز العينة";
+      const fieldErrors = extractSampleFieldErrors(error);
+      setSampleFieldErrors(fieldErrors);
+      setSampleError(message);
+      toast.error("تعذر تجهيز العينة", { description: message });
+    }
   };
 
   const handleTransferSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -250,7 +309,7 @@ export default function Home() {
               <div><div className="section-kicker">02 / جرّب قبل أن تشتري</div><h2 className="mt-4 max-w-[650px] font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">قطعة من كل محور،<br /><span className="text-[#b9854a]">لتعرف طريقة مِداد.</span></h2></div>
               <p className="max-w-[380px] font-body text-[15px] leading-[1.95] text-[#68747a]">اقرأ الفكرة، اختبر فهمك، ثم احتفظ بالنسخة الكاملة للمراجعة المنظمة.</p>
             </div>
-            <div className="mb-8 flex flex-col items-start justify-between gap-5 rounded-[18px] border border-[#d8c4a8] bg-[#f4eadb] px-6 py-5 sm:flex-row sm:items-center sm:px-8"><div><p className="font-display text-base font-extrabold text-[#172b3a]">تريد رؤية الملخص قبل الشراء؟</p><p className="mt-1 font-body text-sm leading-[1.8] text-[#68747a]">حمّل عينة مجانية قصيرة من MIDAD-001 وتعرّف على أسلوب التنظيم والشرح.</p></div><a href="/manus-storage/MIDAD-001-sample-noted_fd59ed4b.pdf" download="MIDAD-001-sample.pdf" target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2"><Download size={16} /> حمّل العينة المجانية</a></div>
+            <div className="mb-8 flex flex-col items-start justify-between gap-5 rounded-[18px] border border-[#d8c4a8] bg-[#f4eadb] px-6 py-5 sm:flex-row sm:items-center sm:px-8"><div><p className="font-display text-base font-extrabold text-[#172b3a]">تريد رؤية الملخص قبل الشراء؟</p><p className="mt-1 font-body text-sm leading-[1.8] text-[#68747a]">حمّل عينة مجانية قصيرة من MIDAD-001 وتعرّف على أسلوب التنظيم والشرح.</p></div><button type="button" onClick={() => setSampleOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2"><Download size={16} /> حمّل العينة المجانية</button></div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {chapterPreviews.map((preview) => (
                 <article key={preview.number} className="group flex min-h-[345px] flex-col rounded-[18px] border border-[#ded6c9] bg-[#f7f3eb] p-6 transition duration-300 hover:-translate-y-1 hover:border-[#b9854a]/60 hover:shadow-[0_18px_38px_rgba(23,43,58,0.08)]">
@@ -306,6 +365,26 @@ export default function Home() {
       >
         <svg viewBox="0 0 32 32" className="h-7 w-7 fill-current" aria-hidden="true" focusable="false"><path d="M16 3.2A12.7 12.7 0 0 0 5 22.2L3.3 28.7l6.7-1.7A12.8 12.8 0 1 0 16 3.2Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-3.9 1 1-3.8-.3-.4a10.2 10.2 0 1 1 9.2 4.9Zm5.6-7.6c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-1.6-.8-2.7-1.5-3.8-3.2-.3-.5.3-.5.8-1.7.1-.2.1-.4 0-.6l-.6-1.5c-.2-.4-.4-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.1 3.3 5.2 4.6 1.9.8 2.6.9 3.5.8.6-.1 1.9-.8 2.1-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.2-.6-.3Z" /></svg>
       </a>
+
+      {sampleOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="sample-title">
+          <div className="w-full max-w-[520px] rounded-[24px] bg-[#f7f3eb] p-6 text-[#172b3a] shadow-2xl sm:p-9">
+            <div className="flex items-start justify-between gap-5">
+              <div><div className="section-kicker">عينة مجانية / MIDAD-001</div><h2 id="sample-title" className="mt-3 font-display text-2xl font-black">جرّب أسلوب مِداد قبل الشراء</h2></div>
+              <button type="button" onClick={() => setSampleOpen(false)} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج العينة"><X size={17} /></button>
+            </div>
+            <p className="mt-5 rounded-[14px] bg-[#efe8dc] p-4 font-body text-[13px] leading-[1.9] text-[#68747a]">أدخل بياناتك مرة واحدة لفتح عينة PDF قصيرة. نستخدمها فقط للتواصل المتعلق بالمنتج وتحسين تجربة مِداد، ولا نبيع بياناتك أو نشاركها لأغراض تسويقية خارجية.</p>
+            <form onSubmit={handleSampleSubmit} className="mt-6 space-y-4">
+              {sampleError && <p role="alert" className="rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold leading-[1.8] text-red-700">{sampleError}</p>}
+              <label className="block text-sm font-bold">الاسم الكامل<input required minLength={2} maxLength={160} pattern=".*[A-Za-z\u0600-\u06FF].*\\s+.*[A-Za-z\u0600-\u06FF].*" title="أدخل الاسم الكامل مكوناً من كلمتين على الأقل" value={sampleForm.fullName} onChange={(e) => { setSampleForm({ ...sampleForm, fullName: e.target.value }); setSampleFieldErrors({ ...sampleFieldErrors, fullName: undefined }); }} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" />{sampleFieldErrors.fullName && <span className="mt-1 block text-xs font-bold text-red-700">{sampleFieldErrors.fullName}</span>}</label>
+              <label className="block text-sm font-bold">البريد الإلكتروني<input required type="email" maxLength={320} value={sampleForm.email} onChange={(e) => { setSampleForm({ ...sampleForm, email: e.target.value }); setSampleFieldErrors({ ...sampleFieldErrors, email: undefined }); }} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" />{sampleFieldErrors.email && <span className="mt-1 block text-xs font-bold text-red-700">{sampleFieldErrors.email}</span>}</label>
+              <label className="block text-sm font-bold">رقم واتساب<input required minLength={8} maxLength={20} pattern="(?:0[5-7][0-9]{8}|\\+?212[5-7][0-9]{8})" title="أدخل رقم واتساب مغربياً بصيغة 06XXXXXXXX أو +2126XXXXXXXX" inputMode="tel" value={sampleForm.whatsapp} onChange={(e) => { setSampleForm({ ...sampleForm, whatsapp: e.target.value }); setSampleFieldErrors({ ...sampleFieldErrors, whatsapp: undefined }); }} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" placeholder="مثال: 0664173090" />{sampleFieldErrors.whatsapp && <span className="mt-1 block text-xs font-bold text-red-700">{sampleFieldErrors.whatsapp}</span>}</label>
+              <label className="flex items-start gap-3 rounded-[12px] border border-[#d9d0c2] bg-white/70 p-3 text-xs leading-[1.8] text-[#68747a]"><input required type="checkbox" checked={sampleForm.consent} onChange={(e) => { setSampleForm({ ...sampleForm, consent: e.target.checked }); setSampleFieldErrors({ ...sampleFieldErrors, consent: undefined }); }} className="mt-1 h-4 w-4 accent-[#b9854a]" /><span>أوافق على معالجة هذه البيانات لأغراض تسليم العينة والتواصل بشأن MIDAD، وفق إشعار الخصوصية الموضح أعلاه.</span></label>{sampleFieldErrors.consent && <p className="-mt-2 text-xs font-bold text-red-700">{sampleFieldErrors.consent}</p>}
+              <button disabled={submitSampleLead.isPending} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-60">{submitSampleLead.isPending ? "جارٍ تجهيز العينة…" : "إرسال البيانات وفتح العينة"}</button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {transferOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#172b3a]/75 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="transfer-title">

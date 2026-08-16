@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createPurchaseRequest, getPurchaseRequestById } from "./db";
+import { approvePurchaseRequest, createPurchaseRequest, createSampleDownloadLead, getPurchaseRequestById } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
 const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } as const;
+const SAMPLE_PDF_KEYS = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" } as const;
+const SAMPLE_CONSENT_VERSION = "2026-08-16";
 
 export const appRouter = router({
   system: systemRouter,
@@ -18,6 +20,28 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+  sample: router({
+    submitLead: publicProcedure
+      .input(z.object({
+        productCode: z.literal("MIDAD-001"),
+        fullName: z.string().trim().min(2).max(160).refine(value => value.split(/\s+/).filter(Boolean).length >= 2 && /[A-Za-z\u0600-\u06FF]/.test(value), "الاسم الكامل غير صالح"),
+        email: z.string().trim().email().max(320),
+        whatsapp: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).refine(value => /^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(value), "رقم واتساب غير صالح"),
+        consent: z.boolean().refine(value => value, "الموافقة مطلوبة"),
+      }))
+      .mutation(async ({ input }) => {
+        const key = SAMPLE_PDF_KEYS[input.productCode];
+        if (!key) throw new Error("ملف العينة غير مهيأ");
+        await createSampleDownloadLead({
+          productCode: input.productCode,
+          fullName: input.fullName,
+          email: input.email.toLowerCase(),
+          whatsapp: input.whatsapp,
+          consentVersion: SAMPLE_CONSENT_VERSION,
+        });
+        return { success: true as const, url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+      }),
   }),
   purchase: router({
     createTransferRequest: publicProcedure
