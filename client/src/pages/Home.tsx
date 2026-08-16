@@ -33,6 +33,17 @@ const chapters = [
   ["08", "الالتزام", "المفهوم والمصادر والآثار."],
 ];
 
+const chapterPreviews = [
+  { number: "01", title: "مفهوم القانون ووظائفه", excerpt: "القانون مجموعة قواعد عامة ومجردة تهدف إلى تنظيم سلوك الأفراد داخل المجتمع، وتستمد أهميتها من اقترانها بجزاء يضمن احترامها.", questions: ["ما الفرق بين القاعدة القانونية والقاعدة الأخلاقية؟", "ما الوظيفة التي يحققها القانون داخل المجتمع؟"] },
+  { number: "02", title: "القاعدة القانونية وخصائصها", excerpt: "تتميز القاعدة القانونية بالعموم والتجريد والإلزام، ولا تخاطب شخصاً بعينه أو واقعة منفردة، بل تضع نموذجاً ينطبق على الحالات المتشابهة.", questions: ["ماذا نعني بكون القاعدة القانونية عامة ومجردة؟", "ما المقصود بالجزاء القانوني؟"] },
+  { number: "03", title: "تصنيفات القواعد القانونية", excerpt: "يساعد تصنيف القواعد إلى آمرة ومكملة، وإلى موضوعية وشكلية، على فهم نطاق تطبيقها ومعرفة ما إذا كان يجوز للأفراد الاتفاق على مخالفتها.", questions: ["كيف تميز القاعدة الآمرة عن القاعدة المكملة؟", "لماذا يفيد تقسيم القانون إلى قواعد موضوعية وشكلية؟"] },
+  { number: "04", title: "مصادر القانون", excerpt: "يأتي التشريع في مقدمة المصادر الرسمية للقانون، إلى جانب العرف ومبادئ الشريعة والقضاء والفقه بحسب ترتيبها وقيمتها داخل النظام القانوني.", questions: ["ما الفرق بين المصدر الرسمي والمصدر التفسيري؟", "متى يمكن أن يكتسب العرف قيمة قانونية؟"] },
+  { number: "05", title: "فروع القانون", excerpt: "يقوم التمييز بين القانون العام والقانون الخاص على طبيعة المصالح والعلاقات التي ينظمها كل فرع، مع وجود فروع تتداخل فيها الاعتبارات العامة والخاصة.", questions: ["ما أساس التمييز بين القانون العام والقانون الخاص؟", "أين يندرج القانون الإداري ضمن هذا التقسيم؟"] },
+  { number: "06", title: "أشخاص القانون", excerpt: "الشخص القانوني هو من تثبت له أهلية اكتساب الحقوق وتحمل الالتزامات؛ وقد يكون شخصاً طبيعياً أو كياناً اعتبارياً يعترف له القانون بالشخصية.", questions: ["ما المقصود بالشخصية القانونية؟", "ما الفرق بين أهلية الوجوب وأهلية الأداء؟"] },
+  { number: "07", title: "الحق", excerpt: "الحق مصلحة أو سلطة يحميها القانون، ويقوم عادة على صاحب حق ومحل ووسيلة حماية. وتختلف الحقوق باختلاف موضوعها وأصحابها وآثارها.", questions: ["ما العناصر الأساسية التي يقوم عليها الحق؟", "كيف تميز بين الحق الشخصي والحق العيني؟"] },
+  { number: "08", title: "الالتزام", excerpt: "الالتزام رابطة قانونية بين دائن ومدين، يلتزم بموجبها المدين بأداء عمل أو الامتناع عنه أو نقل حق، ويقابلها حق للدائن في المطالبة بالتنفيذ.", questions: ["ما أطراف الالتزام وما محله؟", "ما الفرق بين الالتزام المدني والالتزام الطبيعي؟"] },
+];
+
 const faqs = [
   ["هل هذا ملخص رسمي صادر عن جامعة ابن زهر؟", "لا. هذا منتج تعليمي رقمي أصلي مستقل، موجّه إلى الطلبة للمراجعة الذاتية. لا يمثل مقرراً رسمياً أو وثيقة صادرة عن الجامعة، ولا يعني أن الجامعة راجعت المنتج أو اعتمدته."],
   ["هل يضمن الملخص النجاح في الامتحان؟", "لا يمكن لأي ملخص أن يضمن نتيجة امتحان. صُمّم المنتج للمساعدة في الفهم والتنظيم والمراجعة، ويُفضّل استخدامه إلى جانب المحاضرات والمراجع التي يحددها الأستاذ."],
@@ -230,6 +241,26 @@ export default function Home() {
               <div className="flex items-start gap-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e8d9c5] text-[#b9854a]"><FileText size={19} /></div><div><h3 className="font-display text-base font-extrabold text-[#172b3a]">ويكتمل المسار بقاموس ومراجعة تطبيقية</h3><p className="mt-1 font-body text-sm text-[#768087]">تعريفات مركزة وأسئلة تساعدك على تثبيت الفهم.</p></div></div>
               <a href="#purchase" className="inline-flex items-center gap-2 text-sm font-extrabold text-[#b9854a]">انتقل إلى العرض <MoveLeft size={16} /></a>
             </div>
+          </div>
+        </section>
+
+        <section id="previews" className="border-y border-[#e5ded2] bg-[#fbf8f2] py-24 lg:py-32">
+          <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
+            <div className="mb-14 flex flex-col justify-between gap-7 md:flex-row md:items-end">
+              <div><div className="section-kicker">02 / جرّب قبل أن تشتري</div><h2 className="mt-4 max-w-[650px] font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">قطعة من كل محور،<br /><span className="text-[#b9854a]">لتعرف طريقة مِداد.</span></h2></div>
+              <p className="max-w-[380px] font-body text-[15px] leading-[1.95] text-[#68747a]">اقرأ الفكرة، اختبر فهمك، ثم احتفظ بالنسخة الكاملة للمراجعة المنظمة.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {chapterPreviews.map((preview) => (
+                <article key={preview.number} className="group flex min-h-[345px] flex-col rounded-[18px] border border-[#ded6c9] bg-[#f7f3eb] p-6 transition duration-300 hover:-translate-y-1 hover:border-[#b9854a]/60 hover:shadow-[0_18px_38px_rgba(23,43,58,0.08)]">
+                  <div className="flex items-center justify-between border-b border-[#ded6c9] pb-4"><span className="font-display text-xs font-black tracking-[0.15em] text-[#b9854a]">{preview.number}</span><span className="h-px w-10 bg-[#b9854a]/60" /></div>
+                  <h3 className="mt-6 font-display text-lg font-extrabold leading-[1.55] text-[#172b3a] group-hover:text-[#b9854a]">{preview.title}</h3>
+                  <p className="mt-3 font-body text-[13px] leading-[1.9] text-[#68747a]">{preview.excerpt}</p>
+                  <div className="mt-auto border-t border-[#ded6c9] pt-4"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">أسئلة مراجعة</p><div className="space-y-2">{preview.questions.map((question) => <p key={question} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {question}</p>)}</div><button onClick={scrollToPurchase} className="mt-4 inline-flex items-center gap-1 text-[11px] font-extrabold text-[#b9854a] transition hover:text-[#89663b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">أكمل هذا المحور <ArrowLeft size={13} /></button></div>
+                </article>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-col items-start justify-between gap-5 rounded-[18px] bg-[#172b3a] px-6 py-7 text-[#f7f3eb] sm:flex-row sm:items-center sm:px-8"><p className="max-w-[650px] font-body text-sm leading-[1.9] text-[#d5dfdf]">هذه معاينة مختصرة من المحتوى. النسخة الكاملة تضيف الشرح المنظم، القاموس القانوني، والمراجعة التطبيقية في ملف واحد.</p><button onClick={scrollToPurchase} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#b9854a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#a8733d] active:scale-[0.97]">احصل على النسخة الكاملة <ArrowLeft size={16} /></button></div>
           </div>
         </section>
 
