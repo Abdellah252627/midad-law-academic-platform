@@ -8,6 +8,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { adminRateLimit } from "./adminRateLimit";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -39,6 +40,7 @@ async function startServer() {
   // tRPC API
   app.use(
     "/api/trpc",
+    adminRateLimit,
     createExpressMiddleware({
       router: appRouter,
       createContext,

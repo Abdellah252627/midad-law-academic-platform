@@ -11,6 +11,8 @@ import AdminPurchases from "./pages/AdminPurchases";
 import AdminFiles from "./pages/AdminFiles";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminPreview from "./pages/AdminPreview";
+import AdminSettings from "./pages/AdminSettings";
+import AdminAnalytics from "./pages/AdminAnalytics";
 import NotFound from "./pages/NotFound";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
@@ -29,6 +31,8 @@ function Router() {
       <Route path="/admin/files" component={AdminFiles} />
       <Route path="/admin/audit-logs" component={AdminAuditLogs} />
       <Route path="/admin/preview" component={AdminPreview} />
+      <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

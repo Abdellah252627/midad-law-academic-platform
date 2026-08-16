@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { ChevronLeft, ChevronRight, Download, Loader2, Search, ShieldAlert, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 function formatDate(value: Date | string) {
   return new Date(value).toLocaleString("ar-MA", {
@@ -15,7 +16,6 @@ function formatDate(value: Date | string) {
 function AdminLeadsContent() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [exportError, setExportError] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
@@ -30,6 +30,10 @@ function AdminLeadsContent() {
   useEffect(() => {
     setSelectedIds([]);
   }, [page, search]);
+
+  useEffect(() => {
+    if (leadsQuery.error) toast.error("تعذر تحميل بيانات المهتمين. تحقق من صلاحيات الحساب ثم حاول مرة أخرى.");
+  }, [leadsQuery.error]);
 
   if (!isAdmin) {
     return (
@@ -76,25 +80,32 @@ function AdminLeadsContent() {
   };
 
   const handleExportSelected = async () => {
-    setExportError("");
-    if (!selectedIds.length) return;
+    if (!selectedIds.length) {
+      toast.info("حدد تسجيلاً واحداً على الأقل للتصدير");
+      return;
+    }
     try {
       const result = await selectedCsvMutation.mutateAsync({ ids: selectedIds });
       downloadCsv(result.filename, result.csv);
       setSelectedIds([]);
+      toast.success("تم تصدير التسجيلات المحددة");
     } catch {
-      setExportError("تعذر تصدير التسجيلات المحددة. حدّث الصفحة وحاول مرة أخرى.");
+      toast.error("تعذر تصدير التسجيلات المحددة. حدّث الصفحة وحاول مرة أخرى.");
     }
   };
 
   const handleExport = async () => {
-    setExportError("");
-    const result = await csvQuery.refetch();
-    if (!result.data) {
-      setExportError("تعذر تجهيز ملف CSV. حاول مرة أخرى.");
-      return;
+    try {
+      const result = await csvQuery.refetch();
+      if (!result.data) {
+        toast.error("تعذر تجهيز ملف CSV. حاول مرة أخرى.");
+        return;
+      }
+      downloadCsv(result.data.filename, result.data.csv);
+      toast.success("تم تصدير جميع التسجيلات");
+    } catch {
+      toast.error("تعذر تجهيز ملف CSV. حاول مرة أخرى.");
     }
-    downloadCsv(result.data.filename, result.data.csv);
   };
 
   return (
@@ -117,7 +128,6 @@ function AdminLeadsContent() {
         </div>
       </header>
 
-      {exportError && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{exportError}</p>}
       {leadsQuery.error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">تعذر تحميل بيانات المهتمين. تحقق من صلاحيات الحساب ثم حاول مرة أخرى.</p>}
 
       <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm sm:flex-row sm:items-center">

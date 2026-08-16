@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, getActiveProductFile, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -34,12 +34,19 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+  analytics: router({
+    track: publicProcedure.input(z.object({ eventType: z.enum(["page_view", "sample_download"]), productCode: z.literal("MIDAD-001"), visitorKey: z.string().trim().min(16).max(120) })).mutation(async ({ input }) => {
+      await createAnalyticsEvent(input);
+      return { success: true as const };
+    }),
+  }),
   landing: router({
     published: publicProcedure.input(z.object({ productCode: z.literal("MIDAD-001") })).query(async ({ input }) => {
       const content = await getPublishedLandingContent(input.productCode);
       const activeCover = await getActiveProductFile(input.productCode, "cover");
       return {
         ...content,
+        settings: await getAppSettingsMap(),
         coverUrl: activeCover ? await storageGetSignedUrl(activeCover.fileKey) : null,
       };
     }),
@@ -64,6 +71,7 @@ export const appRouter = router({
           whatsapp: input.whatsapp,
           consentVersion: SAMPLE_CONSENT_VERSION,
         });
+        await createAnalyticsEvent({ eventType: "sample_download", productCode: input.productCode, visitorKey: null });
         return { success: true as const, url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
       }),
   }),
@@ -134,6 +142,13 @@ export const appRouter = router({
       await createAuditLog({ actorUserId: ctx.user.id, action: "file.upload", entityType: "product_file", entityId: String(fileId), productCode: input.productCode, metadataJson: JSON.stringify({ fileType: input.fileType, version, fileName: input.fileName }) });
       return { success: true as const, fileId, version };
     }),
+    settings: adminProcedure.query(() => getAppSettings()),
+    saveSetting: adminProcedure.input(z.object({ settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+      await upsertAppSetting({ ...input, updatedByUserId: ctx.user.id });
+      await createAuditLog({ actorUserId: ctx.user.id, action: "settings.save", entityType: "app_setting", entityId: input.settingKey, productCode: "MIDAD-001", metadataJson: null });
+      return { success: true as const };
+    }),
+    analyticsSummary: adminProcedure.query(() => getAnalyticsSummary()),
     auditLogs: adminProcedure.query(() => getAuditLogs()),
   }),
   purchase: router({
@@ -171,6 +186,7 @@ export const appRouter = router({
           proofContentType: input.proof?.contentType ?? null,
           status: "pending",
         });
+        await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });
         return { success: true as const, requestId: result.id };
       }),
     getDownloadLink: publicProcedure

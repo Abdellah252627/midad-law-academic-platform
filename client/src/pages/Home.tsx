@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import {
@@ -98,9 +98,21 @@ export default function Home() {
   // nonce cookie and must run only at the moment of navigation.
   let { user, loading, error, isAuthenticated, logout } = useAuth();
   const landingQuery = trpc.landing.published.useQuery(landingInput, { retry: false });
+  const trackAnalytics = trpc.analytics.track.useMutation();
+  useEffect(() => {
+    const storageKey = "midad-anonymous-visitor";
+    const visitorKey = localStorage.getItem(storageKey) ?? crypto.randomUUID();
+    localStorage.setItem(storageKey, visitorKey);
+    trackAnalytics.mutate({ eventType: "page_view", productCode: "MIDAD-001", visitorKey });
+  }, []);
   const publishedProduct = landingQuery.data?.product;
   const activeCoverUrl = landingQuery.data?.coverUrl ?? bookCover;
-  const productPriceMad = publishedProduct?.priceMad ?? 19;
+  const appSettings = landingQuery.data?.settings ?? {};
+  const productPriceMad = publishedProduct?.priceMad ?? Number(appSettings.defaultPriceMad ?? 19);
+  const whatsappNumber = appSettings.whatsappNumber ?? "0664173090";
+  const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, "").replace(/^0/, "212")}?text=${encodeURIComponent("السلام عليكم، أرغب في الاستفسار عن MIDAD-001")}`;
+  const bankBeneficiary = appSettings.bankBeneficiary ?? "M MOUHAMITI ABDELLAH";
+  const bankRib = appSettings.bankRib ?? "007430000270870030001970";
   const chapters = landingQuery.data?.chapters?.length
     ? landingQuery.data.chapters.map(chapter => [chapter.chapterNumber, chapter.title, chapter.excerpt] as [string, string, string])
     : fallbackChapters;
@@ -380,7 +392,7 @@ export default function Home() {
       <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><a href="/admin" className="mt-4 inline-flex rounded-full border border-[#cfa56f]/45 px-4 py-2 text-[#d5a15f] transition hover:border-[#d5a15f] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a15f]">دخول الإدارة</a></footer>
 
       <a
-        href="https://wa.me/212664173090?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20MIDAD-001"
+        href={whatsappLink}
         target="_blank"
         rel="noreferrer"
         aria-label="تواصل معنا عبر واتساب"
@@ -427,7 +439,7 @@ export default function Home() {
               ) : (
               <form onSubmit={handleTransferSubmit} className="mt-7 space-y-4">
                 <button type="button" onClick={() => setShowBankDetails(false)} className="inline-flex items-center gap-2 text-xs font-extrabold text-[#89663b] hover:text-[#172b3a]"><ArrowUpLeft size={14} /> العودة إلى تعليمات التحويل</button>
-                <div className="rounded-[16px] border border-[#b9854a]/35 bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]"><strong className="text-[#172b3a]">بيانات التحويل:</strong><br />المستفيد: M MOUHAMITI ABDELLAH<br />RIB: 007430000270870030001970<br /><span className="text-[#89663b]">المبلغ: {productPriceMad} درهماً · احتفظ بمرجع العملية.</span></div>
+                <div className="rounded-[16px] border border-[#b9854a]/35 bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]"><strong className="text-[#172b3a]">بيانات التحويل:</strong><br />المستفيد: {bankBeneficiary}<br />RIB: {bankRib}<br /><span className="text-[#89663b]">المبلغ: {productPriceMad} درهماً · احتفظ بمرجع العملية.</span></div>
                 <label className="block text-sm font-bold">الاسم الكامل<input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">البريد الإلكتروني<input required type="email" value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">الهاتف <span className="font-normal text-[#768087]">(اختياري)</span><input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>

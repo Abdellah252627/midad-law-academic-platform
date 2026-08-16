@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AuditLog, InsertAuditLog, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -159,6 +159,49 @@ export async function createProductFile(input: InsertProductFile) {
   await db.update(productFiles).set({ isActive: 0 }).where(and(eq(productFiles.productCode, input.productCode), eq(productFiles.fileType, input.fileType)));
   const result = await db.insert(productFiles).values(input);
   return Number(result[0].insertId);
+}
+
+export async function createAnalyticsEvent(input: InsertAnalyticsEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(analyticsEvents).values(input);
+}
+
+export async function getAnalyticsSummary() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt));
+  const now = Date.now();
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+  const weekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const today = rows.filter((row: AnalyticsEvent) => row.createdAt >= todayStart);
+  const week = rows.filter((row: AnalyticsEvent) => row.createdAt >= weekStart);
+  const uniqueTodayVisitors = new Set(today.filter(row => row.eventType === "page_view").map(row => row.visitorKey).filter(Boolean)).size;
+  const sampleDownloadsToday = today.filter(row => row.eventType === "sample_download").length;
+  const purchaseRequestsToday = today.filter(row => row.eventType === "purchase_request").length;
+  const weekVisitors = new Set(week.filter(row => row.eventType === "page_view").map(row => row.visitorKey).filter(Boolean)).size;
+  const weekSamples = week.filter(row => row.eventType === "sample_download").length;
+  const weekPurchases = week.filter(row => row.eventType === "purchase_request").length;
+  return { todayVisitors: uniqueTodayVisitors, todaySampleDownloads: sampleDownloadsToday, todayPurchaseRequests: purchaseRequestsToday, todayConversionRate: sampleDownloadsToday ? Number(((purchaseRequestsToday / sampleDownloadsToday) * 100).toFixed(1)) : 0, weekVisitors, weekSampleDownloads: weekSamples, weekPurchaseRequests: weekPurchases, weekConversionRate: weekSamples ? Number(((weekPurchases / weekSamples) * 100).toFixed(1)) : 0 };
+}
+
+export async function getAppSettings() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(appSettings).orderBy(appSettings.settingKey);
+}
+
+export async function getAppSettingsMap() {
+  const rows = await getAppSettings();
+  return Object.fromEntries(rows.map((row: AppSetting) => [row.settingKey, row.settingValue]));
+}
+
+export async function upsertAppSetting(input: { settingKey: string; settingValue: string; description?: string | null; updatedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(appSettings).values(input).onDuplicateKeyUpdate({
+    set: { settingValue: input.settingValue, description: input.description ?? null, updatedByUserId: input.updatedByUserId },
+  });
 }
 
 export async function createAuditLog(input: InsertAuditLog) {

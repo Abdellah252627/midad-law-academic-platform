@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
+const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42 }),
+  createAnalyticsEvent: vi.fn().mockResolvedValue(undefined),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
   getActiveProductFile: vi.fn().mockResolvedValue({ fileKey: "product-files/MIDAD-001/pdf/active.pdf", fileType: "pdf" }),
@@ -9,7 +10,7 @@ const { createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, g
   storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/midad.pdf"),
 }));
 
-vi.mock("./db", () => ({ createPurchaseRequest, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
+vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 
 import { appRouter } from "./routers";

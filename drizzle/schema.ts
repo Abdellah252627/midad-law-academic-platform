@@ -88,6 +88,22 @@ export const productFiles = mysqlTable("product_files", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const analyticsEvents = mysqlTable("analytics_events", {
+  id: int("id").autoincrement().primaryKey(),
+  eventType: mysqlEnum("eventType", ["page_view", "sample_download", "purchase_request"]).notNull(),
+  productCode: varchar("productCode", { length: 32 }).notNull(),
+  visitorKey: varchar("visitorKey", { length: 120 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const appSettings = mysqlTable("app_settings", {
+  settingKey: varchar("settingKey", { length: 120 }).primaryKey(),
+  settingValue: text("settingValue").notNull(),
+  description: varchar("description", { length: 300 }),
+  updatedByUserId: int("updatedByUserId"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -113,5 +129,9 @@ export type LandingFaq = typeof landingFaqs.$inferSelect;
 export type InsertLandingFaq = typeof landingFaqs.$inferInsert;
 export type ProductFile = typeof productFiles.$inferSelect;
 export type InsertProductFile = typeof productFiles.$inferInsert;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+export type AppSetting = typeof appSettings.$inferSelect;
+export type InsertAppSetting = typeof appSettings.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
