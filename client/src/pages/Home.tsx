@@ -268,7 +268,7 @@ export default function Home() {
               </div>
               <h1 className="max-w-[700px] font-display text-[clamp(38px,5.8vw,76px)] font-black leading-[1.08] tracking-[-0.06em] text-[#172b3a]">
                 ابدأ من الأساس الذي
-                <span className="relative mx-2 inline-block whitespace-nowrap text-[#b9854a]">
+                <span className="relative mx-2 inline-block whitespace-normal text-[#b9854a] sm:whitespace-nowrap">
                   يربط لك المادة كلها.
                   <svg className="absolute -bottom-3 right-0 h-3 w-full text-[#b9854a]" viewBox="0 0 300 12" fill="none" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8C82 2 188 10 298 3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
                 </span>
