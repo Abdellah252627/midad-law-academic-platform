@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { ChevronLeft, ChevronRight, History, Loader2, MessageSquareText, Search, ShieldAlert, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, FileSpreadsheet, History, Loader2, MessageSquareText, Search, ShieldAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -170,9 +170,18 @@ function AdminComplaintsContent() {
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
-      <p className="text-xs font-bold tracking-[0.18em] text-[#d5a15f]">MIDAD / SUPPORT</p>
-      <h1 className="mt-2 font-display text-3xl font-bold">إدارة الشكاوى</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">تابع تذاكر الطلاب، راجع تفاصيل البلاغ، حدّث الحالة، وأرسل رداً إدارياً موثقاً دون كشف بيانات الدعم خارج حسابات الإدارة.</p>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold tracking-[0.18em] text-[#d5a15f]">MIDAD / SUPPORT</p>
+          <h1 className="mt-2 font-display text-3xl font-bold">إدارة الشكاوى</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">تابع تذاكر الطلاب، راجع تفاصيل البلاغ، حدّث الحالة، وأرسل رداً إدارياً موثقاً دون كشف بيانات الدعم خارج حسابات الإدارة.</p>
+        </div>
+        <a href="https://docs.google.com/spreadsheets/d/17lxuTvPRPayqbdzBtAX6BaU2i5OhxZcxSTkr0xWdzUE/edit" target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#d5a15f] active:scale-[0.98]" aria-label="فتح سجل الشكاوى في Google Sheets">
+          <FileSpreadsheet className="h-4 w-4 text-[#d5a15f]" aria-hidden="true" />
+          <span>سجل الشكاوى في Google Sheets</span>
+          <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+        </a>
+      </div>
     </header>
 
     <div className="grid gap-4 sm:grid-cols-3">

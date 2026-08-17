@@ -59,5 +59,8 @@ describe("admin complaints management", () => {
     expect(page).toContain("formatDuration");
     expect(page).toContain("المدة حتى الآن");
     expect(page).toContain("window.setInterval");
+    expect(page).toContain("سجل الشكاوى في Google Sheets");
+    expect(page).toContain("17lxuTvPRPayqbdzBtAX6BaU2i5OhxZcxSTkr0xWdzUE");
+    expect(page).toContain('target="_blank"');
   });
 });
