@@ -235,7 +235,7 @@ export const appRouter = router({
           status: "pending",
         });
         await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });
-        return { success: true as const, requestId: result.id };
+        return { success: true as const, requestId: result.id, orderNumber: result.orderNumber };
       }),
     requestDataCorrection: publicProcedure
       .input(z.object({

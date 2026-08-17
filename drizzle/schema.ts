@@ -14,6 +14,7 @@ export const users = mysqlTable("users", {
 
 export const purchaseRequests = mysqlTable("purchase_requests", {
   id: int("id").autoincrement().primaryKey(),
+  orderNumber: varchar("orderNumber", { length: 32 }).notNull().unique(),
   productCode: varchar("productCode", { length: 32 }).notNull(),
   customerName: varchar("customerName", { length: 160 }).notNull(),
   customerEmail: varchar("customerEmail", { length: 320 }).notNull(),

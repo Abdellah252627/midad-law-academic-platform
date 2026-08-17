@@ -27,6 +27,17 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("trpc.admin.deletePurchaseRequestNote");
   });
 
+  it("shows the visible order number in customer confirmation and admin views", () => {
+    const homeSource = readFileSync(resolve(process.cwd(), "client/src/pages/Home.tsx"), "utf8");
+    const adminSource = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(homeSource).toContain("transferOrderNumber");
+    expect(homeSource).toContain("رقم طلبك هو ${orderNumber}");
+    expect(homeSource).toContain("transferOrderNumber ?? `MIDAD-");
+    expect(adminSource).toContain("{request.orderNumber}");
+    expect(adminSource).toContain("{item.orderNumber}");
+  });
+
   it("shows the customer identity fields and proof preview in the purchases table", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 

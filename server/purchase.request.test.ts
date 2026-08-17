@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
-  createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42 }),
+  createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42, orderNumber: "MIDAD-ABC123DEF456" }),
   createAnalyticsEvent: vi.fn().mockResolvedValue(undefined),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
@@ -56,7 +56,7 @@ describe("purchase.createTransferRequest", () => {
       customerName: "طالب قانون",
       customerEmail: "student@example.com",
       transactionReference: "TX-1234",
-    })).resolves.toEqual({ success: true, requestId: 42 });
+    })).resolves.toEqual({ success: true, requestId: 42, orderNumber: "MIDAD-ABC123DEF456" });
   });
 
   it("blocks download until the request is approved", async () => {
@@ -96,7 +96,7 @@ describe("purchase.createTransferRequest", () => {
       proof: { fileName: "proof.pdf", contentType: "application/pdf", base64: "a".repeat(120) },
     });
 
-    expect(result).toEqual({ success: true, requestId: 42 });
+    expect(result).toEqual({ success: true, requestId: 42, orderNumber: "MIDAD-ABC123DEF456" });
     expect(storagePut).toHaveBeenCalledOnce();
     expect(createPurchaseRequest).toHaveBeenCalledWith(expect.objectContaining({
       productCode: "MIDAD-001",

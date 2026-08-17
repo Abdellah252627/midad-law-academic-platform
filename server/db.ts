@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -89,11 +90,16 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function createPurchaseRequest(input: InsertPurchaseRequest) {
+function generateOrderNumber() {
+  return `MIDAD-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
+}
+
+export async function createPurchaseRequest(input: Omit<InsertPurchaseRequest, "orderNumber"> & { orderNumber?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const result = await db.insert(purchaseRequests).values(input);
-  return { id: Number(result[0].insertId) };
+  const orderNumber = input.orderNumber ?? generateOrderNumber();
+  const result = await db.insert(purchaseRequests).values({ ...input, orderNumber });
+  return { id: Number(result[0].insertId), orderNumber };
 }
 
 export async function createSampleDownloadLead(input: InsertSampleDownloadLead) {
@@ -318,7 +324,7 @@ export async function getPurchaseRequestCorrections() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const rows = await db.select({ correction: purchaseRequestCorrections, request: purchaseRequests }).from(purchaseRequestCorrections).innerJoin(purchaseRequests, eq(purchaseRequests.id, purchaseRequestCorrections.requestId)).orderBy(desc(purchaseRequestCorrections.createdAt));
-  return rows.map(({ correction, request }) => ({ ...correction, customerName: request.customerName, currentEmail: request.customerEmail, currentPhone: request.customerPhone }));
+  return rows.map(({ correction, request }) => ({ ...correction, orderNumber: request.orderNumber, customerName: request.customerName, currentEmail: request.customerEmail, currentPhone: request.customerPhone }));
 }
 
 export async function reviewPurchaseRequestCorrection(input: { id: number; status: "approved" | "rejected"; reviewedByUserId: number; decisionNote?: string | null }) {
