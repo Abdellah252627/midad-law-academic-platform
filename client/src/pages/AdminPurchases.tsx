@@ -117,7 +117,17 @@ function AdminPurchasesContent() {
       if (search) params.set("search", search);
       params.set("searchScope", searchScope);
       if (status !== "all") params.set("status", status);
-      const response = await fetch(`/api/admin/purchase-requests.xlsx?${params.toString()}`, { credentials: "include" });
+      const headers: HeadersInit = {};
+      try {
+        const raw = sessionStorage.getItem("manus-cookie");
+        const prefix = "app_session_id=";
+        const pair = raw?.split(";").find(value => value.trim().startsWith(prefix));
+        const token = pair?.trim().slice(prefix.length);
+        if (token) headers.Authorization = `Bearer ${token}`;
+      } catch {
+        // Continue with the regular cookie-based session when sessionStorage is unavailable.
+      }
+      const response = await fetch(`/api/admin/purchase-requests.xlsx?${params.toString()}`, { credentials: "include", headers });
       if (!response.ok) {
         const payload = await response.json().catch(() => null) as { error?: string } | null;
         throw new Error(payload?.error || "تعذر إنشاء ملف Excel المنسق");

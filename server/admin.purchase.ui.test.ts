@@ -56,6 +56,8 @@ describe("admin purchase details UI", () => {
 
     expect(source).toContain("/api/admin/purchase-requests.xlsx?");
     expect(source).toContain('credentials: "include"');
+    expect(source).toContain('sessionStorage.getItem("manus-cookie")');
+    expect(source).toContain('headers.Authorization = `Bearer ${token}`');
     expect(source).toContain("const blob = await response.blob();");
     expect(source).toContain("if (blob.size === 0)");
     expect(source).not.toContain("window.atob");
