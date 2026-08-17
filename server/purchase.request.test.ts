@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
+const { createPurchaseRequest, createAnalyticsEvent, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42, orderNumber: "MIDAD-ABC123DEF456" }),
   createAnalyticsEvent: vi.fn().mockResolvedValue(undefined),
+  getPublishedLandingContent: vi.fn().mockResolvedValue({ product: { priceMad: 19 } }),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
   getActiveProductFile: vi.fn().mockResolvedValue({ fileKey: "product-files/MIDAD-001/pdf/active.pdf", fileType: "pdf" }),
@@ -12,7 +13,7 @@ const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, app
   buildDownloadUrl: vi.fn((requestId: number, token: string) => `/api/download/${requestId}?token=${token}`),
 }));
 
-vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
+vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 vi.mock("./downloadTokens", () => ({
   DOWNLOAD_LINK_TTL_MINUTES: 15,
@@ -86,6 +87,15 @@ describe("purchase.createTransferRequest", () => {
     expect(createDownloadToken).toHaveBeenCalledWith({ requestId: 13, fileKey: "midad-001-law-summary_4382aff1.pdf" });
   });
 
+  it("stores the server-side historical price with a pending request", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+    await caller.purchase.createTransferRequest({ productCode: "MIDAD-001", customerName: "طالب قانون", customerEmail: "student@example.com", transactionReference: "TX-PRICE" });
+    expect(createPurchaseRequest).toHaveBeenCalledWith(expect.objectContaining({ pricePaid: 19 }));
+    getPublishedLandingContent.mockResolvedValueOnce({ product: { priceMad: 39 } });
+    await caller.purchase.createTransferRequest({ productCode: "MIDAD-001", customerName: "طالب قانون", customerEmail: "student2@example.com", transactionReference: "TX-PRICE-2" });
+    expect(createPurchaseRequest).toHaveBeenLastCalledWith(expect.objectContaining({ pricePaid: 39 }));
+  });
+
   it("stores a pending request and a private proof key", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     const result = await caller.purchase.createTransferRequest({
@@ -101,6 +111,7 @@ describe("purchase.createTransferRequest", () => {
     expect(createPurchaseRequest).toHaveBeenCalledWith(expect.objectContaining({
       productCode: "MIDAD-001",
       status: "pending",
+      pricePaid: 19,
       proofKey: "purchase-proofs/test-proof.pdf",
     }));
   });

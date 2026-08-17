@@ -262,6 +262,11 @@ export const appRouter = router({
         }).optional(),
       }))
       .mutation(async ({ input }) => {
+        const content = await getPublishedLandingContent(input.productCode);
+        const pricePaid = content.product?.priceMad;
+        if (typeof pricePaid !== "number" || !Number.isInteger(pricePaid) || pricePaid < 0) {
+          throw new Error("سعر المنتج غير متاح حالياً");
+        }
         let proofKey: string | null = null;
         if (input.proof) {
           const safeName = input.proof.fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -280,6 +285,7 @@ export const appRouter = router({
           transactionReference: input.transactionReference,
           proofKey,
           proofContentType: input.proof?.contentType ?? null,
+          pricePaid,
           status: "pending",
         });
         await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });

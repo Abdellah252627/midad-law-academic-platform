@@ -16,6 +16,8 @@ export const purchaseRequests = mysqlTable("purchase_requests", {
   id: int("id").autoincrement().primaryKey(),
   orderNumber: varchar("orderNumber", { length: 32 }).notNull().unique(),
   productCode: varchar("productCode", { length: 32 }).notNull(),
+  // Snapshot of the product price at order creation; never read from the current product price.
+  pricePaid: int("price_paid").notNull(),
   customerName: varchar("customerName", { length: 160 }).notNull(),
   customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
   customerPhone: varchar("customerPhone", { length: 32 }),
