@@ -105,6 +105,17 @@ export const appSettings = mysqlTable("app_settings", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const reviews = mysqlTable("reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("order_id").notNull().unique().references(() => purchaseRequests.id),
+  productId: varchar("product_id", { length: 32 }).notNull().references(() => landingProducts.productCode),
+  fullName: varchar("full_name", { length: 160 }).notNull(),
+  rating: int("rating").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isVisible: int("is_visible").default(1).notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -134,5 +145,7 @@ export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type InsertAnalyticsEvent = typeof analyticsEvents.$inferInsert;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = typeof reviews.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;

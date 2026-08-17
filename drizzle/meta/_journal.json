@@ -64,6 +64,13 @@
       "when": 1786914634945,
       "tag": "0008_furry_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1786956751365,
+      "tag": "0009_outgoing_king_cobra",
+      "breakpoints": true
     }
   ]
 }

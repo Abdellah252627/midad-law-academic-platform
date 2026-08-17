@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertReview, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -239,6 +239,43 @@ export async function getPurchaseRequestById(id: number) {
   if (!db) throw new Error("Database is not available");
   const rows = await db.select().from(purchaseRequests).where(eq(purchaseRequests.id, id)).limit(1);
   return rows[0];
+}
+
+export async function getRatingContext(orderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({
+    orderId: purchaseRequests.id,
+    status: purchaseRequests.status,
+    fullName: purchaseRequests.customerName,
+    productId: purchaseRequests.productCode,
+    productTitle: landingProducts.title,
+    reviewId: reviews.id,
+  }).from(purchaseRequests)
+    .leftJoin(landingProducts, eq(landingProducts.productCode, purchaseRequests.productCode))
+    .leftJoin(reviews, eq(reviews.orderId, purchaseRequests.id))
+    .where(eq(purchaseRequests.id, orderId)).limit(1);
+  return rows[0];
+}
+
+export async function createReview(input: InsertReview) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(reviews).values(input);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getVisibleProductReviews(productId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select({
+    fullName: reviews.fullName,
+    rating: reviews.rating,
+    comment: reviews.comment,
+    createdAt: reviews.createdAt,
+  }).from(reviews)
+    .where(and(eq(reviews.productId, productId), eq(reviews.isVisible, 1)))
+    .orderBy(desc(reviews.createdAt));
 }
 
 export async function getPurchaseRequests() {
