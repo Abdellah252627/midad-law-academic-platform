@@ -46,11 +46,13 @@ function AdminComplaintsContent() {
   const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
   const complaintsQuery = trpc.admin.complaints.useQuery(queryInput, { enabled: isAdmin });
   const detailQuery = trpc.admin.complaint.useQuery({ id: selectedId ?? 0 }, { enabled: isAdmin && selectedId !== null });
+  const queryUtils = trpc.useUtils();
   const updateMutation = trpc.admin.updateComplaint.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("تم تحديث الشكوى وتسجيل العملية في سجل التدقيق.");
-      void complaintsQuery.refetch();
-      void detailQuery.refetch();
+      // إبطال جميع نسخ قائمة الشكاوى يحدّث العدادات فوراً حتى مع وجود بحث أو فلتر مختلف.
+      await queryUtils.admin.complaints.invalidate();
+      if (selectedId !== null) await detailQuery.refetch();
     },
     onError: error => toast.error(error.message || "تعذر تحديث الشكوى."),
   });

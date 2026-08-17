@@ -42,5 +42,7 @@ describe("admin complaints management", () => {
     expect(page).toContain("تصفية سريعة حسب حالة الشكوى");
     expect(page).toContain("aria-pressed={status === item.value}");
     expect(page).toContain("statusCounts[item.value]");
+    expect(page).toContain("const queryUtils = trpc.useUtils();");
+    expect(page).toContain("queryUtils.admin.complaints.invalidate()");
   });
 });
