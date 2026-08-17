@@ -79,5 +79,14 @@ describe("admin file versioning", () => {
       productCode: "MIDAD-001", fileType: "pdf", fileName: "new.pdf", contentType: "application/pdf", base64: pdf,
     })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it("accepts a product PDF larger than the previous 10MB limit", async () => {
+    const largerPdf = "data:application/pdf;base64," + "A".repeat(14_000_001);
+    const result = await appRouter.createCaller(adminContext).admin.uploadFile({
+      productCode: "MIDAD-001", fileType: "pdf", fileName: "larger.pdf", contentType: "application/pdf", base64: largerPdf,
+    });
+    expect(result).toEqual({ success: true, fileId: 6, version: 2 });
+    expect(storage.storagePut).toHaveBeenCalledWith(expect.any(String), expect.any(Buffer), "application/pdf");
+  });
 });
 

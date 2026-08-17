@@ -3,6 +3,7 @@ import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
+import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
@@ -114,9 +115,22 @@ export const appRouter = router({
       const request = await approvePurchaseRequest(input.requestId, ctx.user.id);
       if (!request) throw new Error("طلب الشراء غير موجود");
       await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.approve", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: null });
-      const key = PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+      const activePdf = await getActiveProductFile(request.productCode, "pdf");
+      const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
       if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
-      return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+      const token = await createDownloadToken({ requestId: request.id, fileKey: key });
+      return { success: true as const, requestId: request.id, downloadUrl: buildDownloadUrl(request.id, token), expiresInMinutes: DOWNLOAD_LINK_TTL_MINUTES };
+    }),
+    reissuePurchaseDownload: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const request = await getPurchaseRequestById(input.requestId);
+      if (!request) throw new Error("طلب الشراء غير موجود");
+      if (request.status !== "approved") throw new Error("لا يمكن إصدار رابط تنزيل إلا لطلب مقبول");
+      const activePdf = await getActiveProductFile(request.productCode, "pdf");
+      const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
+      if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
+      const token = await createDownloadToken({ requestId: request.id, fileKey: key });
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.download_link.reissue", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: JSON.stringify({ expiresInMinutes: DOWNLOAD_LINK_TTL_MINUTES }) });
+      return { success: true as const, requestId: request.id, downloadUrl: buildDownloadUrl(request.id, token), expiresInMinutes: DOWNLOAD_LINK_TTL_MINUTES };
     }),
     rejectPurchase: adminProcedure.input(z.object({ requestId: z.number().int().positive(), reason: z.string().trim().min(3).max(500) })).mutation(async ({ input, ctx }) => {
       const request = await rejectPurchaseRequest(input.requestId, input.reason, ctx.user.id);
@@ -130,7 +144,7 @@ export const appRouter = router({
       if (!file) throw new Error("الملف غير موجود");
       return { url: await storageGetSignedUrl(file.fileKey), fileName: file.fileName, contentType: file.contentType };
     }),
-    uploadFile: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA, fileType: z.enum(["pdf", "cover", "sample"]), fileName: z.string().trim().min(1).max(220), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), base64: z.string().min(100).max(14_000_000) })).mutation(async ({ input, ctx }) => {
+    uploadFile: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA, fileType: z.enum(["pdf", "cover", "sample"]), fileName: z.string().trim().min(1).max(220), contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]), base64: z.string().min(100).max(70_000_000) })).mutation(async ({ input, ctx }) => {
       const expectedType = input.fileType === "pdf" || input.fileType === "sample" ? "application/pdf" : input.contentType;
       if (input.fileType === "cover" && input.contentType === "application/pdf") throw new Error("صورة الغلاف يجب أن تكون JPG أو PNG");
       if (input.fileType !== "cover" && input.contentType !== "application/pdf") throw new Error("ملف المنتج يجب أن يكون PDF");
@@ -202,7 +216,8 @@ export const appRouter = router({
         const activePdf = await getActiveProductFile(request.productCode, "pdf");
         const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
         if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
-        return { url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+        const token = await createDownloadToken({ requestId: request.id, fileKey: key });
+        return { url: buildDownloadUrl(request.id, token), expiresInMinutes: DOWNLOAD_LINK_TTL_MINUTES };
       }),
     approveTransferRequest: adminProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
@@ -212,7 +227,8 @@ export const appRouter = router({
         const activePdf = await getActiveProductFile(request.productCode, "pdf");
         const key = activePdf?.fileKey ?? PRODUCT_PDF_KEYS[request.productCode as keyof typeof PRODUCT_PDF_KEYS];
         if (!key) throw new Error("ملف المنتج غير مهيأ للتسليم");
-        return { success: true as const, requestId: request.id, downloadUrl: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+        const token = await createDownloadToken({ requestId: request.id, fileKey: key });
+        return { success: true as const, requestId: request.id, downloadUrl: buildDownloadUrl(request.id, token), expiresInMinutes: DOWNLOAD_LINK_TTL_MINUTES };
       }),
   }),
 });

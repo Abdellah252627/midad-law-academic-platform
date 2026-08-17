@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl } = vi.hoisted(() => ({
+const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42 }),
   createAnalyticsEvent: vi.fn().mockResolvedValue(undefined),
   getPurchaseRequestById: vi.fn(),
@@ -8,10 +8,17 @@ const { createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, app
   getActiveProductFile: vi.fn().mockResolvedValue({ fileKey: "product-files/MIDAD-001/pdf/active.pdf", fileType: "pdf" }),
   storagePut: vi.fn().mockResolvedValue({ key: "purchase-proofs/test-proof.pdf", url: "/private" }),
   storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/midad.pdf"),
+  createDownloadToken: vi.fn().mockResolvedValue("download-token"),
+  buildDownloadUrl: vi.fn((requestId: number, token: string) => `/api/download/${requestId}?token=${token}`),
 }));
 
 vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
+vi.mock("./downloadTokens", () => ({
+  DOWNLOAD_LINK_TTL_MINUTES: 15,
+  createDownloadToken,
+  buildDownloadUrl,
+}));
 
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -25,6 +32,13 @@ function createPublicContext(): TrpcContext {
 }
 
 describe("purchase.createTransferRequest", () => {
+  beforeEach(() => {
+    createDownloadToken.mockClear();
+    buildDownloadUrl.mockClear();
+    getActiveProductFile.mockClear();
+    storageGetSignedUrl.mockClear();
+  });
+
   it("rejects invalid customer email before persistence", async () => {
     const caller = appRouter.createCaller(createPublicContext());
     await expect(caller.purchase.createTransferRequest({
@@ -54,7 +68,7 @@ describe("purchase.createTransferRequest", () => {
   it("returns a signed URL only for an approved matching request", async () => {
     getPurchaseRequestById.mockResolvedValueOnce({ id: 12, productCode: "MIDAD-001", customerEmail: "student@example.com", status: "approved" });
     const caller = appRouter.createCaller(createPublicContext());
-    await expect(caller.purchase.getDownloadLink({ requestId: 12, customerEmail: "student@example.com" })).resolves.toEqual({ url: "https://signed.example/midad.pdf", expiresInMinutes: 15 });
+    await expect(caller.purchase.getDownloadLink({ requestId: 12, customerEmail: "student@example.com" })).resolves.toEqual({ url: "/api/download/12?token=download-token", expiresInMinutes: 15 });
     expect(getActiveProductFile).toHaveBeenCalledWith("MIDAD-001", "pdf");
   });
 
@@ -65,10 +79,11 @@ describe("purchase.createTransferRequest", () => {
     const caller = appRouter.createCaller(createPublicContext());
 
     await expect(caller.purchase.getDownloadLink({ requestId: 13, customerEmail: "student@example.com" })).resolves.toEqual({
-      url: "https://signed.example/fallback-midad.pdf",
+      url: "/api/download/13?token=download-token",
       expiresInMinutes: 15,
     });
-    expect(storageGetSignedUrl).toHaveBeenCalledWith(expect.stringContaining("MIDAD-001"));
+    expect(storageGetSignedUrl).not.toHaveBeenCalled();
+    expect(createDownloadToken).toHaveBeenCalledWith({ requestId: 13, fileKey: "midad-001-law-summary_4382aff1.pdf" });
   });
 
   it("stores a pending request and a private proof key", async () => {

@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, Eye, FileImage, FileText, Loader2, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileImage, FileText, Loader2, ShieldAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -36,6 +36,10 @@ function AdminPurchasesContent() {
     onSuccess: () => { toast.success("تم رفض الطلب وتسجيل السبب."); void utils.admin.purchaseRequests.invalidate(); },
     onError: error => toast.error(error.message || "تعذر رفض الطلب."),
   });
+  const reissueDownloadMutation = trpc.admin.reissuePurchaseDownload.useMutation({
+    onSuccess: result => { setApprovedDownload({ url: result.downloadUrl, expiresInMinutes: result.expiresInMinutes }); toast.success("تم إصدار رابط تنزيل جديد صالح لمدة 15 دقيقة."); },
+    onError: error => toast.error(error.message || "تعذر إصدار رابط التنزيل."),
+  });
 
   if (!isAdmin) {
     return <section dir="rtl" className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 text-center"><div className="rounded-[28px] border border-red-200 bg-white p-8 shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="font-display text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه الصفحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></section>;
@@ -47,6 +51,7 @@ function AdminPurchasesContent() {
     const reason = window.prompt("اكتب سبب رفض التحويل:");
     if (reason?.trim()) rejectMutation.mutate({ requestId, reason: reason.trim() });
   };
+  const reissueDownload = (requestId: number) => reissueDownloadMutation.mutate({ requestId });
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
@@ -72,7 +77,7 @@ function AdminPurchasesContent() {
             <td className="px-4 py-4">{request.proofKey ? <button type="button" onClick={() => setSelectedProofId(request.id)} className="inline-flex items-center gap-2 rounded-full bg-[#f8f3eb] px-3 py-2 text-xs font-bold text-[#173247] hover:bg-[#efe5d6]"><Eye className="h-4 w-4" />معاينة</button> : <span className="text-xs text-[#68747a]">غير مرفق</span>}</td>
             <td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(request.status)}`}>{statusLabel(request.status)}</span>{request.rejectionReason && <p className="mt-2 max-w-[180px] text-xs leading-5 text-red-700">{request.rejectionReason}</p>}</td>
             <td className="px-4 py-4 text-xs text-[#68747a]">{formatDate(request.createdAt)}</td>
-            <td className="px-4 py-4">{request.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => approve(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></div> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td>
+            <td className="px-4 py-4">{request.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => approve(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></div> : request.status === "approved" ? <button type="button" onClick={() => reissueDownload(request.id)} disabled={reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-[#173247] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#214963] disabled:opacity-50" title="إصدار رابط تنزيل صالح لمدة 15 دقيقة"><Download className="h-4 w-4" />إصدار رابط PDF</button> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td>
           </tr>)}
         </tbody>
       </table></div>

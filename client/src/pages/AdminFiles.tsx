@@ -42,8 +42,8 @@ export default function AdminFiles() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error("الحد الأقصى لحجم الملف هو 10 ميغابايت");
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      toast.error("الحد الأقصى لحجم ملف المنتج هو 50 ميغابايت");
       return;
     }
     const base64 = await new Promise<string>((resolve, reject) => {
@@ -70,7 +70,7 @@ export default function AdminFiles() {
         <CardHeader><CardTitle>رفع ملف جديد</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-[220px_1fr_auto] md:items-end">
           <div className="space-y-2"><Label>نوع الملف</Label><Select value={fileType} onValueChange={(value) => setFileType(value as FileType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pdf">النسخة الكاملة PDF</SelectItem><SelectItem value="sample">عينة PDF</SelectItem><SelectItem value="cover">صورة الغلاف</SelectItem></SelectContent></Select></div>
-          <div className="space-y-2"><Label htmlFor="admin-file">الملف (حد أقصى 10MB)</Label><Input ref={inputRef} id="admin-file" type="file" accept={fileType === "cover" ? "image/jpeg,image/png" : "application/pdf"} onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} /></div>
+          <div className="space-y-2"><Label htmlFor="admin-file">الملف (حد أقصى 50MB)</Label><Input ref={inputRef} id="admin-file" type="file" accept={fileType === "cover" ? "image/jpeg,image/png" : "application/pdf"} onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} /></div>
           <Button onClick={handleUpload} disabled={!selectedFile || upload.isPending}><Upload className="ml-2 h-4 w-4" />{upload.isPending ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جارٍ الرفع</> : "رفع وإصدار نسخة"}</Button>
         </CardContent>
       </Card>
