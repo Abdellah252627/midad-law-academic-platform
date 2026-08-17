@@ -51,16 +51,13 @@ describe("admin purchase details UI", () => {
     expect(adminSource).toContain("{item.orderNumber}");
   });
 
-  it("downloads the formatted workbook through the authenticated binary export route", () => {
+  it("opens the populated MIDAD Google Sheet instead of the broken Excel download", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 
-    expect(source).toContain("/api/admin/purchase-requests.xlsx?");
-    expect(source).toContain('credentials: "include"');
-    expect(source).toContain('sessionStorage.getItem("manus-cookie")');
-    expect(source).toContain('headers.Authorization = `Bearer ${token}`');
-    expect(source).toContain("const blob = await response.blob();");
-    expect(source).toContain("if (blob.size === 0)");
-    expect(source).not.toContain("window.atob");
+    expect(source).toContain("فتح سجل Google Sheets");
+    expect(source).toContain("https://docs.google.com/spreadsheets/d/1O6JEqrlxfaVui-BQ8VOr6nv9JxLd2Qz3013xfjFuirw/edit");
+    expect(source).toContain("window.open");
+    expect(source).not.toContain("/api/admin/purchase-requests.xlsx?");
   });
 
   it("shows the customer identity fields and proof preview in the purchases table", () => {

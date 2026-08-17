@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, Download, Eye, FileImage, FileText, History, Loader2, Pencil, Plus, Search, ShieldAlert, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, Eye, FileImage, FileText, History, Loader2, Pencil, Plus, Search, ShieldAlert, Trash2, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ function AdminPurchasesContent() {
   const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<10 | 50 | 100 | 200>(50);
-  const [exporting, setExporting] = useState(false);
   const purchaseQueryInput = useMemo(() => ({ search: search || undefined, searchScope, status: status === "all" ? undefined : status, page, pageSize }), [search, searchScope, status, page, pageSize]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
@@ -110,44 +109,13 @@ function AdminPurchasesContent() {
     setStatus("all");
     setPage(1);
   };
-  const exportOrders = async () => {
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      params.set("searchScope", searchScope);
-      if (status !== "all") params.set("status", status);
-      const headers: HeadersInit = {};
-      try {
-        const raw = sessionStorage.getItem("manus-cookie");
-        const prefix = "app_session_id=";
-        const pair = raw?.split(";").find(value => value.trim().startsWith(prefix));
-        const token = pair?.trim().slice(prefix.length);
-        if (token) headers.Authorization = `Bearer ${token}`;
-      } catch {
-        // Continue with the regular cookie-based session when sessionStorage is unavailable.
-      }
-      const response = await fetch(`/api/admin/purchase-requests.xlsx?${params.toString()}`, { credentials: "include", headers });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { error?: string } | null;
-        throw new Error(payload?.error || "تعذر إنشاء ملف Excel المنسق");
-      }
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error("تم إنشاء ملف Excel فارغ؛ لا توجد بيانات في الاستجابة.");
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `midad-orders-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success("تم تصدير بيانات الطلبات مع الفلاتر الحالية.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "تعذر تصدير بيانات الطلبات.");
-    } finally {
-      setExporting(false);
+  const openMidadSheet = () => {
+    const sheetWindow = window.open("https://docs.google.com/spreadsheets/d/1O6JEqrlxfaVui-BQ8VOr6nv9JxLd2Qz3013xfjFuirw/edit", "_blank", "noopener,noreferrer");
+    if (!sheetWindow) {
+      toast.error("تعذر فتح Google Sheets. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.");
+      return;
     }
+    toast.success("تم فتح سجل طلبات MIDAD في Google Sheets.");
   };
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
@@ -158,9 +126,9 @@ function AdminPurchasesContent() {
           <h1 className="mt-2 font-display text-3xl font-bold">طلبات الشراء والدفع</h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">راجع التحويلات البنكية، عاين إثبات الدفع داخل اللوحة، ثم وافق أو ارفض الطلب مع تسجيل القرار.</p>
         </div>
-        <button type="button" onClick={() => void exportOrders()} disabled={exporting} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d5a15f] px-4 py-3 text-sm font-bold text-[#173247] transition hover:bg-[#e2b878] disabled:cursor-wait disabled:opacity-60">
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
-          {exporting ? "جارٍ تجهيز الملف…" : "تصدير إلى Excel"}
+        <button type="button" onClick={openMidadSheet} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d5a15f] px-4 py-3 text-sm font-bold text-[#173247] transition hover:bg-[#e2b878] active:scale-[0.98]">
+          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          فتح سجل Google Sheets
         </button>
       </div>
     </header>
