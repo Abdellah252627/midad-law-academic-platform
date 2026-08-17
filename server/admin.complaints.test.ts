@@ -44,5 +44,8 @@ describe("admin complaints management", () => {
     expect(page).toContain("statusCounts[item.value]");
     expect(page).toContain("const queryUtils = trpc.useUtils();");
     expect(page).toContain("queryUtils.admin.complaints.invalidate()");
+    expect(page).toContain("تم نقل الشكوى من");
+    expect(page).toContain("statusMeta(transition.from).label");
+    expect(page).toContain("statusMeta(transition.to).label");
   });
 });

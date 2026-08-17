@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { ChevronLeft, ChevronRight, Loader2, MessageSquareText, Search, ShieldAlert, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const statuses = [
@@ -43,13 +43,20 @@ function AdminComplaintsContent() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [responseDraft, setResponseDraft] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<StatusValue>("new");
+  const pendingTransitionRef = useRef<{ from: StatusValue; to: StatusValue } | null>(null);
   const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
   const complaintsQuery = trpc.admin.complaints.useQuery(queryInput, { enabled: isAdmin });
   const detailQuery = trpc.admin.complaint.useQuery({ id: selectedId ?? 0 }, { enabled: isAdmin && selectedId !== null });
   const queryUtils = trpc.useUtils();
   const updateMutation = trpc.admin.updateComplaint.useMutation({
     onSuccess: async () => {
-      toast.success("تم تحديث الشكوى وتسجيل العملية في سجل التدقيق.");
+      const transition = pendingTransitionRef.current;
+      if (transition && transition.from !== transition.to) {
+        toast.success(`تم نقل الشكوى من «${statusMeta(transition.from).label}» إلى «${statusMeta(transition.to).label}».`);
+      } else {
+        toast.success("تم حفظ تحديث الشكوى وتسجيل العملية في سجل التدقيق.");
+      }
+      pendingTransitionRef.current = null;
       // إبطال جميع نسخ قائمة الشكاوى يحدّث العدادات فوراً حتى مع وجود بحث أو فلتر مختلف.
       await queryUtils.admin.complaints.invalidate();
       if (selectedId !== null) await detailQuery.refetch();
@@ -86,6 +93,7 @@ function AdminComplaintsContent() {
 
   const saveComplaint = () => {
     if (!selected) return;
+    pendingTransitionRef.current = { from: statusMeta(selected.status).value, to: selectedStatus };
     updateMutation.mutate({ id: selected.id, status: selectedStatus, adminResponse: responseDraft.trim() || null });
   };
 
