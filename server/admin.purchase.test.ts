@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
+const { getPurchaseRequests, getPurchaseRequestsForExport, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
   getPurchaseRequests: vi.fn(),
+  getPurchaseRequestsForExport: vi.fn(),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
   rejectPurchaseRequest: vi.fn(),
@@ -16,7 +17,7 @@ const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rej
   buildDownloadUrl: vi.fn((requestId: number, token: string) => `/api/download/${requestId}?token=${token}`),
 }));
 
-vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote }));
+vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestsForExport, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote }));
 vi.mock("./storage", () => ({ storageGetSignedUrl }));
 vi.mock("./downloadTokens", () => ({ DOWNLOAD_LINK_TTL_MINUTES: 15, createDownloadToken, buildDownloadUrl }));
 
@@ -32,6 +33,25 @@ function createAdminContext(): TrpcContext {
 }
 
 describe("admin purchase management", () => {
+  it("exports the unified Arabic order dataset with the active filters", async () => {
+    getPurchaseRequestsForExport.mockResolvedValueOnce([{ customerName: "سارة العلوي", customerEmail: "sara@example.com", customerPhone: "0664173090", productCode: "MIDAD-001", pricePaid: 19, proofKey: "private/proof.png", orderNumber: "MIDAD-20260817-AB12", status: "approved", createdAt: new Date("2026-08-17T10:00:00Z"), updatedAt: new Date("2026-08-17T11:00:00Z"), adminNotes: "تم التحقق" }]);
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.admin.purchaseRequestsExport({ search: " sara@example.com ", searchScope: "customer", status: "approved" });
+    expect(result.filename).toMatch(/^midad-orders-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(result.csv.charCodeAt(0)).toBe(0xfeff);
+    expect(result.csv).toContain("الاسم الكامل");
+    expect(result.csv).toContain("سارة العلوي");
+    expect(result.csv).toContain("مقبول");
+    expect(getPurchaseRequestsForExport).toHaveBeenCalledWith({ search: "sara@example.com", searchScope: "customer", status: "approved" });
+  });
+
+  it("rejects unsupported export filters before querying", async () => {
+    getPurchaseRequestsForExport.mockClear();
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequestsExport({ status: "pending", search: "x".repeat(161) })).rejects.toThrow();
+    expect(getPurchaseRequestsForExport).not.toHaveBeenCalled();
+  });
+
   it("lists purchase requests for admins", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());

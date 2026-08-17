@@ -422,6 +422,34 @@ export async function getPurchaseRequests(options?: { search?: string; searchSco
   return { requests, total: Number(countRows[0]?.count ?? 0), page, pageSize };
 }
 
+export async function getPurchaseRequestsForExport(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected" }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const search = options?.search?.trim().slice(0, 160);
+  const conditions = [];
+  if (options?.status) conditions.push(eq(purchaseRequests.status, options.status));
+  if (search) {
+    const escaped = search.replace(/[\\\\%_]/g, match => `\\\\${match}`);
+    const pattern = `%${escaped}%`;
+    const searchScope = options?.searchScope ?? "all";
+    if (searchScope === "orderNumber") conditions.push(like(purchaseRequests.orderNumber, pattern));
+    else if (searchScope === "customer") conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
+    else conditions.push(or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
+  }
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+  const [requests, notes] = await Promise.all([
+    db.select().from(purchaseRequests).where(whereClause).orderBy(desc(purchaseRequests.createdAt)),
+    db.select({ requestId: purchaseRequestNotes.requestId, content: purchaseRequestNotes.content, updatedAt: purchaseRequestNotes.updatedAt }).from(purchaseRequestNotes).where(isNull(purchaseRequestNotes.deletedAt)).orderBy(desc(purchaseRequestNotes.updatedAt)),
+  ]);
+  const notesByRequest = new Map<number, string[]>();
+  for (const note of notes) {
+    const list = notesByRequest.get(note.requestId) ?? [];
+    list.push(note.content);
+    notesByRequest.set(note.requestId, list);
+  }
+  return requests.map(request => ({ ...request, updatedAt: request.reviewedAt ?? request.createdAt, adminNotes: (notesByRequest.get(request.id) ?? []).join("\\n\\n") }));
+}
+
 export async function approvePurchaseRequest(id: number, reviewedByUserId?: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

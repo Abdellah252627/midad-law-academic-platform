@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -24,6 +24,26 @@ export function buildSampleLeadsCsv(leads: Array<{ id: number; productCode: stri
   const rows = leads.map(lead => [lead.id, lead.productCode, lead.fullName, lead.email, lead.whatsapp, lead.consentVersion, lead.createdAt]);
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
   return `\uFEFF${csv}`;
+}
+
+export type PurchaseExportRow = {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  productCode: string;
+  pricePaid: number;
+  proofKey: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  adminNotes: string;
+};
+
+export function buildPurchaseRequestsCsv(requests: PurchaseExportRow[]) {
+  const header = ["الاسم الكامل", "البريد الإلكتروني", "رقم واتساب", "المنتج (الرقم)", "السعر المدفوع (د.م)", "إثبات التحويل", "رقم الطلب", "حالة الطلب", "تاريخ الإنشاء", "تاريخ آخر تحديث", "ملاحظات إدارية"];
+  const rows = requests.map(request => [request.customerName, request.customerEmail, request.customerPhone, request.productCode, request.pricePaid, request.proofKey ? "مرفق" : "غير مرفق", request.orderNumber, request.status === "approved" ? "مقبول" : request.status === "rejected" ? "مرفوض" : "قيد المراجعة", request.createdAt, request.updatedAt, request.adminNotes]);
+  return `\uFEFF${[header, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n")}`;
 }
 
 export const appRouter = router({
@@ -126,6 +146,10 @@ export const appRouter = router({
       const leads = await getSampleDownloadLeadsByIds(uniqueIds);
       if (leads.length !== uniqueIds.length) throw new Error("بعض التسجيلات المحددة غير موجودة أو محذوفة");
       return { filename: `midad-selected-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
+    }),
+    purchaseRequestsExport: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional() }).optional()).query(async ({ input }) => {
+      const requests = await getPurchaseRequestsForExport(input ?? undefined);
+      return { filename: `midad-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildPurchaseRequestsCsv(requests as PurchaseExportRow[]) };
     }),
     purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional(), page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100, 200].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
       const options = input ?? { page: 1, pageSize: 25, searchScope: "all" as const };
