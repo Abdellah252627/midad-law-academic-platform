@@ -31,7 +31,19 @@ describe("admin purchase management", () => {
   it("lists purchase requests for admins", async () => {
     getPurchaseRequests.mockResolvedValueOnce([{ id: 1, productCode: "MIDAD-001", status: "pending" }]);
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1 });
+    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, search: "" });
+  });
+
+  it("passes a trimmed customer search to the database and returns the applied term", async () => {
+    getPurchaseRequests.mockResolvedValueOnce([{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }]);
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  " })).resolves.toEqual({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, search: "sara@example.com" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com" });
+  });
+
+  it("rejects an oversized search term before querying", async () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ search: "x".repeat(161) })).rejects.toThrow();
   });
 
   it("returns a temporary proof URL without exposing storage keys", async () => {

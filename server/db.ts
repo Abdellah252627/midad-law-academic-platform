@@ -336,10 +336,16 @@ export async function reviewPurchaseRequestCorrection(input: { id: number; statu
   });
 }
 
-export async function getPurchaseRequests() {
+export async function getPurchaseRequests(options?: { search?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(purchaseRequests).orderBy(desc(purchaseRequests.createdAt));
+  const search = options?.search?.trim().slice(0, 160);
+  if (!search) return db.select().from(purchaseRequests).orderBy(desc(purchaseRequests.createdAt));
+  const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
+  const pattern = `%${escaped}%`;
+  return db.select().from(purchaseRequests)
+    .where(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern)))
+    .orderBy(desc(purchaseRequests.createdAt));
 }
 
 export async function approvePurchaseRequest(id: number, reviewedByUserId?: number) {

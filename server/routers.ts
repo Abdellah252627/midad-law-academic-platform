@@ -102,9 +102,9 @@ export const appRouter = router({
       if (leads.length !== uniqueIds.length) throw new Error("بعض التسجيلات المحددة غير موجودة أو محذوفة");
       return { filename: `midad-selected-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
     }),
-    purchaseRequests: adminProcedure.query(async () => {
-      const requests = await getPurchaseRequests();
-      return { requests, total: requests.length };
+    purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional() }).optional()).query(async ({ input }) => {
+      const requests = await getPurchaseRequests({ search: input?.search });
+      return { requests, total: requests.length, search: input?.search?.trim() ?? "" };
     }),
     purchaseRequestCorrections: adminProcedure.query(async () => getPurchaseRequestCorrections()),
     reviewPurchaseRequestCorrection: adminProcedure.input(z.object({ correctionId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), decisionNote: z.string().trim().max(500).optional() })).mutation(async ({ input, ctx }) => {
