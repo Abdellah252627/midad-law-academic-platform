@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, createComplaint, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -75,6 +75,31 @@ export const appRouter = router({
         });
         await createAnalyticsEvent({ eventType: "sample_download", productCode: input.productCode, visitorKey: null });
         return { success: true as const, url: await storageGetSignedUrl(key), expiresInMinutes: 15 };
+      }),
+  }),
+  complaints: router({
+    submit: publicProcedure
+      .input(z.object({
+        requestId: z.number().int().positive().optional(),
+        fullName: z.string().trim().min(2).max(160).transform(value => value.replace(/\s+/g, " ")).refine(value => value.split(" ").filter(Boolean).length >= 2 && /^[A-Za-z\u0600-\u06FF ]+$/.test(value), "الاسم الكامل غير صالح"),
+        email: z.string().trim().email().max(320),
+        whatsapp: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).refine(value => /^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(value), "رقم واتساب غير صالح").optional(),
+        category: z.enum(["payment", "proof", "review", "download", "data", "other"]),
+        description: z.string().trim().min(10).max(5000),
+      }))
+      .mutation(async ({ input }) => {
+        const request = input.requestId ? await getPurchaseRequestById(input.requestId) : undefined;
+        if (input.requestId && !request) throw new Error("رقم الطلب غير صالح");
+        const ticketNumber = `MIDAD-S-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
+        const complaint = await createComplaint({ ...input, email: input.email.toLowerCase(), ticketNumber });
+        return { success: true as const, ticketNumber: complaint?.ticketNumber ?? ticketNumber, status: complaint?.status ?? "new" };
+      }),
+    track: publicProcedure
+      .input(z.object({ ticketNumber: z.string().trim().regex(/^MIDAD-S-[A-Z0-9]{12}$/, "رقم التذكرة غير صالح"), email: z.string().trim().email().max(320) }))
+      .query(async ({ input }) => {
+        const complaint = await getComplaintByTicketAndEmail(input.ticketNumber, input.email);
+        if (!complaint) throw new Error("لم يتم العثور على التذكرة");
+        return complaint;
       }),
   }),
   admin: router({

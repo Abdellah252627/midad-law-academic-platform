@@ -154,6 +154,20 @@ export const purchaseRequestNoteEvents = mysqlTable("purchase_request_note_event
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const complaints = mysqlTable("complaints", {
+  id: int("id").autoincrement().primaryKey(),
+  ticketNumber: varchar("ticketNumber", { length: 32 }).notNull().unique(),
+  requestId: int("requestId").references(() => purchaseRequests.id),
+  fullName: varchar("fullName", { length: 160 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  whatsapp: varchar("whatsapp", { length: 32 }),
+  category: mysqlEnum("category", ["payment", "proof", "review", "download", "data", "other"]).notNull(),
+  description: text("description").notNull(),
+  status: mysqlEnum("status", ["new", "in_review", "needs_info", "responded", "closed"]).default("new").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),

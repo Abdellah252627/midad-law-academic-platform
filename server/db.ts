@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -514,3 +514,59 @@ export async function restoreLandingFaq(id: number) {
   await db.update(landingFaqs).set({ deletedAt: null, isPublished: 1 }).where(eq(landingFaqs.id, id));
 }
 
+
+
+export type CreateComplaintInput = {
+  ticketNumber: string;
+  requestId?: number | null;
+  fullName: string;
+  email: string;
+  whatsapp?: string | null;
+  category: "payment" | "proof" | "review" | "download" | "data" | "other";
+  description: string;
+};
+
+export async function createComplaint(input: CreateComplaintInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(complaints).values({
+    ticketNumber: input.ticketNumber,
+    requestId: input.requestId ?? null,
+    fullName: input.fullName,
+    email: input.email.toLowerCase(),
+    whatsapp: input.whatsapp ?? null,
+    category: input.category,
+    description: input.description,
+    status: "new",
+  });
+  const insertedId = Number(result[0].insertId);
+  return getComplaintById(insertedId);
+}
+
+export async function getComplaintById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(complaints).where(eq(complaints.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getComplaintByTicketAndEmail(ticketNumber: string, email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({
+    ticketNumber: complaints.ticketNumber,
+    category: complaints.category,
+    status: complaints.status,
+    createdAt: complaints.createdAt,
+    updatedAt: complaints.updatedAt,
+    description: complaints.description,
+  }).from(complaints).where(and(eq(complaints.ticketNumber, ticketNumber), eq(complaints.email, email.toLowerCase()))).limit(1);
+  return rows[0];
+}
+
+export async function findPurchaseRequestByOrderNumber(orderNumber: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ id: purchaseRequests.id }).from(purchaseRequests).where(eq(purchaseRequests.orderNumber, orderNumber)).limit(1);
+  return rows[0];
+}
