@@ -51,13 +51,23 @@ const adminContent = {
     isPublished: 1,
   },
   chapters: [],
-  faqs: [],
+  faqs: [
+    {
+      id: 1,
+      productCode: "MIDAD-001",
+      question: "أرسلت التحويل البنكي، متى تتم مراجعة طلبي؟",
+      answer: "تتم مراجعة التحويل يدوياً بعد التحقق من وصول المبلغ.",
+      sortOrder: 1,
+      isPublished: 1,
+      deletedAt: null,
+    },
+  ],
 };
 
 describe("admin landing content procedures", () => {
   beforeEach(() => {
     vi.mocked(db.getLandingAdminContent).mockResolvedValue(adminContent as never);
-    vi.mocked(db.getPublishedLandingContent).mockResolvedValue({ product: adminContent.product, chapters: [], faqs: [] } as never);
+    vi.mocked(db.getPublishedLandingContent).mockResolvedValue({ product: adminContent.product, chapters: [], faqs: adminContent.faqs } as never);
     vi.mocked(db.saveLandingProduct).mockResolvedValue(undefined);
     vi.mocked(db.saveLandingChapter).mockResolvedValue(12);
     vi.mocked(db.saveLandingFaq).mockResolvedValue(9);
@@ -85,6 +95,16 @@ describe("admin landing content procedures", () => {
     });
     expect(db.saveLandingProduct).toHaveBeenCalledWith(expect.objectContaining({ productCode: "MIDAD-001", isPublished: 1 }));
     expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_product", entityId: "MIDAD-001" }));
+  });
+
+  it("returns available FAQs to the admin content view", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    const content = await caller.admin.landingContent({ productCode: "MIDAD-001" });
+    expect(content.faqs).toHaveLength(1);
+    expect(content.faqs[0]).toMatchObject({
+      question: "أرسلت التحويل البنكي، متى تتم مراجعة طلبي؟",
+      isPublished: 1,
+    });
   });
 
   it("allows an admin to save a chapter and FAQ with publication state", async () => {
