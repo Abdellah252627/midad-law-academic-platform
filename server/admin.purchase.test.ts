@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
+const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
   getPurchaseRequests: vi.fn(),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
   rejectPurchaseRequest: vi.fn(),
+  getPurchaseRequestNotes: vi.fn(),
+  createPurchaseRequestNote: vi.fn(),
+  updatePurchaseRequestNote: vi.fn(),
+  deletePurchaseRequestNote: vi.fn(),
   getActiveProductFile: vi.fn().mockResolvedValue({ fileKey: "product-files/MIDAD-001/pdf/active.pdf", fileType: "pdf" }),
   createAuditLog: vi.fn(),
   storageGetSignedUrl: vi.fn().mockResolvedValue("https://signed.example/proof.pdf"),
@@ -12,7 +16,7 @@ const { getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rej
   buildDownloadUrl: vi.fn((requestId: number, token: string) => `/api/download/${requestId}?token=${token}`),
 }));
 
-vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile }));
+vi.mock("./db", () => ({ getPurchaseRequests, getPurchaseRequestById, approvePurchaseRequest, rejectPurchaseRequest, createAuditLog, getActiveProductFile, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote }));
 vi.mock("./storage", () => ({ storageGetSignedUrl }));
 vi.mock("./downloadTokens", () => ({ DOWNLOAD_LINK_TTL_MINUTES: 15, createDownloadToken, buildDownloadUrl }));
 
@@ -91,6 +95,37 @@ describe("admin purchase management", () => {
     await expect(caller.admin.rejectPurchase({ requestId: 4, reason: "الإثبات غير واضح" })).resolves.toEqual({ success: true, requestId: 4 });
     expect(approvePurchaseRequest).toHaveBeenCalledWith(3, 7);
     expect(rejectPurchaseRequest).toHaveBeenCalledWith(4, "الإثبات غير واضح", 7);
+  });
+
+  it("lists notes and history only through the admin procedure", async () => {
+    getPurchaseRequestById.mockResolvedValueOnce({ id: 12, productCode: "MIDAD-001" });
+    getPurchaseRequestNotes.mockResolvedValueOnce({ notes: [{ id: 4, requestId: 12, content: "متابعة الإثبات" }], events: [{ id: 5, action: "created", actorUserId: 7 }] });
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequestNotes({ requestId: 12 })).resolves.toEqual({ notes: [{ id: 4, requestId: 12, content: "متابعة الإثبات" }], events: [{ id: 5, action: "created", actorUserId: 7 }] });
+  });
+
+  it("creates, updates, and deletes notes with the authenticated admin id", async () => {
+    getPurchaseRequestById.mockResolvedValue({ id: 12, productCode: "MIDAD-001" });
+    createPurchaseRequestNote.mockResolvedValueOnce({ id: 21 });
+    updatePurchaseRequestNote.mockResolvedValueOnce({ id: 21, requestId: 12, content: "محدث" });
+    deletePurchaseRequestNote.mockResolvedValueOnce({ id: 21, requestId: 12 });
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.createPurchaseRequestNote({ requestId: 12, content: "ملاحظة" })).resolves.toEqual({ success: true, noteId: 21 });
+    await expect(caller.admin.updatePurchaseRequestNote({ noteId: 21, content: "محدث" })).resolves.toEqual({ success: true, noteId: 21 });
+    await expect(caller.admin.deletePurchaseRequestNote({ noteId: 21 })).resolves.toEqual({ success: true, noteId: 21 });
+    expect(createPurchaseRequestNote).toHaveBeenCalledWith({ requestId: 12, content: "ملاحظة", userId: 7 });
+    expect(updatePurchaseRequestNote).toHaveBeenCalledWith({ noteId: 21, content: "محدث", userId: 7 });
+    expect(deletePurchaseRequestNote).toHaveBeenCalledWith({ noteId: 21, userId: 7 });
+    expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 7, action: "purchase.note.create" }));
+    expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 7, action: "purchase.note.update" }));
+    expect(createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 7, action: "purchase.note.delete" }));
+  });
+
+  it("rejects empty notes before calling the database", async () => {
+    createPurchaseRequestNote.mockClear();
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.createPurchaseRequestNote({ requestId: 12, content: "   " })).rejects.toThrow();
+    expect(createPurchaseRequestNote).not.toHaveBeenCalled();
   });
 
   it("reissues a temporary download link only for approved requests", async () => {

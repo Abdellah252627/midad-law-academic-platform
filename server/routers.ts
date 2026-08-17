@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -106,6 +106,32 @@ export const appRouter = router({
       const options = input ?? { page: 1, pageSize: 25 };
       const result = await getPurchaseRequests(options);
       return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: options.search?.trim() ?? "", status: options.status ?? "all" };
+    }),
+    purchaseRequestNotes: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).query(async ({ input }) => {
+      const request = await getPurchaseRequestById(input.requestId);
+      if (!request) throw new Error("طلب الشراء غير موجود");
+      return getPurchaseRequestNotes(input.requestId);
+    }),
+    createPurchaseRequestNote: adminProcedure.input(z.object({ requestId: z.number().int().positive(), content: z.string().trim().min(1, "الملاحظة لا يمكن أن تكون فارغة").max(5000) })).mutation(async ({ input, ctx }) => {
+      const request = await getPurchaseRequestById(input.requestId);
+      if (!request) throw new Error("طلب الشراء غير موجود");
+      const result = await createPurchaseRequestNote({ requestId: input.requestId, content: input.content, userId: ctx.user.id });
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.note.create", entityType: "purchase_request_note", entityId: String(result.id), productCode: request.productCode, metadataJson: JSON.stringify({ requestId: input.requestId }) });
+      return { success: true as const, noteId: result.id };
+    }),
+    updatePurchaseRequestNote: adminProcedure.input(z.object({ noteId: z.number().int().positive(), content: z.string().trim().min(1, "الملاحظة لا يمكن أن تكون فارغة").max(5000) })).mutation(async ({ input, ctx }) => {
+      const result = await updatePurchaseRequestNote({ noteId: input.noteId, content: input.content, userId: ctx.user.id });
+      if (!result) throw new Error("الملاحظة غير موجودة");
+      const request = await getPurchaseRequestById(result.requestId);
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.note.update", entityType: "purchase_request_note", entityId: String(input.noteId), productCode: request?.productCode, metadataJson: JSON.stringify({ requestId: result.requestId }) });
+      return { success: true as const, noteId: input.noteId };
+    }),
+    deletePurchaseRequestNote: adminProcedure.input(z.object({ noteId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const result = await deletePurchaseRequestNote({ noteId: input.noteId, userId: ctx.user.id });
+      if (!result) throw new Error("الملاحظة غير موجودة");
+      const request = await getPurchaseRequestById(result.requestId);
+      await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.note.delete", entityType: "purchase_request_note", entityId: String(input.noteId), productCode: request?.productCode, metadataJson: JSON.stringify({ requestId: result.requestId }) });
+      return { success: true as const, noteId: input.noteId };
     }),
     purchaseRequestCorrections: adminProcedure.query(async () => getPurchaseRequestCorrections()),
     reviewPurchaseRequestCorrection: adminProcedure.input(z.object({ correctionId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), decisionNote: z.string().trim().max(500).optional() })).mutation(async ({ input, ctx }) => {

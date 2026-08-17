@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { CheckCircle2, Download, Eye, FileImage, FileText, Loader2, Search, ShieldAlert, X, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileImage, FileText, History, Loader2, Pencil, Plus, Search, ShieldAlert, Trash2, X, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,9 @@ function AdminPurchasesContent() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [selectedProofId, setSelectedProofId] = useState<number | null>(null);
+  const [selectedNoteRequestId, setSelectedNoteRequestId] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [approvedDownload, setApprovedDownload] = useState<{ url: string; expiresInMinutes: number } | null>(null);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
@@ -30,6 +33,10 @@ function AdminPurchasesContent() {
   const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
+  const notesQuery = trpc.admin.purchaseRequestNotes.useQuery(
+    { requestId: selectedNoteRequestId ?? 0 },
+    { enabled: isAdmin && selectedNoteRequestId !== null },
+  );
   const proofQuery = trpc.admin.purchaseProofUrl.useQuery(
     { requestId: selectedProofId ?? 0 },
     { enabled: isAdmin && selectedProofId !== null },
@@ -46,6 +53,18 @@ function AdminPurchasesContent() {
   const reissueDownloadMutation = trpc.admin.reissuePurchaseDownload.useMutation({
     onSuccess: result => { setApprovedDownload({ url: result.downloadUrl, expiresInMinutes: result.expiresInMinutes }); toast.success("تم إصدار رابط تنزيل جديد صالح لمدة 15 دقيقة."); },
     onError: error => toast.error(error.message || "تعذر إصدار رابط التنزيل."),
+  });
+  const createNoteMutation = trpc.admin.createPurchaseRequestNote.useMutation({
+    onSuccess: () => { toast.success("تمت إضافة الملاحظة وتسجيل العملية."); setNoteDraft(""); void notesQuery.refetch(); },
+    onError: error => toast.error(error.message || "تعذرت إضافة الملاحظة."),
+  });
+  const updateNoteMutation = trpc.admin.updatePurchaseRequestNote.useMutation({
+    onSuccess: () => { toast.success("تم تحديث الملاحظة وتسجيل التعديل."); setNoteDraft(""); setEditingNoteId(null); void notesQuery.refetch(); },
+    onError: error => toast.error(error.message || "تعذر تحديث الملاحظة."),
+  });
+  const deleteNoteMutation = trpc.admin.deletePurchaseRequestNote.useMutation({
+    onSuccess: () => { toast.success("تم حذف الملاحظة وإضافته إلى السجل."); void notesQuery.refetch(); },
+    onError: error => toast.error(error.message || "تعذر حذف الملاحظة."),
   });
   const reviewCorrectionMutation = trpc.admin.reviewPurchaseRequestCorrection.useMutation({
     onSuccess: () => { toast.success("تم تحديث طلب التصحيح وتسجيل القرار."); void correctionsQuery.refetch(); void requestsQuery.refetch(); },
@@ -67,6 +86,16 @@ function AdminPurchasesContent() {
     const decisionNote = window.prompt(decision === "approved" ? "ملاحظة الموافقة (اختياري):" : "سبب رفض التصحيح (اختياري):") || undefined;
     reviewCorrectionMutation.mutate({ correctionId, decision, decisionNote });
   };
+  const openNotes = (requestId: number) => { setSelectedNoteRequestId(requestId); setEditingNoteId(null); setNoteDraft(""); };
+  const saveNote = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (selectedNoteRequestId === null || !noteDraft.trim()) return;
+    if (editingNoteId !== null) updateNoteMutation.mutate({ noteId: editingNoteId, content: noteDraft.trim() });
+    else createNoteMutation.mutate({ requestId: selectedNoteRequestId, content: noteDraft.trim() });
+  };
+  const editNote = (noteId: number, content: string) => { setEditingNoteId(noteId); setNoteDraft(content); };
+  const removeNote = (noteId: number) => { if (window.confirm("هل تريد حذف هذه الملاحظة؟ سيبقى التعديل محفوظاً في السجل الزمني.")) deleteNoteMutation.mutate({ noteId }); };
+
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSearch(searchDraft.trim().slice(0, 160));
@@ -137,7 +166,7 @@ function AdminPurchasesContent() {
             <td className="px-4 py-4">{request.proofKey ? <div className="flex flex-col items-start gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700"><FileImage className="h-3.5 w-3.5" />مرفق</span><button type="button" onClick={() => setSelectedProofId(request.id)} className="inline-flex items-center gap-2 rounded-full bg-[#f8f3eb] px-3 py-2 text-xs font-bold text-[#173247] hover:bg-[#efe5d6]"><Eye className="h-4 w-4" />معاينة الإثبات</button></div> : <span className="text-xs text-[#68747a]">غير مرفق</span>}</td>
             <td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(request.status)}`}>{statusLabel(request.status)}</span>{request.rejectionReason && <p className="mt-2 max-w-[180px] text-xs leading-5 text-red-700">{request.rejectionReason}</p>}</td>
             <td className="px-4 py-4 text-xs text-[#68747a]">{formatDate(request.createdAt)}</td>
-            <td className="px-4 py-4">{request.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => approve(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></div> : request.status === "approved" ? <button type="button" onClick={() => reissueDownload(request.id)} disabled={reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-[#173247] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#214963] disabled:opacity-50" title="إصدار رابط تنزيل صالح لمدة 15 دقيقة"><Download className="h-4 w-4" />إصدار رابط PDF</button> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td>
+            <td className="px-4 py-4"><div className="flex flex-wrap gap-2">{request.status === "pending" ? <><button type="button" onClick={() => approve(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></> : request.status === "approved" ? <button type="button" onClick={() => reissueDownload(request.id)} disabled={reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-[#173247] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#214963] disabled:opacity-50" title="إصدار رابط تنزيل صالح لمدة 15 دقيقة"><Download className="h-4 w-4" />إصدار رابط PDF</button> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}<button type="button" onClick={() => openNotes(request.id)} className="inline-flex items-center gap-1 rounded-lg border border-[#d9c9b4] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#173247] transition hover:bg-[#f8f3eb]"><History className="h-4 w-4" />الملاحظات</button></div></td>
           </tr>)}
         </tbody>
       </table></div>
@@ -151,6 +180,7 @@ function AdminPurchasesContent() {
       </div>
     </nav>
 
+    {selectedNoteRequestId !== null && <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-[#173247]/70 p-4" onClick={() => setSelectedNoteRequestId(null)}><div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[26px] bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="mb-5 flex items-center justify-between"><div><h2 className="font-display text-xl font-bold text-[#173247]">ملاحظات داخلية للطلب #{selectedNoteRequestId}</h2><p className="mt-1 text-xs text-[#68747a]">هذه الملاحظات خاصة بفريق الإدارة ولا تظهر للعميل.</p></div><button type="button" onClick={() => setSelectedNoteRequestId(null)} className="rounded-lg p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق">×</button></div><form onSubmit={saveNote} className="rounded-2xl border border-[#e3d9ca] bg-[#fcfaf6] p-4"><label htmlFor="purchase-note" className="text-sm font-bold text-[#173247]">{editingNoteId !== null ? "تعديل الملاحظة" : "إضافة ملاحظة جديدة"}</label><textarea id="purchase-note" value={noteDraft} onChange={event => setNoteDraft(event.target.value)} maxLength={5000} rows={4} placeholder="اكتب ملاحظة داخلية عن الدفع أو التواصل أو المتابعة…" className="mt-2 w-full resize-y rounded-xl border border-[#e3d9ca] bg-white p-3 text-sm leading-7 text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20"/><div className="mt-3 flex flex-wrap gap-2"><button type="submit" disabled={!noteDraft.trim() || createNoteMutation.isPending || updateNoteMutation.isPending} className="inline-flex items-center gap-2 rounded-xl bg-[#173247] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{editingNoteId !== null ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{editingNoteId !== null ? "حفظ التعديل" : "إضافة الملاحظة"}</button>{editingNoteId !== null && <button type="button" onClick={() => { setEditingNoteId(null); setNoteDraft(""); }} className="rounded-xl border border-[#e3d9ca] px-4 py-2.5 text-sm font-bold text-[#68747a]">إلغاء التعديل</button>}</div></form><div className="mt-5 space-y-3"><h3 className="flex items-center gap-2 font-bold text-[#173247]"><FileText className="h-4 w-4 text-[#b9854a]" />الملاحظات الحالية</h3>{notesQuery.isLoading ? <p className="rounded-xl bg-[#fcfaf6] p-4 text-sm text-[#68747a]">جارٍ تحميل الملاحظات…</p> : notesQuery.data?.notes.length ? notesQuery.data.notes.map(note => <article key={note.id} className="rounded-2xl border border-[#eee7dc] bg-white p-4"><p className="whitespace-pre-wrap text-sm leading-7 text-[#173247]">{note.content}</p><div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[#68747a]"><span>آخر تحديث: {formatDate(note.updatedAt)}</span><span className="flex gap-2"><button type="button" onClick={() => editNote(note.id, note.content)} className="inline-flex items-center gap-1 rounded-lg border border-[#e3d9ca] px-2.5 py-1.5 font-bold hover:bg-[#f8f3eb]"><Pencil className="h-3.5 w-3.5" />تعديل</button><button type="button" onClick={() => removeNote(note.id)} disabled={deleteNoteMutation.isPending} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />حذف</button></span></div></article>) : <p className="rounded-xl bg-[#fcfaf6] p-4 text-sm text-[#68747a]">لا توجد ملاحظات لهذا الطلب حتى الآن.</p>}</div><div className="mt-6 border-t border-[#eee7dc] pt-5"><h3 className="flex items-center gap-2 font-bold text-[#173247]"><History className="h-4 w-4 text-[#b9854a]" />السجل الزمني للتعديلات</h3><div className="mt-3 space-y-2">{notesQuery.data?.events.length ? notesQuery.data.events.map(event => <div key={event.id} className="rounded-xl bg-[#fcfaf6] px-3 py-2 text-xs leading-6 text-[#68747a]"><span className="font-bold text-[#173247]">{event.action === "created" ? "إضافة" : event.action === "updated" ? "تعديل" : "حذف"}</span> — المدير #{event.actorUserId} — {formatDate(event.createdAt)}</div>) : <p className="rounded-xl bg-[#fcfaf6] p-4 text-sm text-[#68747a]">لا توجد تعديلات مسجلة حتى الآن.</p>}</div></div></div></div>}
     {selectedProofId !== null && <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-[#173247]/70 p-4" onClick={() => setSelectedProofId(null)}><div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[26px] bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold text-[#173247]">معاينة إثبات الدفع</h2><button type="button" onClick={() => setSelectedProofId(null)} className="rounded-lg p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق">×</button></div>{proofQuery.isLoading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-[#b9854a]" /></div> : proofQuery.error ? <p role="alert" className="rounded-xl bg-red-50 p-6 text-center text-sm font-bold text-red-700">تعذرت معاينة إثبات الدفع. قد يكون الرابط المؤقت انتهت صلاحيته؛ أغلق النافذة ثم أعد فتح المعاينة.</p> : proofQuery.data?.url ? proofQuery.data.contentType?.startsWith("image/") ? <img src={proofQuery.data.url} alt="إثبات الدفع" className="mx-auto max-h-[70vh] rounded-xl object-contain" /> : <iframe src={proofQuery.data.url} title="إثبات الدفع PDF" className="h-[70vh] w-full rounded-xl border" /> : <div className="py-16 text-center text-[#68747a]"><FileImage className="mx-auto mb-3 h-10 w-10" />لا يوجد إثبات متاح لهذا الطلب.</div>}<p className="mt-4 flex items-center gap-2 text-xs text-[#68747a]"><FileText className="h-4 w-4" />الرابط مؤقت ومخصص للمراجعة الإدارية فقط.</p></div></div>}
   </section>;
 }

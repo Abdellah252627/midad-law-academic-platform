@@ -131,6 +131,28 @@ export const reviews = mysqlTable("reviews", {
   isVisible: int("is_visible").default(1).notNull(),
 });
 
+export const purchaseRequestNotes = mysqlTable("purchase_request_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  requestId: int("requestId").notNull().references(() => purchaseRequests.id),
+  content: text("content").notNull(),
+  createdByUserId: int("createdByUserId").notNull(),
+  updatedByUserId: int("updatedByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+
+export const purchaseRequestNoteEvents = mysqlTable("purchase_request_note_events", {
+  id: int("id").autoincrement().primaryKey(),
+  noteId: int("noteId").notNull().references(() => purchaseRequestNotes.id),
+  requestId: int("requestId").notNull().references(() => purchaseRequests.id),
+  actorUserId: int("actorUserId").notNull(),
+  action: mysqlEnum("action", ["created", "updated", "deleted", "restored"]).notNull(),
+  previousContent: text("previousContent"),
+  newContent: text("newContent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -166,3 +188,7 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export type PurchaseRequestNote = typeof purchaseRequestNotes.$inferSelect;
+export type InsertPurchaseRequestNote = typeof purchaseRequestNotes.$inferInsert;
+export type PurchaseRequestNoteEvent = typeof purchaseRequestNoteEvents.$inferSelect;
+export type InsertPurchaseRequestNoteEvent = typeof purchaseRequestNoteEvents.$inferInsert;

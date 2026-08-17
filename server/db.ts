@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -334,6 +334,53 @@ export async function reviewPurchaseRequestCorrection(input: { id: number; statu
     }
     await tx.update(purchaseRequestCorrections).set({ status: input.status, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date(), decisionNote: input.decisionNote ?? null }).where(and(eq(purchaseRequestCorrections.id, input.id), eq(purchaseRequestCorrections.status, "pending")));
     return correction;
+  });
+}
+
+export async function getPurchaseRequestNotes(requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const [notes, events] = await Promise.all([
+    db.select().from(purchaseRequestNotes).where(and(eq(purchaseRequestNotes.requestId, requestId), isNull(purchaseRequestNotes.deletedAt))).orderBy(desc(purchaseRequestNotes.updatedAt)),
+    db.select().from(purchaseRequestNoteEvents).where(eq(purchaseRequestNoteEvents.requestId, requestId)).orderBy(desc(purchaseRequestNoteEvents.createdAt)),
+  ]);
+  return { notes, events };
+}
+
+export async function createPurchaseRequestNote(input: { requestId: number; content: string; userId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.transaction(async tx => {
+    const result = await tx.insert(purchaseRequestNotes).values({ requestId: input.requestId, content: input.content, createdByUserId: input.userId, updatedByUserId: input.userId });
+    const noteId = Number(result[0].insertId);
+    await tx.insert(purchaseRequestNoteEvents).values({ noteId, requestId: input.requestId, actorUserId: input.userId, action: "created", previousContent: null, newContent: input.content });
+    return { id: noteId };
+  });
+}
+
+export async function updatePurchaseRequestNote(input: { noteId: number; content: string; userId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.transaction(async tx => {
+    const rows = await tx.select().from(purchaseRequestNotes).where(and(eq(purchaseRequestNotes.id, input.noteId), isNull(purchaseRequestNotes.deletedAt))).limit(1);
+    const note = rows[0];
+    if (!note) return undefined;
+    await tx.update(purchaseRequestNotes).set({ content: input.content, updatedByUserId: input.userId, updatedAt: new Date() }).where(and(eq(purchaseRequestNotes.id, input.noteId), isNull(purchaseRequestNotes.deletedAt)));
+    await tx.insert(purchaseRequestNoteEvents).values({ noteId: note.id, requestId: note.requestId, actorUserId: input.userId, action: "updated", previousContent: note.content, newContent: input.content });
+    return { ...note, content: input.content, updatedByUserId: input.userId };
+  });
+}
+
+export async function deletePurchaseRequestNote(input: { noteId: number; userId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.transaction(async tx => {
+    const rows = await tx.select().from(purchaseRequestNotes).where(and(eq(purchaseRequestNotes.id, input.noteId), isNull(purchaseRequestNotes.deletedAt))).limit(1);
+    const note = rows[0];
+    if (!note) return undefined;
+    await tx.update(purchaseRequestNotes).set({ deletedAt: new Date(), updatedByUserId: input.userId }).where(and(eq(purchaseRequestNotes.id, input.noteId), isNull(purchaseRequestNotes.deletedAt)));
+    await tx.insert(purchaseRequestNoteEvents).values({ noteId: note.id, requestId: note.requestId, actorUserId: input.userId, action: "deleted", previousContent: note.content, newContent: null });
+    return note;
   });
 }
 

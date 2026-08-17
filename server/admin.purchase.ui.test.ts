@@ -15,6 +15,18 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("[search, status, page, pageSize]");
   });
 
+  it("shows internal notes controls and an admin-only change history", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("الملاحظات");
+    expect(source).toContain("هذه الملاحظات خاصة بفريق الإدارة ولا تظهر للعميل.");
+    expect(source).toContain("السجل الزمني للتعديلات");
+    expect(source).toContain("trpc.admin.purchaseRequestNotes");
+    expect(source).toContain("trpc.admin.createPurchaseRequestNote");
+    expect(source).toContain("trpc.admin.updatePurchaseRequestNote");
+    expect(source).toContain("trpc.admin.deletePurchaseRequestNote");
+  });
+
   it("shows the customer identity fields and proof preview in the purchases table", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 
