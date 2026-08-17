@@ -139,6 +139,12 @@ export default function Home() {
   const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
   const [transferConsent, setTransferConsent] = useState(false);
   const createTransferRequest = trpc.purchase.createTransferRequest.useMutation();
+  const requestDataCorrection = trpc.purchase.requestDataCorrection.useMutation();
+  const correctionStatusQuery = trpc.purchase.correctionStatus.useQuery(
+    { requestId: transferSent ?? 0, customerEmail: form.customerEmail },
+    { enabled: Boolean(transferSent && form.customerEmail), retry: false },
+  );
+  const [correctionForm, setCorrectionForm] = useState({ email: "", phone: "", reason: "" });
   const downloadQuery = trpc.purchase.getDownloadLink.useQuery(
     { requestId: transferSent ?? 0, customerEmail: form.customerEmail },
     { enabled: false, retry: false },
@@ -187,6 +193,22 @@ export default function Home() {
       setSampleFieldErrors(fieldErrors);
       setSampleError(message);
       toast.error("تعذر تجهيز العينة", { description: message });
+    }
+  };
+
+  const handleCorrectionSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!correctionForm.email.trim() && !correctionForm.phone.trim()) {
+      toast.error("أدخل البريد أو رقم الواتساب الجديد");
+      return;
+    }
+    try {
+      await requestDataCorrection.mutateAsync({ requestId: transferSent ?? 0, currentEmail: form.customerEmail, requestedEmail: correctionForm.email.trim() || undefined, requestedPhone: correctionForm.phone.trim() || undefined, reason: correctionForm.reason.trim() || undefined });
+      await correctionStatusQuery.refetch();
+      toast.success("تم إرسال طلب تصحيح البيانات", { description: "ستراجعه الإدارة قبل تحديث الطلب." });
+      setCorrectionForm({ email: "", phone: "", reason: "" });
+    } catch (error) {
+      toast.error("تعذر إرسال طلب التصحيح", { description: error instanceof Error ? error.message : "تحقق من البيانات وحاول مرة أخرى." });
     }
   };
 
@@ -440,7 +462,7 @@ export default function Home() {
               <button type="button" onClick={resetTransferFlow} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج الشراء"><X size={17} /></button>
             </div>
             {transferSent ? (
-              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><div className="mt-4 rounded-[16px] border border-[#173247]/15 bg-[#f7f3eb] p-4" role="status" aria-live="polite"><div className="flex items-start gap-3"><span className="mt-0.5 text-lg" aria-hidden="true">★</span><div><p className="font-display text-sm font-black text-[#173247]">تذكير بالتقييم</p><p className="mt-1 font-body text-xs leading-[1.8] text-[#68747a]">بعد تأكيد الدفع وظهور الملف، شاركنا رأيك ليساعد طلبة آخرين على اختيار الملخص المناسب.</p></div></div><a href={`/rate/${transferSent}`} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-full border border-[#173247] px-5 py-3 text-center text-sm font-extrabold text-[#173247] transition hover:bg-[#173247] hover:text-white">فتح صفحة التقييم</a></div><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
+              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><div className="mt-4 rounded-[16px] border border-[#173247]/15 bg-[#f7f3eb] p-4" role="status" aria-live="polite"><div className="flex items-start gap-3"><span className="mt-0.5 text-lg" aria-hidden="true">★</span><div><p className="font-display text-sm font-black text-[#173247]">تذكير بالتقييم</p><p className="mt-1 font-body text-xs leading-[1.8] text-[#68747a]">بعد تأكيد الدفع وظهور الملف، شاركنا رأيك ليساعد طلبة آخرين على اختيار الملخص المناسب.</p></div></div><a href={`/rate/${transferSent}`} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-full border border-[#173247] px-5 py-3 text-center text-sm font-extrabold text-[#173247] transition hover:bg-[#173247] hover:text-white">فتح صفحة التقييم</a></div>{correctionStatusQuery.data?.status && <div className="mt-4 rounded-[16px] border border-[#b9854a]/30 bg-[#fffaf2] p-4" role="status" aria-live="polite"><p className="font-display text-sm font-black text-[#173247]">حالة طلب تصحيح البيانات</p><p className="mt-1 text-xs leading-6 text-[#68747a]">{correctionStatusQuery.data.status === "pending" ? "طلبك قيد المراجعة من الإدارة." : correctionStatusQuery.data.status === "approved" ? "تمت الموافقة على التصحيح وتحديث بيانات الطلب." : "تم رفض طلب التصحيح. يمكنك التواصل معنا عبر واتساب عند الحاجة."}</p></div>}<form onSubmit={handleCorrectionSubmit} className="mt-5 rounded-[16px] border border-[#d9d0c2] bg-[#f7f3eb] p-4"><p className="font-display text-sm font-black text-[#173247]">هل أدخلت البريد أو رقم الواتساب بشكل خاطئ؟</p><p className="mt-1 text-xs leading-6 text-[#68747a]">أدخل القيمة الصحيحة، وسنراجع الطلب قبل اعتماد التعديل. البريد الحالي المستخدم للتحقق: {form.customerEmail}</p><div className="mt-3 space-y-3"><label className="block text-xs font-bold">البريد الجديد <span className="font-normal text-[#768087]">(اختياري)</span><input type="email" maxLength={320} value={correctionForm.email} onChange={e => setCorrectionForm({ ...correctionForm, email: e.target.value })} className="mt-1 w-full rounded-[10px] border border-[#d9d0c2] bg-white px-3 py-2 text-sm outline-none focus:border-[#b9854a]" /></label><label className="block text-xs font-bold">رقم الواتساب الجديد <span className="font-normal text-[#768087]">(اختياري)</span><input inputMode="tel" maxLength={20} value={correctionForm.phone} onChange={e => setCorrectionForm({ ...correctionForm, phone: e.target.value })} placeholder="06XXXXXXXX" className="mt-1 w-full rounded-[10px] border border-[#d9d0c2] bg-white px-3 py-2 text-sm outline-none focus:border-[#b9854a]" /></label><label className="block text-xs font-bold">ملاحظة مختصرة <span className="font-normal text-[#768087]">(اختياري)</span><textarea maxLength={500} value={correctionForm.reason} onChange={e => setCorrectionForm({ ...correctionForm, reason: e.target.value })} className="mt-1 min-h-16 w-full rounded-[10px] border border-[#d9d0c2] bg-white px-3 py-2 text-sm outline-none focus:border-[#b9854a]" /></label><button disabled={requestDataCorrection.isPending} className="w-full rounded-full border border-[#b9854a] px-4 py-2.5 text-xs font-extrabold text-[#89663b] disabled:opacity-50">{requestDataCorrection.isPending ? "جارٍ إرسال الطلب…" : "إرسال طلب التصحيح"}</button></div></form><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
             ) : !showBankDetails ? (
                 <div className="mt-7 space-y-5">
                   <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل {productPriceMad} درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>

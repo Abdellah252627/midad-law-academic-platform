@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getPurchaseRequestById, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequests, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -106,6 +106,13 @@ export const appRouter = router({
       const requests = await getPurchaseRequests();
       return { requests, total: requests.length };
     }),
+    purchaseRequestCorrections: adminProcedure.query(async () => getPurchaseRequestCorrections()),
+    reviewPurchaseRequestCorrection: adminProcedure.input(z.object({ correctionId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), decisionNote: z.string().trim().max(500).optional() })).mutation(async ({ input, ctx }) => {
+      const result = await reviewPurchaseRequestCorrection({ id: input.correctionId, status: input.decision, reviewedByUserId: ctx.user.id, decisionNote: input.decisionNote || null });
+      if (!result) throw new Error("طلب التصحيح غير موجود");
+      await createAuditLog({ actorUserId: ctx.user.id, action: `purchase.correction.${input.decision}`, entityType: "purchase_request_correction", entityId: String(result.id), metadataJson: JSON.stringify({ requestId: result.requestId, requestedEmail: result.requestedEmail, requestedPhone: result.requestedPhone }) });
+      return { success: true as const, correctionId: result.id };
+    }),
     purchaseProofUrl: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).query(async ({ input }) => {
       const request = await getPurchaseRequestById(input.requestId);
       if (!request?.proofKey) return { url: null };
@@ -202,6 +209,36 @@ export const appRouter = router({
         });
         await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });
         return { success: true as const, requestId: result.id };
+      }),
+    requestDataCorrection: publicProcedure
+      .input(z.object({
+        requestId: z.number().int().positive(),
+        currentEmail: z.string().trim().email().max(320),
+        requestedEmail: z.string().trim().email().max(320).optional(),
+        requestedPhone: z.string().trim().transform(value => value.replace(/[\s()-]/g, "")).refine(value => /^(?:0[5-7]\d{8}|(?:\+?212)[5-7]\d{8})$/.test(value), "رقم واتساب غير صالح").optional(),
+        reason: z.string().trim().max(500).optional(),
+      }).superRefine((input, ctx) => {
+        if (!input.requestedEmail && !input.requestedPhone) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "أدخل البريد أو رقم الواتساب الجديد" });
+      }))
+      .mutation(async ({ input }) => {
+        const request = await getPurchaseRequestById(input.requestId);
+        if (!request || request.customerEmail.toLowerCase() !== input.currentEmail.toLowerCase()) throw new Error("تعذر التحقق من الطلب");
+        if (request.status === "rejected") throw new Error("لا يمكن تصحيح طلب مرفوض");
+        const pending = await getPendingPurchaseRequestCorrection(request.id);
+        if (pending) throw new Error("يوجد طلب تصحيح قيد المراجعة");
+        if (input.requestedEmail?.toLowerCase() === request.customerEmail.toLowerCase() && input.requestedPhone === (request.customerPhone ?? undefined)) throw new Error("لم يتم إدخال تغيير");
+        const correction = await createPurchaseRequestCorrection({ requestId: request.id, oldEmail: request.customerEmail, oldPhone: request.customerPhone, requestedEmail: input.requestedEmail?.toLowerCase() ?? null, requestedPhone: input.requestedPhone ?? null, reason: input.reason || null, status: "pending" });
+        return { success: true as const, correctionId: correction.id };
+      }),
+    correctionStatus: publicProcedure
+      .input(z.object({ requestId: z.number().int().positive(), customerEmail: z.string().trim().email().max(320) }))
+      .query(async ({ input }) => {
+        const request = await getPurchaseRequestById(input.requestId);
+        if (!request || request.customerEmail.toLowerCase() !== input.customerEmail.toLowerCase()) {
+          throw new Error("طلب التصحيح غير موجود");
+        }
+        const correction = await getLatestPurchaseRequestCorrection(input.requestId);
+        return correction ? { status: correction.status, createdAt: correction.createdAt, reviewedAt: correction.reviewedAt, decisionNote: correction.decisionNote } : { status: null, createdAt: null, reviewedAt: null, decisionNote: null };
       }),
     getDownloadLink: publicProcedure
       .input(z.object({ requestId: z.number().int().positive(), customerEmail: z.string().trim().email().max(320) }))

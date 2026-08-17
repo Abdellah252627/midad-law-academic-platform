@@ -23,6 +23,7 @@ function AdminPurchasesContent() {
   const [selectedProofId, setSelectedProofId] = useState<number | null>(null);
   const [approvedDownload, setApprovedDownload] = useState<{ url: string; expiresInMinutes: number } | null>(null);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(undefined, { enabled: isAdmin });
+  const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const proofQuery = trpc.admin.purchaseProofUrl.useQuery(
     { requestId: selectedProofId ?? 0 },
     { enabled: isAdmin && selectedProofId !== null },
@@ -40,6 +41,10 @@ function AdminPurchasesContent() {
     onSuccess: result => { setApprovedDownload({ url: result.downloadUrl, expiresInMinutes: result.expiresInMinutes }); toast.success("تم إصدار رابط تنزيل جديد صالح لمدة 15 دقيقة."); },
     onError: error => toast.error(error.message || "تعذر إصدار رابط التنزيل."),
   });
+  const reviewCorrectionMutation = trpc.admin.reviewPurchaseRequestCorrection.useMutation({
+    onSuccess: () => { toast.success("تم تحديث طلب التصحيح وتسجيل القرار."); void correctionsQuery.refetch(); void requestsQuery.refetch(); },
+    onError: error => toast.error(error.message || "تعذر مراجعة طلب التصحيح."),
+  });
 
   if (!isAdmin) {
     return <section dir="rtl" className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 text-center"><div className="rounded-[28px] border border-red-200 bg-white p-8 shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="font-display text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه الصفحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></section>;
@@ -52,6 +57,10 @@ function AdminPurchasesContent() {
     if (reason?.trim()) rejectMutation.mutate({ requestId, reason: reason.trim() });
   };
   const reissueDownload = (requestId: number) => reissueDownloadMutation.mutate({ requestId });
+  const reviewCorrection = (correctionId: number, decision: "approved" | "rejected") => {
+    const decisionNote = window.prompt(decision === "approved" ? "ملاحظة الموافقة (اختياري):" : "سبب رفض التصحيح (اختياري):") || undefined;
+    reviewCorrectionMutation.mutate({ correctionId, decision, decisionNote });
+  };
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
@@ -64,6 +73,11 @@ function AdminPurchasesContent() {
     {requestsQuery.error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">تعذر تحميل طلبات الشراء. تحقق من اتصال قاعدة البيانات وصلاحيات الحساب ثم أعد المحاولة.</p>}
     <div className="grid gap-4 sm:grid-cols-3">
       {[["الإجمالي", requests.length], ["قيد المراجعة", requests.filter(item => item.status === "pending").length], ["المقبولة", requests.filter(item => item.status === "approved").length]].map(([label, value]) => <div key={label as string} className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">{label as string}</p><p className="mt-2 text-3xl font-bold text-[#173247]">{requestsQuery.isLoading ? "…" : value as number}</p></div>)}
+    </div>
+
+    <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-[#eee7dc] bg-[#f8f3eb] px-5 py-4"><div><h2 className="font-display text-lg font-bold text-[#173247]">طلبات تصحيح بيانات التواصل</h2><p className="mt-1 text-xs text-[#68747a]">تُطبّق الموافقة البريد أو رقم الواتساب على طلب الشراء، وتُسجّل العملية في سجل التدقيق.</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">{correctionsQuery.data?.filter(item => item.status === "pending").length ?? 0} معلّق</span></div>
+      <div className="overflow-x-auto"><table className="min-w-[950px] w-full text-right text-sm"><thead className="bg-white text-[#173247]"><tr><th className="px-4 py-4 font-bold">رقم الطلب</th><th className="px-4 py-4 font-bold">القيم السابقة</th><th className="px-4 py-4 font-bold">القيم المطلوبة</th><th className="px-4 py-4 font-bold">السبب</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead><tbody className="divide-y divide-[#eee7dc]">{correctionsQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">جارٍ تحميل طلبات التصحيح…</td></tr> : (correctionsQuery.data ?? []).length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">لا توجد طلبات تصحيح.</td></tr> : (correctionsQuery.data ?? []).map(item => <tr key={item.id} className="hover:bg-[#fcfaf6]"><td className="px-4 py-4 font-mono text-xs text-[#173247]">#{item.requestId}</td><td className="px-4 py-4 text-xs leading-6 text-[#68747a]">{item.oldEmail}<br />{item.oldPhone || "—"}</td><td className="px-4 py-4 text-xs leading-6 text-[#173247]">{item.requestedEmail || "—"}<br />{item.requestedPhone || "—"}</td><td className="max-w-[220px] px-4 py-4 text-xs leading-6 text-[#68747a]">{item.reason || "—"}</td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td><td className="px-4 py-4">{item.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => reviewCorrection(item.id, "approved")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">موافقة</button><button type="button" onClick={() => reviewCorrection(item.id, "rejected")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">رفض</button></div> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td></tr>)}</tbody></table></div>
     </div>
 
     <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm">

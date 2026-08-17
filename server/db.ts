@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertReview, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequests, reviews, sampleDownloadLeads, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -281,6 +281,59 @@ export async function getVisibleProductReviews(productId: string) {
   }).from(reviews)
     .where(and(eq(reviews.productId, productId), eq(reviews.isVisible, 1)))
     .orderBy(desc(reviews.createdAt));
+}
+
+export async function createPurchaseRequestCorrection(input: InsertPurchaseRequestCorrection) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(purchaseRequestCorrections).values(input);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getPendingPurchaseRequestCorrection(requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(purchaseRequestCorrections).where(and(eq(purchaseRequestCorrections.requestId, requestId), eq(purchaseRequestCorrections.status, "pending"))).orderBy(desc(purchaseRequestCorrections.createdAt)).limit(1);
+  return rows[0];
+}
+
+export async function getLatestPurchaseRequestCorrection(requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({
+    id: purchaseRequestCorrections.id,
+    status: purchaseRequestCorrections.status,
+    createdAt: purchaseRequestCorrections.createdAt,
+    reviewedAt: purchaseRequestCorrections.reviewedAt,
+    decisionNote: purchaseRequestCorrections.decisionNote,
+  }).from(purchaseRequestCorrections)
+    .where(eq(purchaseRequestCorrections.requestId, requestId))
+    .orderBy(desc(purchaseRequestCorrections.createdAt))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getPurchaseRequestCorrections() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ correction: purchaseRequestCorrections, request: purchaseRequests }).from(purchaseRequestCorrections).innerJoin(purchaseRequests, eq(purchaseRequests.id, purchaseRequestCorrections.requestId)).orderBy(desc(purchaseRequestCorrections.createdAt));
+  return rows.map(({ correction, request }) => ({ ...correction, customerName: request.customerName, currentEmail: request.customerEmail, currentPhone: request.customerPhone }));
+}
+
+export async function reviewPurchaseRequestCorrection(input: { id: number; status: "approved" | "rejected"; reviewedByUserId: number; decisionNote?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.transaction(async tx => {
+    const rows = await tx.select().from(purchaseRequestCorrections).where(eq(purchaseRequestCorrections.id, input.id)).limit(1);
+    const correction = rows[0];
+    if (!correction) return undefined;
+    if (correction.status !== "pending") throw new Error("طلب التصحيح تمت مراجعته مسبقاً");
+    if (input.status === "approved") {
+      await tx.update(purchaseRequests).set({ customerEmail: correction.requestedEmail ?? correction.oldEmail, customerPhone: correction.requestedPhone ?? correction.oldPhone }).where(eq(purchaseRequests.id, correction.requestId));
+    }
+    await tx.update(purchaseRequestCorrections).set({ status: input.status, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date(), decisionNote: input.decisionNote ?? null }).where(and(eq(purchaseRequestCorrections.id, input.id), eq(purchaseRequestCorrections.status, "pending")));
+    return correction;
+  });
 }
 
 export async function getPurchaseRequests() {

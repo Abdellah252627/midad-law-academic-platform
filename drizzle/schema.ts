@@ -28,6 +28,21 @@ export const purchaseRequests = mysqlTable("purchase_requests", {
   reviewedAt: timestamp("reviewedAt"),
 });
 
+export const purchaseRequestCorrections = mysqlTable("purchase_request_corrections", {
+  id: int("id").autoincrement().primaryKey(),
+  requestId: int("requestId").notNull().references(() => purchaseRequests.id),
+  oldEmail: varchar("oldEmail", { length: 320 }).notNull(),
+  oldPhone: varchar("oldPhone", { length: 32 }),
+  requestedEmail: varchar("requestedEmail", { length: 320 }),
+  requestedPhone: varchar("requestedPhone", { length: 32 }),
+  reason: varchar("reason", { length: 500 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reviewedByUserId: int("reviewedByUserId"),
+  reviewedAt: timestamp("reviewedAt"),
+  decisionNote: varchar("decisionNote", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const sampleDownloadLeads = mysqlTable("sample_download_leads", {
   id: int("id").autoincrement().primaryKey(),
   productCode: varchar("productCode", { length: 32 }).notNull(),
@@ -131,6 +146,8 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
 export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
+export type PurchaseRequestCorrection = typeof purchaseRequestCorrections.$inferSelect;
+export type InsertPurchaseRequestCorrection = typeof purchaseRequestCorrections.$inferInsert;
 export type SampleDownloadLead = typeof sampleDownloadLeads.$inferSelect;
 export type InsertSampleDownloadLead = typeof sampleDownloadLeads.$inferInsert;
 export type LandingProduct = typeof landingProducts.$inferSelect;
