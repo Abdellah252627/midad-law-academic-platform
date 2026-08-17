@@ -115,7 +115,11 @@ function AdminPurchasesContent() {
     try {
       const result = await exportQuery.refetch();
       if (!result.data) throw new Error("لم يتم إنشاء الملف");
-      const blob = new Blob([result.data.csv], { type: "text/csv;charset=utf-8" });
+      if (!result.data.xlsxBase64) throw new Error("لم يتم إنشاء ملف Excel المنسق");
+      const binary = window.atob(result.data.xlsxBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

@@ -5,6 +5,7 @@ import { approvePurchaseRequest, createAuditLog, createProductFile, createPurcha
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { buildPurchaseRequestsXlsx, type PurchaseExportRow } from "./xlsxExport";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
@@ -25,20 +26,6 @@ export function buildSampleLeadsCsv(leads: Array<{ id: number; productCode: stri
   const csv = [header, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
   return `\uFEFF${csv}`;
 }
-
-export type PurchaseExportRow = {
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string | null;
-  productCode: string;
-  pricePaid: number;
-  proofKey: string | null;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  adminNotes: string;
-};
 
 export function buildPurchaseRequestsCsv(requests: PurchaseExportRow[]) {
   const header = ["الاسم الكامل", "البريد الإلكتروني", "رقم واتساب", "المنتج (الرقم)", "السعر المدفوع (د.م)", "إثبات التحويل", "رقم الطلب", "حالة الطلب", "تاريخ الإنشاء", "تاريخ آخر تحديث", "ملاحظات إدارية"];
@@ -149,7 +136,13 @@ export const appRouter = router({
     }),
     purchaseRequestsExport: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional() }).optional()).query(async ({ input }) => {
       const requests = await getPurchaseRequestsForExport(input ?? undefined);
-      return { filename: `midad-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildPurchaseRequestsCsv(requests as PurchaseExportRow[]) };
+      const rows = requests as PurchaseExportRow[];
+      return {
+        filename: `midad-orders-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        xlsxBase64: await buildPurchaseRequestsXlsx(rows),
+        csvFilename: `midad-orders-${new Date().toISOString().slice(0, 10)}.csv`,
+        csv: buildPurchaseRequestsCsv(rows),
+      };
     }),
     purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional(), page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100, 200].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
       const options = input ?? { page: 1, pageSize: 25, searchScope: "all" as const };

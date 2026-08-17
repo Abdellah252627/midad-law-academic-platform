@@ -37,7 +37,8 @@ describe("admin purchase management", () => {
     getPurchaseRequestsForExport.mockResolvedValueOnce([{ customerName: "سارة العلوي", customerEmail: "sara@example.com", customerPhone: "0664173090", productCode: "MIDAD-001", pricePaid: 19, proofKey: "private/proof.png", orderNumber: "MIDAD-20260817-AB12", status: "approved", createdAt: new Date("2026-08-17T10:00:00Z"), updatedAt: new Date("2026-08-17T11:00:00Z"), adminNotes: "تم التحقق" }]);
     const caller = appRouter.createCaller(createAdminContext());
     const result = await caller.admin.purchaseRequestsExport({ search: " sara@example.com ", searchScope: "customer", status: "approved" });
-    expect(result.filename).toMatch(/^midad-orders-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(result.filename).toMatch(/^midad-orders-\d{4}-\d{2}-\d{2}\.xlsx$/);
+    expect(result.xlsxBase64).toMatch(/^[A-Za-z0-9+/]+=*$/);
     expect(result.csv.charCodeAt(0)).toBe(0xfeff);
     expect(result.csv).toContain("الاسم الكامل");
     expect(result.csv).toContain("سارة العلوي");
