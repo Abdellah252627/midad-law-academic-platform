@@ -193,6 +193,9 @@ export async function getAnalyticsSummary() {
 }
 
 const DEFAULT_PRODUCT_CODE = "MIDAD-001";
+const PRODUCT_TITLE_FALLBACKS: Record<string, string> = {
+  "MIDAD-001": "مدخل إلى القانون والعلوم القانونية",
+};
 
 function settingsStorageKey(productCode: string, settingKey: string) {
   return productCode === DEFAULT_PRODUCT_CODE ? settingKey : `${productCode}:${settingKey}`;
@@ -255,7 +258,9 @@ export async function getRatingContext(orderId: number) {
     .leftJoin(landingProducts, eq(landingProducts.productCode, purchaseRequests.productCode))
     .leftJoin(reviews, eq(reviews.orderId, purchaseRequests.id))
     .where(eq(purchaseRequests.id, orderId)).limit(1);
-  return rows[0];
+  const row = rows[0];
+  if (!row) return undefined;
+  return row.productTitle ? row : { ...row, productTitle: PRODUCT_TITLE_FALLBACKS[row.productId] ?? row.productId };
 }
 
 export async function createReview(input: InsertReview) {

@@ -58,6 +58,25 @@ describe("rating REST endpoints", () => {
     expect(body).not.toHaveProperty("customerPhone");
   });
 
+  it("accepts an approved MIDAD order when the landing product row is absent", async () => {
+    mocks.getRatingContext.mockResolvedValue({
+      orderId: 30001,
+      status: "approved",
+      fullName: "ABDELLAH MOUHAMITI",
+      productId: "MIDAD-001",
+      productTitle: null,
+      reviewId: null,
+    });
+    const response = await fetch(`${baseUrl}/api/orders/30001/rating-context`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      valid: true,
+      alreadyRated: false,
+      fullName: "ABDELLAH MOUHAMITI",
+      productTitle: "مدخل إلى القانون والعلوم القانونية",
+    });
+  });
+
   it("rejects invalid order and invalid rating server-side", async () => {
     mocks.getRatingContext.mockResolvedValue(undefined);
     const context = await fetch(`${baseUrl}/api/orders/not-an-id/rating-context`);

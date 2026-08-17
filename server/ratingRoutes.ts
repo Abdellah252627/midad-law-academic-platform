@@ -12,6 +12,13 @@ const reviewBodySchema = z.object({
 }).strict();
 
 const emptyContext = () => ({ valid: false, alreadyRated: false, fullName: "", productTitle: "" });
+const PRODUCT_TITLE_FALLBACKS: Record<string, string> = {
+  "MIDAD-001": "مدخل إلى القانون والعلوم القانونية",
+};
+
+function resolveProductTitle(productId: string, productTitle?: string | null) {
+  return productTitle || PRODUCT_TITLE_FALLBACKS[productId] || "";
+}
 
 router.get("/orders/:orderId/rating-context", async (req, res) => {
   const parsed = orderIdSchema.safeParse(req.params.orderId);
@@ -20,12 +27,13 @@ router.get("/orders/:orderId/rating-context", async (req, res) => {
   try {
     const order = await getRatingContext(parsed.data);
     if (!order) return res.status(200).json(emptyContext());
-    const valid = order.status === "approved" && Boolean(order.productTitle);
+    const productTitle = resolveProductTitle(order.productId, order.productTitle);
+    const valid = order.status === "approved" && Boolean(productTitle);
     return res.status(200).json({
       valid,
       alreadyRated: Boolean(order.reviewId),
       fullName: valid ? order.fullName : "",
-      productTitle: valid ? order.productTitle : "",
+      productTitle: valid ? productTitle : "",
     });
   } catch (error) {
     console.error("[rating-context] failed", error);
@@ -39,7 +47,8 @@ router.post("/reviews", async (req, res) => {
 
   try {
     const order = await getRatingContext(parsed.data.order_id);
-    if (!order || order.status !== "approved" || !order.productTitle) {
+    const productTitle = order ? resolveProductTitle(order.productId, order.productTitle) : "";
+    if (!order || order.status !== "approved" || !productTitle) {
       return res.status(400).json({ message: "invalid order" });
     }
     if (order.reviewId) return res.status(409).json({ message: "already rated" });
