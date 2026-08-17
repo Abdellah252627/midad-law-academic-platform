@@ -137,6 +137,7 @@ export default function Home() {
   const [sampleFieldErrors, setSampleFieldErrors] = useState<SampleFieldErrors>({});
   const submitSampleLead = trpc.sample.submitLead.useMutation();
   const [form, setForm] = useState({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
+  const [transferConsent, setTransferConsent] = useState(false);
   const createTransferRequest = trpc.purchase.createTransferRequest.useMutation();
   const downloadQuery = trpc.purchase.getDownloadLink.useQuery(
     { requestId: transferSent ?? 0, customerEmail: form.customerEmail },
@@ -149,6 +150,7 @@ export default function Home() {
     setTransferSent(null);
     setProofFile(null);
     setForm({ customerName: "", customerEmail: "", customerPhone: "", transactionReference: "" });
+    setTransferConsent(false);
     createTransferRequest.reset();
   };
 
@@ -190,6 +192,10 @@ export default function Home() {
 
   const handleTransferSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!transferConsent) {
+      toast.error("يرجى الموافقة على السياسات قبل إرسال الطلب", { description: "راجع سياسة الخصوصية وشروط الاستخدام وسياسة الملفات الرقمية." });
+      return;
+    }
     let proof: { fileName: string; contentType: "image/jpeg" | "image/png" | "application/pdf"; base64: string } | undefined;
     if (proofFile) {
       if (!["image/jpeg", "image/png", "application/pdf"].includes(proofFile.type) || proofFile.size > 5 * 1024 * 1024) {
@@ -393,7 +399,7 @@ export default function Home() {
         <section className="border-t border-[#ded6c9] bg-[#efe8dc] py-16"><div className="mx-auto flex max-w-[1100px] flex-col items-start justify-between gap-8 px-5 sm:flex-row sm:items-center lg:px-8"><div><div className="flex items-center gap-3"><img src={brandMark} alt="" className="h-9 w-9 rounded-[10px] bg-[#172b3a] p-1" /><span className="font-display text-xl font-black text-[#172b3a]">مِداد</span></div><p className="mt-4 max-w-[420px] font-body text-sm leading-[1.9] text-[#68747a]">ملخصات دراسية رقمية منظمة لطلبة القانون والشريعة.</p></div><button onClick={scrollToPurchase} className="group inline-flex items-center gap-3 rounded-full bg-[#172b3a] px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97]">ابدأ المراجعة <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /></button></div></section>
       </main>
 
-      <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><a href="/admin" className="mt-4 inline-flex rounded-full border border-[#cfa56f]/45 px-4 py-2 text-[#d5a15f] transition hover:border-[#d5a15f] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a15f]">دخول الإدارة</a></footer>
+      <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[#d5a15f]" aria-label="الروابط القانونية"><a href="/privacy" className="underline-offset-4 transition hover:underline">سياسة الخصوصية</a><a href="/terms" className="underline-offset-4 transition hover:underline">شروط الاستخدام</a><a href="/digital-files" className="underline-offset-4 transition hover:underline">سياسة الملفات الرقمية</a></nav><a href="/admin" className="mt-4 inline-flex rounded-full border border-[#cfa56f]/45 px-4 py-2 text-[#d5a15f] transition hover:border-[#d5a15f] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a15f]">دخول الإدارة</a></footer>
 
       <a
         href={whatsappLink}
@@ -449,7 +455,8 @@ export default function Home() {
                 <label className="block text-sm font-bold">الهاتف <span className="font-normal text-[#768087]">(اختياري)</span><input value={form.customerPhone} onChange={(e) => setForm({ ...form, customerPhone: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">مرجع التحويل أو رقم العملية<input required value={form.transactionReference} onChange={(e) => setForm({ ...form, transactionReference: e.target.value })} className="mt-2 w-full rounded-[12px] border border-[#d9d0c2] bg-white px-4 py-3 outline-none focus:border-[#b9854a]" /></label>
                 <label className="block text-sm font-bold">إثبات الدفع <span className="font-normal text-[#768087]">(PDF أو JPG أو PNG، حتى 5MB)</span><input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} className="mt-2 block w-full rounded-[12px] border border-dashed border-[#d9d0c2] bg-white px-4 py-3 text-sm" /></label>
-                <button disabled={createTransferRequest.isPending} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-60">{createTransferRequest.isPending ? "جارٍ تسجيل الطلب…" : "إرسال طلب المراجعة"}</button>
+                <label className="flex items-start gap-3 rounded-[12px] border border-[#d9d0c2] bg-white/70 p-3 text-xs leading-[1.8] text-[#68747a]"><input required type="checkbox" checked={transferConsent} onChange={(e) => setTransferConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-[#b9854a]" /><span>أوافق على <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-[#89663b] underline">سياسة الخصوصية</a> و<a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-[#89663b] underline">شروط الاستخدام</a> و<a href="/digital-files" target="_blank" rel="noreferrer" className="font-bold text-[#89663b] underline">سياسة الملفات الرقمية</a>.</span></label>
+                <button disabled={createTransferRequest.isPending || !transferConsent} className="flex w-full items-center justify-center rounded-full bg-[#b9854a] px-5 py-4 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-60">{createTransferRequest.isPending ? "جارٍ تسجيل الطلب…" : "إرسال طلب المراجعة"}</button>
                 <p className="text-center font-body text-[11px] leading-[1.8] text-[#8b9290]">التسليم ليس فورياً؛ يتم إرسال الرابط بعد التحقق اليدوي من التحويل. يمكنك إغلاق النافذة وإعادة المحاولة دون فقدان بياناتك.</p>
               </form>
               )}
