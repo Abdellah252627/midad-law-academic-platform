@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, createComplaint, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, createComplaint, getComplaintById, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -196,6 +196,24 @@ export const appRouter = router({
       if (!request) throw new Error("طلب الشراء غير موجود");
       await createAuditLog({ actorUserId: ctx.user.id, action: "purchase.reject", entityType: "purchase_request", entityId: String(request.id), productCode: request.productCode, metadataJson: JSON.stringify({ reason: input.reason }) });
       return { success: true as const, requestId: request.id };
+    }),
+    complaints: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), status: z.enum(["new", "in_review", "needs_info", "responded", "closed"]).optional(), page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100, 200].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
+      const result = await getAdminComplaints(input ?? { page: 1, pageSize: 25 });
+      return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: input?.search?.trim() ?? "", status: input?.status ?? "all" };
+    }),
+    complaint: adminProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const complaint = await getComplaintById(input.id);
+      if (!complaint) throw new Error("الشكوى غير موجودة");
+      return complaint;
+    }),
+    updateComplaint: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["new", "in_review", "needs_info", "responded", "closed"]), adminResponse: z.string().trim().max(5000).nullable().optional() })).mutation(async ({ input, ctx }) => {
+      const previous = await getComplaintById(input.id);
+      if (!previous) throw new Error("الشكوى غير موجودة");
+      const responseValue = input.adminResponse === undefined ? undefined : (input.adminResponse || null);
+      const updated = await updateComplaintAdmin({ id: input.id, status: input.status, adminResponse: responseValue, responseUpdatedByUserId: ctx.user.id });
+      if (!updated) throw new Error("الشكوى غير موجودة");
+      await createAuditLog({ actorUserId: ctx.user.id, action: "complaint.update", entityType: "complaint", entityId: String(updated.id), metadataJson: JSON.stringify({ ticketNumber: updated.ticketNumber, previousStatus: previous.status, status: updated.status, responseChanged: responseValue !== undefined && responseValue !== previous.adminResponse }) });
+      return { success: true as const, complaint: updated };
     }),
     files: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(({ input }) => getProductFiles(input.productCode)),
     fileUrl: adminProcedure.input(z.object({ fileId: z.number().int().positive() })).query(async ({ input }) => {

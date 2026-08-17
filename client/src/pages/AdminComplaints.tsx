@@ -1,0 +1,120 @@
+import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
+import { trpc } from "@/lib/trpc";
+import { ChevronLeft, ChevronRight, Loader2, MessageSquareText, Search, ShieldAlert, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+const statuses = [
+  { value: "new", label: "جديدة", className: "bg-sky-50 text-sky-700" },
+  { value: "in_review", label: "قيد المراجعة", className: "bg-amber-50 text-amber-700" },
+  { value: "needs_info", label: "تحتاج معلومات", className: "bg-violet-50 text-violet-700" },
+  { value: "responded", label: "تم الرد", className: "bg-emerald-50 text-emerald-700" },
+  { value: "closed", label: "مغلقة", className: "bg-slate-100 text-slate-700" },
+] as const;
+
+const categories: Record<string, string> = {
+  payment: "الدفع والتحويل",
+  proof: "إثبات التحويل",
+  review: "التقييم",
+  download: "التنزيل",
+  data: "تصحيح البيانات",
+  other: "أخرى",
+};
+
+type StatusValue = (typeof statuses)[number]["value"];
+
+function formatDate(value: Date | string) {
+  return new Date(value).toLocaleString("ar-MA", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function statusMeta(value: string) {
+  return statuses.find(status => status.value === value) ?? statuses[0];
+}
+
+function AdminComplaintsContent() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusValue | "all">("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<10 | 25 | 50 | 100 | 200>(25);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [responseDraft, setResponseDraft] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<StatusValue>("new");
+  const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
+  const complaintsQuery = trpc.admin.complaints.useQuery(queryInput, { enabled: isAdmin });
+  const detailQuery = trpc.admin.complaint.useQuery({ id: selectedId ?? 0 }, { enabled: isAdmin && selectedId !== null });
+  const updateMutation = trpc.admin.updateComplaint.useMutation({
+    onSuccess: () => {
+      toast.success("تم تحديث الشكوى وتسجيل العملية في سجل التدقيق.");
+      void complaintsQuery.refetch();
+      void detailQuery.refetch();
+    },
+    onError: error => toast.error(error.message || "تعذر تحديث الشكوى."),
+  });
+
+  useEffect(() => {
+    setResponseDraft(detailQuery.data?.adminResponse ?? "");
+    if (detailQuery.data?.status) setSelectedStatus(detailQuery.data.status as StatusValue);
+  }, [detailQuery.data?.adminResponse, detailQuery.data?.status, selectedId]);
+
+  if (!isAdmin) {
+    return <section dir="rtl" className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 text-center"><div className="rounded-[28px] border border-red-200 bg-white p-8 shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="font-display text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه الصفحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></section>;
+  }
+
+  const complaints = complaintsQuery.data?.complaints ?? [];
+  const totalPages = complaintsQuery.data?.totalPages ?? 1;
+  const selected = detailQuery.data;
+
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSearch(searchDraft.trim().slice(0, 160));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchDraft("");
+    setSearch("");
+    setStatus("all");
+    setPage(1);
+  };
+
+  const saveComplaint = () => {
+    if (!selected) return;
+    updateMutation.mutate({ id: selected.id, status: selectedStatus, adminResponse: responseDraft.trim() || null });
+  };
+
+  return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
+    <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
+      <p className="text-xs font-bold tracking-[0.18em] text-[#d5a15f]">MIDAD / SUPPORT</p>
+      <h1 className="mt-2 font-display text-3xl font-bold">إدارة الشكاوى</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">تابع تذاكر الطلاب، راجع تفاصيل البلاغ، حدّث الحالة، وأرسل رداً إدارياً موثقاً دون كشف بيانات الدعم خارج حسابات الإدارة.</p>
+    </header>
+
+    <div className="grid gap-4 sm:grid-cols-3">
+      <div className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">إجمالي النتائج</p><p className="mt-2 text-3xl font-bold text-[#173247]">{complaintsQuery.isLoading ? "…" : complaintsQuery.data?.total ?? 0}</p></div>
+      <div className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">المعروض في الصفحة</p><p className="mt-2 text-3xl font-bold text-[#173247]">{complaints.length}</p></div>
+      <div className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">رقم الصفحة</p><p className="mt-2 text-3xl font-bold text-[#173247]">{page} <span className="text-base text-[#68747a]">من {totalPages}</span></p></div>
+    </div>
+
+    <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm lg:flex-row lg:items-center">
+      <div className="relative flex-1"><Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8f80]" aria-hidden="true" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث برقم التذكرة أو اسم الطالب أو البريد الإلكتروني" aria-label="البحث في الشكاوى" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></div>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]"><span>الحالة</span><select value={status} onChange={event => { setStatus(event.target.value as StatusValue | "all"); setPage(1); }} aria-label="تصفية الشكاوى حسب الحالة" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold outline-none focus:border-[#b9854a]"><option value="all">كل الحالات</option>{statuses.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]"><span>حجم الصفحة</span><select value={pageSize} onChange={event => { setPageSize(Number(event.target.value) as typeof pageSize); setPage(1); }} aria-label="اختيار حجم صفحة الشكاوى" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold outline-none focus:border-[#b9854a]"><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value={200}>200</option></select></label>
+      <div className="flex gap-2"><button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>{(search || searchDraft || status !== "all") && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}</div>
+    </form>
+
+    {complaintsQuery.error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">تعذر تحميل الشكاوى. تحقق من الصلاحيات واتصال قاعدة البيانات.</p>}
+    <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-[900px] w-full text-right text-sm"><thead className="bg-[#f8f3eb] text-[#173247]"><tr><th className="px-4 py-4 font-bold">رقم التذكرة</th><th className="px-4 py-4 font-bold">الطالب</th><th className="px-4 py-4 font-bold">التصنيف</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">تاريخ الإرسال</th><th className="px-4 py-4 font-bold">التفاصيل</th></tr></thead><tbody className="divide-y divide-[#eee7dc]">{complaintsQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[#68747a]">جارٍ تحميل الشكاوى…</td></tr> : complaints.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[#68747a]">لا توجد شكاوى مطابقة للفلاتر الحالية.</td></tr> : complaints.map(item => { const meta = statusMeta(item.status); return <tr key={item.id} className="hover:bg-[#fcfaf6]"><td className="px-4 py-4 font-mono text-xs font-bold text-[#173247]" dir="ltr">{item.ticketNumber}</td><td className="px-4 py-4"><p className="font-bold text-[#173247]">{item.fullName}</p><p className="mt-1 text-xs text-[#68747a]" dir="ltr">{item.email}</p></td><td className="px-4 py-4 text-[#68747a]">{categories[item.category] ?? item.category}</td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${meta.className}`}>{meta.label}</span></td><td className="px-4 py-4 text-xs text-[#68747a]">{formatDate(item.createdAt)}</td><td className="px-4 py-4"><button type="button" onClick={() => setSelectedId(item.id)} className="inline-flex items-center gap-2 rounded-xl border border-[#d5c5b1] px-3 py-2 text-xs font-bold text-[#173247] hover:bg-[#f8f3eb]"><MessageSquareText className="h-4 w-4" aria-hidden="true" />فتح</button></td></tr>; })}</tbody></table></div></div>
+
+    <div className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-[#68747a]">عرض الصفحة {page} من {totalPages}</p><div className="flex gap-2"><button type="button" disabled={page <= 1 || complaintsQuery.isFetching} onClick={() => setPage(current => current - 1)} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight className="h-4 w-4" aria-hidden="true" />السابق</button><button type="button" disabled={page >= totalPages || complaintsQuery.isFetching} onClick={() => setPage(current => current + 1)} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] disabled:cursor-not-allowed disabled:opacity-40">التالي<ChevronLeft className="h-4 w-4" aria-hidden="true" /></button></div></div>
+
+    {selectedId !== null && <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#173247]/45 p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="تفاصيل الشكوى"><div className="my-4 w-full max-w-3xl rounded-[28px] bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4 border-b border-[#eee7dc] pb-5"><div><p className="text-xs font-bold tracking-[0.14em] text-[#b9854a]">COMPLAINT DETAILS</p><h2 className="mt-2 font-display text-2xl font-bold text-[#173247]">تفاصيل الشكوى</h2></div><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق التفاصيل"><X className="h-5 w-5" /></button></div>{detailQuery.isLoading ? <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-[#b9854a]" /></div> : selected ? <div className="space-y-5 pt-5"><div className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs font-bold text-[#68747a]">رقم التذكرة</p><p className="mt-1 font-mono font-bold text-[#173247]" dir="ltr">{selected.ticketNumber}</p></div><div><p className="text-xs font-bold text-[#68747a]">تاريخ الإرسال</p><p className="mt-1 text-sm text-[#173247]">{formatDate(selected.createdAt)}</p></div><div><p className="text-xs font-bold text-[#68747a]">بيانات التواصل</p><p className="mt-1 text-sm text-[#173247]">{selected.fullName}<br /><span dir="ltr">{selected.email}</span>{selected.whatsapp ? <><br /><span dir="ltr">واتساب: {selected.whatsapp}</span></> : null}</p></div><div><p className="text-xs font-bold text-[#68747a]">التصنيف</p><p className="mt-1 text-sm text-[#173247]">{categories[selected.category] ?? selected.category}</p></div></div><div className="rounded-2xl bg-[#fcfaf6] p-4"><p className="text-xs font-bold text-[#68747a]">نص الشكوى</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#173247]">{selected.description}</p></div><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-[#173247]">الحالة<select value={selectedStatus} onChange={event => setSelectedStatus(event.target.value as StatusValue)} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal outline-none focus:border-[#b9854a]"><option value="new">جديدة</option><option value="in_review">قيد المراجعة</option><option value="needs_info">تحتاج معلومات</option><option value="responded">تم الرد</option><option value="closed">مغلقة</option></select></label><div className="rounded-2xl border border-[#e3d9ca] p-4 text-sm text-[#68747a]"><p className="font-bold text-[#173247]">ملاحظة أمنية</p><p className="mt-1 leading-6">لا تشارك بيانات الطالب خارج قنوات الدعم المعتمدة، وكل تغيير يُسجّل في سجل التدقيق.</p></div></div><label className="block text-sm font-bold text-[#173247]">الرد الإداري<textarea value={responseDraft} onChange={event => setResponseDraft(event.target.value)} maxLength={5000} rows={5} placeholder="اكتب الرد أو التعليمات التي ستظهر في سجل المعالجة…" className="mt-2 w-full resize-y rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal leading-7 outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></label><div className="flex flex-col-reverse gap-3 border-t border-[#eee7dc] pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl border border-[#e3d9ca] px-5 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]">إلغاء</button><button type="button" disabled={updateMutation.isPending} onClick={saveComplaint} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#173247] px-5 py-3 text-sm font-bold text-white hover:bg-[#24465e] disabled:opacity-50">{updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}حفظ التحديث</button></div></div> : <p className="py-10 text-center text-sm text-[#68747a]">تعذر العثور على الشكوى.</p>}</div></div>}
+  </section>;
+}
+
+export default function AdminComplaints() {
+  return <DashboardLayout><AdminComplaintsContent /></DashboardLayout>;
+}

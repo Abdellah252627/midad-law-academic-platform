@@ -164,6 +164,9 @@ export const complaints = mysqlTable("complaints", {
   category: mysqlEnum("category", ["payment", "proof", "review", "download", "data", "other"]).notNull(),
   description: text("description").notNull(),
   status: mysqlEnum("status", ["new", "in_review", "needs_info", "responded", "closed"]).default("new").notNull(),
+  adminResponse: text("adminResponse"),
+  responseUpdatedByUserId: int("responseUpdatedByUserId"),
+  responseUpdatedAt: timestamp("responseUpdatedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

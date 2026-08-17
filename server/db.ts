@@ -570,3 +570,54 @@ export async function findPurchaseRequestByOrderNumber(orderNumber: string) {
   const rows = await db.select({ id: purchaseRequests.id }).from(purchaseRequests).where(eq(purchaseRequests.orderNumber, orderNumber)).limit(1);
   return rows[0];
 }
+
+export type ComplaintAdminListOptions = {
+  search?: string;
+  status?: "new" | "in_review" | "needs_info" | "responded" | "closed";
+  page?: number;
+  pageSize?: number;
+};
+
+export async function getAdminComplaints(options: ComplaintAdminListOptions = {}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const conditions: any[] = [];
+  const search = options.search?.trim();
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(or(
+      like(complaints.ticketNumber, pattern),
+      like(complaints.fullName, pattern),
+      like(complaints.email, pattern),
+    ));
+  }
+  if (options.status) conditions.push(eq(complaints.status, options.status));
+  const pageSize = [10, 25, 50, 100, 200].includes(options.pageSize ?? 25) ? (options.pageSize ?? 25) : 25;
+  const page = Math.max(options.page ?? 1, 1);
+  const where = conditions.length ? and(...conditions) : undefined;
+  const [rows, totals] = await Promise.all([
+    db.select().from(complaints).where(where).orderBy(desc(complaints.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
+    db.select({ total: count() }).from(complaints).where(where),
+  ]);
+  return { complaints: rows, total: Number(totals[0]?.total ?? 0), page, pageSize };
+}
+
+export async function updateComplaintAdmin(input: {
+  id: number;
+  status: "new" | "in_review" | "needs_info" | "responded" | "closed";
+  adminResponse?: string | null;
+  responseUpdatedByUserId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const current = await getComplaintById(input.id);
+  if (!current) return undefined;
+  const responseChanged = input.adminResponse !== undefined && input.adminResponse !== current.adminResponse;
+  await db.update(complaints).set({
+    status: input.status,
+    adminResponse: input.adminResponse === undefined ? current.adminResponse : input.adminResponse,
+    responseUpdatedByUserId: responseChanged ? input.responseUpdatedByUserId : current.responseUpdatedByUserId,
+    responseUpdatedAt: responseChanged ? new Date() : current.responseUpdatedAt,
+  }).where(eq(complaints.id, input.id));
+  return getComplaintById(input.id);
+}

@@ -1,0 +1,41 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+describe("admin complaints management", () => {
+  it("exposes protected list, detail, and update procedures with strict validation", () => {
+    const router = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+    expect(router).toContain("complaints: adminProcedure");
+    expect(router).toContain("complaint: adminProcedure");
+    expect(router).toContain("updateComplaint: adminProcedure");
+    expect(router).toContain('z.enum(["new", "in_review", "needs_info", "responded", "closed"])');
+    expect(router).toContain("responseChanged");
+    expect(router).toContain('action: "complaint.update"');
+  });
+
+  it("supports safe server-side search, filtering, pagination, and response persistence", () => {
+    const db = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+    const schema = readFileSync(resolve(process.cwd(), "drizzle/schema.ts"), "utf8");
+    expect(db).toContain("export async function getAdminComplaints");
+    expect(db).toContain("like(complaints.ticketNumber");
+    expect(db).toContain("like(complaints.fullName");
+    expect(db).toContain("like(complaints.email");
+    expect(db).toContain("offset((page - 1) * pageSize)");
+    expect(db).toContain("export async function updateComplaintAdmin");
+    expect(schema).toContain('adminResponse: text("adminResponse")');
+    expect(schema).toContain('responseUpdatedByUserId: int("responseUpdatedByUserId")');
+    expect(schema).toContain('responseUpdatedAt: timestamp("responseUpdatedAt")');
+  });
+
+  it("registers the RTL complaints page and sidebar escape route", () => {
+    const app = readFileSync(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const layout = readFileSync(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const page = readFileSync(resolve(process.cwd(), "client/src/pages/AdminComplaints.tsx"), "utf8");
+    expect(app).toContain('<Route path="/admin/complaints" component={AdminComplaints} />');
+    expect(layout).toContain('path: "/admin/complaints"');
+    expect(page).toContain('dir="rtl"');
+    expect(page).toContain("trpc.admin.complaints.useQuery");
+    expect(page).toContain("trpc.admin.updateComplaint.useMutation");
+    expect(page).toContain("الرد الإداري");
+  });
+});
