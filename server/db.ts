@@ -336,15 +336,19 @@ export async function reviewPurchaseRequestCorrection(input: { id: number; statu
   });
 }
 
-export async function getPurchaseRequests(options?: { search?: string }) {
+export async function getPurchaseRequests(options?: { search?: string; status?: "pending" | "approved" | "rejected" }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const search = options?.search?.trim().slice(0, 160);
-  if (!search) return db.select().from(purchaseRequests).orderBy(desc(purchaseRequests.createdAt));
-  const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
-  const pattern = `%${escaped}%`;
+  const conditions = [];
+  if (options?.status) conditions.push(eq(purchaseRequests.status, options.status));
+  if (search) {
+    const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
+    const pattern = `%${escaped}%`;
+    conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
+  }
   return db.select().from(purchaseRequests)
-    .where(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern)))
+    .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(purchaseRequests.createdAt));
 }
 

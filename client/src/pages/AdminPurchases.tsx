@@ -24,7 +24,8 @@ function AdminPurchasesContent() {
   const [approvedDownload, setApprovedDownload] = useState<{ url: string; expiresInMinutes: number } | null>(null);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
-  const purchaseQueryInput = useMemo(() => ({ search: search || undefined }), [search]);
+  const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status }), [search, status]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const proofQuery = trpc.admin.purchaseProofUrl.useQuery(
@@ -71,6 +72,7 @@ function AdminPurchasesContent() {
   const clearSearch = () => {
     setSearchDraft("");
     setSearch("");
+    setStatus("all");
   };
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
@@ -87,9 +89,18 @@ function AdminPurchasesContent() {
         <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8f80]" aria-hidden="true" />
         <input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث باسم العميل أو بريده الإلكتروني" aria-label="البحث في طلبات الشراء" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" />
       </div>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
+        <span className="sr-only">تصفية حسب حالة الطلب</span>
+        <select value={status} onChange={event => setStatus(event.target.value as typeof status)} aria-label="تصفية حسب حالة الطلب" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
+          <option value="all">كل الحالات</option>
+          <option value="pending">قيد المراجعة</option>
+          <option value="approved">مقبول</option>
+          <option value="rejected">مرفوض</option>
+        </select>
+      </label>
       <div className="flex gap-2">
         <button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>
-        {(search || searchDraft) && <button type="button" onClick={clearSearch} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] transition hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}
+        {(search || searchDraft || status !== "all") && <button type="button" onClick={clearSearch} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] transition hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}
       </div>
     </form>
     <div className="grid gap-4 sm:grid-cols-3">
@@ -101,12 +112,12 @@ function AdminPurchasesContent() {
       <div className="overflow-x-auto"><table className="min-w-[950px] w-full text-right text-sm"><thead className="bg-white text-[#173247]"><tr><th className="px-4 py-4 font-bold">رقم الطلب</th><th className="px-4 py-4 font-bold">القيم السابقة</th><th className="px-4 py-4 font-bold">القيم المطلوبة</th><th className="px-4 py-4 font-bold">السبب</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead><tbody className="divide-y divide-[#eee7dc]">{correctionsQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">جارٍ تحميل طلبات التصحيح…</td></tr> : (correctionsQuery.data ?? []).length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">لا توجد طلبات تصحيح.</td></tr> : (correctionsQuery.data ?? []).map(item => <tr key={item.id} className="hover:bg-[#fcfaf6]"><td className="px-4 py-4 font-mono text-xs text-[#173247]">#{item.requestId}</td><td className="px-4 py-4 text-xs leading-6 text-[#68747a]">{item.oldEmail}<br />{item.oldPhone || "—"}</td><td className="px-4 py-4 text-xs leading-6 text-[#173247]">{item.requestedEmail || "—"}<br />{item.requestedPhone || "—"}</td><td className="max-w-[220px] px-4 py-4 text-xs leading-6 text-[#68747a]">{item.reason || "—"}</td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td><td className="px-4 py-4">{item.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => reviewCorrection(item.id, "approved")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">موافقة</button><button type="button" onClick={() => reviewCorrection(item.id, "rejected")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">رفض</button></div> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td></tr>)}</tbody></table></div>
     </div>
 
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#68747a]"><span>{search ? `نتائج البحث عن «${search}»` : "جميع طلبات الشراء"} — {requestsQuery.isFetching ? "جارٍ التحديث…" : `${requests.length} طلب`}</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#68747a]"><span>{search ? `نتائج البحث عن «${search}»` : "جميع طلبات الشراء"}{status !== "all" ? ` — الحالة: ${statusLabel(status)}` : ""} — {requestsQuery.isFetching ? "جارٍ التحديث…" : `${requests.length} طلب`}</span></div>
     <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm">
       <div className="overflow-x-auto"><table className="min-w-[1100px] w-full text-right text-sm">
         <thead className="bg-[#f8f3eb] text-[#173247]"><tr><th className="px-4 py-4 font-bold">بيانات العميل</th><th className="px-4 py-4 font-bold">المنتج</th><th className="px-4 py-4 font-bold">مرجع التحويل</th><th className="px-4 py-4 font-bold">إثبات التحويل</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">التاريخ</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead>
         <tbody className="divide-y divide-[#eee7dc]">
-          {requestsQuery.isLoading ? <tr><td colSpan={7} className="px-4 py-10 text-center text-[#68747a]">جارٍ تحميل الطلبات…</td></tr> : requests.length === 0 ? <tr><td colSpan={7} className="px-4 py-10 text-center text-[#68747a]">{search ? `لا توجد طلبات مطابقة لـ «${search}».` : "لا توجد طلبات شراء حتى الآن."}</td></tr> : requests.map(request => <tr key={request.id} className="transition hover:bg-[#fcfaf6]">
+          {requestsQuery.isLoading ? <tr><td colSpan={7} className="px-4 py-10 text-center text-[#68747a]">جارٍ تحميل الطلبات…</td></tr> : requests.length === 0 ? <tr><td colSpan={7} className="px-4 py-10 text-center text-[#68747a]">{search ? `لا توجد طلبات مطابقة لـ «${search}»${status !== "all" ? ` ضمن حالة «${statusLabel(status)}»` : ""}.` : status !== "all" ? `لا توجد طلبات ضمن حالة «${statusLabel(status)}».` : "لا توجد طلبات شراء حتى الآن."}</td></tr> : requests.map(request => <tr key={request.id} className="transition hover:bg-[#fcfaf6]">
             <td className="min-w-[240px] px-4 py-4"><div className="rounded-2xl bg-[#fcfaf6] p-3"><p className="font-bold text-[#173247]">{request.customerName}</p><p className="mt-1 break-all text-xs text-[#68747a]" dir="ltr">{request.customerEmail}</p><p className="mt-1 text-xs text-[#68747a]" dir="ltr">واتساب: {request.customerPhone || "غير مُدخل"}</p></div></td>
             <td className="px-4 py-4 text-[#68747a]">{request.productCode}</td>
             <td className="px-4 py-4 font-mono text-xs text-[#68747a]" dir="ltr">{request.transactionReference}</td>

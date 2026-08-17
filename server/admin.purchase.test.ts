@@ -31,14 +31,21 @@ describe("admin purchase management", () => {
   it("lists purchase requests for admins", async () => {
     getPurchaseRequests.mockResolvedValueOnce([{ id: 1, productCode: "MIDAD-001", status: "pending" }]);
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, search: "" });
+    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, search: "", status: "all" });
   });
 
   it("passes a trimmed customer search to the database and returns the applied term", async () => {
     getPurchaseRequests.mockResolvedValueOnce([{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }]);
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  " })).resolves.toEqual({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, search: "sara@example.com" });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com" });
+    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  " })).resolves.toEqual({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, search: "sara@example.com", status: "all" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", status: undefined });
+  });
+
+  it("passes a validated status filter alongside customer search", async () => {
+    getPurchaseRequests.mockResolvedValueOnce([{ id: 9, status: "approved" }]);
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  ", status: "approved" })).resolves.toEqual({ requests: [{ id: 9, status: "approved" }], total: 1, search: "sara@example.com", status: "approved" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", status: "approved" });
   });
 
   it("rejects an oversized search term before querying", async () => {
