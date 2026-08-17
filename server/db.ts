@@ -550,6 +550,14 @@ export async function getComplaintById(id: number) {
   return rows[0];
 }
 
+export async function getComplaintAuditEvents(complaintId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(auditLogs)
+    .where(and(eq(auditLogs.entityType, "complaint"), eq(auditLogs.entityId, String(complaintId))))
+    .orderBy(desc(auditLogs.createdAt));
+}
+
 export async function getComplaintByTicketAndEmail(ticketNumber: string, email: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

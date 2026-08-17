@@ -10,6 +10,9 @@ describe("admin complaints management", () => {
     expect(router).toContain("updateComplaint: adminProcedure");
     expect(router).toContain('z.enum(["new", "in_review", "needs_info", "responded", "closed"])');
     expect(router).toContain("responseChanged");
+    expect(router).toContain("getComplaintAuditEvents");
+    expect(router).toContain("complaint.created");
+    expect(router).toContain("timeline");
     expect(router).toContain('action: "complaint.update"');
   });
 
@@ -24,6 +27,8 @@ describe("admin complaints management", () => {
     expect(db).toContain("export async function updateComplaintAdmin");
     expect(db).toContain("statusCounts");
     expect(db).toContain("groupBy(complaints.status)");
+    expect(db).toContain("export async function getComplaintAuditEvents");
+    expect(db).toContain('eq(auditLogs.entityType, "complaint")');
     expect(schema).toContain('adminResponse: text("adminResponse")');
     expect(schema).toContain('responseUpdatedByUserId: int("responseUpdatedByUserId")');
     expect(schema).toContain('responseUpdatedAt: timestamp("responseUpdatedAt")');
@@ -47,5 +52,8 @@ describe("admin complaints management", () => {
     expect(page).toContain("تم نقل الشكوى من");
     expect(page).toContain("statusMeta(transition.from).label");
     expect(page).toContain("statusMeta(transition.to).label");
+    expect(page).toContain("السجل الزمني للشكوى");
+    expect(page).toContain("timelineEventLabel");
+    expect(page).toContain("مدير #");
   });
 });
