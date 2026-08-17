@@ -65,10 +65,12 @@ export async function buildPurchaseRequestsXlsx(requests: PurchaseExportRow[]) {
     views: [{ rightToLeft: true, state: "frozen", ySplit: 1, showGridLines: false }],
   });
   worksheet.pageSetup.orientation = "landscape";
-  worksheet.pageSetup.fitToPage = true;
-  worksheet.pageSetup.fitToWidth = 1;
+  worksheet.pageSetup.fitToPage = false;
+  worksheet.pageSetup.fitToWidth = 0;
   worksheet.pageSetup.fitToHeight = 0;
+  worksheet.pageSetup.scale = 85;
   (worksheet as any).printTitlesRow = "1:1";
+  (worksheet as any).views = [{ rightToLeft: true, state: "frozen", ySplit: 1, showGridLines: false, zoomScale: 90, activeCell: "A2", topLeftCell: "A1" }];
 
   worksheet.addRow(HEADERS);
   for (const request of requests) worksheet.addRow(rowValues(request));
