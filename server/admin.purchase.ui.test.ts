@@ -51,6 +51,16 @@ describe("admin purchase details UI", () => {
     expect(adminSource).toContain("{item.orderNumber}");
   });
 
+  it("downloads the formatted workbook through the authenticated binary export route", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("/api/admin/purchase-requests.xlsx?");
+    expect(source).toContain('credentials: "include"');
+    expect(source).toContain("const blob = await response.blob();");
+    expect(source).toContain("if (blob.size === 0)");
+    expect(source).not.toContain("window.atob");
+  });
+
   it("shows the customer identity fields and proof preview in the purchases table", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 

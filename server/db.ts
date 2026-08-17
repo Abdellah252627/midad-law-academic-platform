@@ -429,7 +429,7 @@ export async function getPurchaseRequestsForExport(options?: { search?: string; 
   const conditions = [];
   if (options?.status) conditions.push(eq(purchaseRequests.status, options.status));
   if (search) {
-    const escaped = search.replace(/[\\\\%_]/g, match => `\\\\${match}`);
+    const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
     const pattern = `%${escaped}%`;
     const searchScope = options?.searchScope ?? "all";
     if (searchScope === "orderNumber") conditions.push(like(purchaseRequests.orderNumber, pattern));

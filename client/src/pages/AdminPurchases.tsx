@@ -31,10 +31,9 @@ function AdminPurchasesContent() {
   const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<10 | 50 | 100 | 200>(50);
+  const [exporting, setExporting] = useState(false);
   const purchaseQueryInput = useMemo(() => ({ search: search || undefined, searchScope, status: status === "all" ? undefined : status, page, pageSize }), [search, searchScope, status, page, pageSize]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
-  const exportQueryInput = useMemo(() => ({ search: search || undefined, searchScope, status: status === "all" ? undefined : status }), [search, searchScope, status]);
-  const exportQuery = trpc.admin.purchaseRequestsExport.useQuery(exportQueryInput, { enabled: false });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const notesQuery = trpc.admin.purchaseRequestNotes.useQuery(
     { requestId: selectedNoteRequestId ?? 0 },
@@ -112,18 +111,23 @@ function AdminPurchasesContent() {
     setPage(1);
   };
   const exportOrders = async () => {
+    setExporting(true);
     try {
-      const result = await exportQuery.refetch();
-      if (!result.data) throw new Error("لم يتم إنشاء الملف");
-      if (!result.data.xlsxBase64) throw new Error("لم يتم إنشاء ملف Excel المنسق");
-      const binary = window.atob(result.data.xlsxBase64);
-      const bytes = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      params.set("searchScope", searchScope);
+      if (status !== "all") params.set("status", status);
+      const response = await fetch(`/api/admin/purchase-requests.xlsx?${params.toString()}`, { credentials: "include" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || "تعذر إنشاء ملف Excel المنسق");
+      }
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error("تم إنشاء ملف Excel فارغ؛ لا توجد بيانات في الاستجابة.");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = result.data.filename;
+      link.download = `midad-orders-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -131,6 +135,8 @@ function AdminPurchasesContent() {
       toast.success("تم تصدير بيانات الطلبات مع الفلاتر الحالية.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "تعذر تصدير بيانات الطلبات.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -142,9 +148,9 @@ function AdminPurchasesContent() {
           <h1 className="mt-2 font-display text-3xl font-bold">طلبات الشراء والدفع</h1>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">راجع التحويلات البنكية، عاين إثبات الدفع داخل اللوحة، ثم وافق أو ارفض الطلب مع تسجيل القرار.</p>
         </div>
-        <button type="button" onClick={() => void exportOrders()} disabled={exportQuery.isFetching} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d5a15f] px-4 py-3 text-sm font-bold text-[#173247] transition hover:bg-[#e2b878] disabled:cursor-wait disabled:opacity-60">
-          {exportQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
-          {exportQuery.isFetching ? "جارٍ تجهيز الملف…" : "تصدير إلى Excel"}
+        <button type="button" onClick={() => void exportOrders()} disabled={exporting} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d5a15f] px-4 py-3 text-sm font-bold text-[#173247] transition hover:bg-[#e2b878] disabled:cursor-wait disabled:opacity-60">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+          {exporting ? "جارٍ تجهيز الملف…" : "تصدير إلى Excel"}
         </button>
       </div>
     </header>

@@ -11,6 +11,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { adminRateLimit } from "./adminRateLimit";
 import { ratingRouter } from "../ratingRoutes";
+import { registerAdminExportRoutes } from "../adminExportRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -41,6 +42,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   app.use("/api", ratingRouter);
+  registerAdminExportRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",

@@ -53,7 +53,7 @@ function rowValues(request: PurchaseExportRow) {
   ];
 }
 
-export async function buildPurchaseRequestsXlsx(requests: PurchaseExportRow[]) {
+export async function buildPurchaseRequestsXlsxBuffer(requests: PurchaseExportRow[]) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "MIDAD";
   workbook.lastModifiedBy = "MIDAD Admin";
@@ -136,5 +136,10 @@ export async function buildPurchaseRequestsXlsx(requests: PurchaseExportRow[]) {
 
   worksheet.getCell("F1").note = "يُكتب اسم الملف أو رابط مرجعي فقط، ولا تُدرج صورة إثبات التحويل داخل ملف Excel.";
   const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer).toString("base64");
+  return Buffer.from(buffer);
+}
+
+export async function buildPurchaseRequestsXlsx(requests: PurchaseExportRow[]) {
+  const buffer = await buildPurchaseRequestsXlsxBuffer(requests);
+  return buffer.toString("base64");
 }
