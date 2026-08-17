@@ -114,7 +114,8 @@ export async function getSampleDownloadLeads(options?: { search?: string; produc
   if (options?.productCode) {
     conditions.push(eq(sampleDownloadLeads.productCode, options.productCode));
   }
-  const pageSize = Math.min(Math.max(options?.pageSize ?? 25, 1), 100);
+  const requestedPageSize = options?.pageSize ?? 25;
+  const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 25;
   const page = Math.max(options?.page ?? 1, 1);
   const offset = (page - 1) * pageSize;
   return db.select().from(sampleDownloadLeads).where(and(...conditions)).orderBy(desc(sampleDownloadLeads.createdAt)).limit(pageSize).offset(offset);
@@ -348,7 +349,8 @@ export async function getPurchaseRequests(options?: { search?: string; status?: 
     conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
   }
   const whereClause = conditions.length ? and(...conditions) : undefined;
-  const pageSize = Math.min(Math.max(options?.pageSize ?? 25, 1), 100);
+  const requestedPageSize = options?.pageSize ?? 25;
+  const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 25;
   const page = Math.max(options?.page ?? 1, 1);
   const offset = (page - 1) * pageSize;
   const [requests, countRows] = await Promise.all([

@@ -55,6 +55,20 @@ describe("admin purchase management", () => {
     expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara", status: "approved", page: 2, pageSize: 25 });
   });
 
+  it("accepts the maximum supported page size of 200 and forwards it", async () => {
+    getPurchaseRequests.mockResolvedValueOnce({ requests: [], total: 401, page: 1, pageSize: 200 });
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ page: 1, pageSize: 200 })).resolves.toMatchObject({ page: 1, pageSize: 200, totalPages: 3 });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ page: 1, pageSize: 200 });
+  });
+
+  it("rejects unsupported page sizes before querying", async () => {
+    getPurchaseRequests.mockClear();
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ pageSize: 75 })).rejects.toThrow();
+    expect(getPurchaseRequests).not.toHaveBeenCalled();
+  });
+
   it("rejects an oversized search term before querying", async () => {
     const caller = appRouter.createCaller(createAdminContext());
     await expect(caller.admin.purchaseRequests({ search: "x".repeat(161) })).rejects.toThrow();

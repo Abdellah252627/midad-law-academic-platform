@@ -26,8 +26,8 @@ function AdminPurchasesContent() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [page, setPage] = useState(1);
-  const pageSize = 25;
-  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page]);
+  const [pageSize, setPageSize] = useState<10 | 50 | 100 | 200>(50);
+  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const proofQuery = trpc.admin.purchaseProofUrl.useQuery(
@@ -94,6 +94,15 @@ function AdminPurchasesContent() {
         <input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث باسم العميل أو بريده الإلكتروني" aria-label="البحث في طلبات الشراء" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" />
       </div>
       <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
+        <span>حجم الصفحة</span>
+        <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value) as typeof pageSize); setPage(1); }} aria-label="اختيار حجم صفحة الطلبات" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
+          <option value={10}>10</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+          <option value={200}>200</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
         <span className="sr-only">تصفية حسب حالة الطلب</span>
         <select value={status} onChange={event => { setStatus(event.target.value as typeof status); setPage(1); }} aria-label="تصفية حسب حالة الطلب" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
           <option value="all">كل الحالات</option>
@@ -134,6 +143,7 @@ function AdminPurchasesContent() {
       </table></div>
     </div>
     <nav aria-label="ترقيم صفحات طلبات الشراء" className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#e3d9ca] bg-white px-4 py-3 shadow-sm">
+      <p className="text-xs text-[#68747a]">يعرض {pageSize} طلباً في الصفحة</p>
       <p className="text-sm font-bold text-[#173247]">الصفحة {requestsQuery.data?.page ?? page} من {requestsQuery.data?.totalPages ?? 1}</p>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page <= 1 || requestsQuery.isFetching} className="rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-40">السابق</button>
