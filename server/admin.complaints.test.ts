@@ -55,5 +55,9 @@ describe("admin complaints management", () => {
     expect(page).toContain("السجل الزمني للشكوى");
     expect(page).toContain("timelineEventLabel");
     expect(page).toContain("مدير #");
+    expect(page).toContain("calculateStatusDurations");
+    expect(page).toContain("formatDuration");
+    expect(page).toContain("المدة حتى الآن");
+    expect(page).toContain("window.setInterval");
   });
 });

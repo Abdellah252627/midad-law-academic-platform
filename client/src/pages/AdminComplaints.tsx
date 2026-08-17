@@ -47,6 +47,54 @@ function timelineEventLabel(action: string, metadataJson: string | null) {
   return "تم تحديث بيانات الشكوى";
 }
 
+type TimelineEvent = { id: string; action: string; actorUserId: number | null; metadataJson: string | null; createdAt: Date | string };
+
+type StatusDuration = { status: StatusValue; durationMs: number };
+
+function getStatusTransition(metadataJson: string | null) {
+  if (!metadataJson) return null;
+  try {
+    const metadata = JSON.parse(metadataJson) as { previousStatus?: string; status?: string };
+    if (statuses.some(item => item.value === metadata.previousStatus) && statuses.some(item => item.value === metadata.status) && metadata.previousStatus !== metadata.status) {
+      return { from: metadata.previousStatus as StatusValue, to: metadata.status as StatusValue };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function formatDuration(durationMs: number) {
+  const totalMinutes = Math.max(0, Math.floor(durationMs / 60_000));
+  if (totalMinutes < 1) return "أقل من دقيقة";
+  const days = Math.floor(totalMinutes / 1_440);
+  const hours = Math.floor((totalMinutes % 1_440) / 60);
+  const minutes = totalMinutes % 60;
+  const parts: string[] = [];
+  if (days) parts.push(`${days} ${days === 1 ? "يوم" : "أيام"}`);
+  if (hours) parts.push(`${hours} ${hours === 1 ? "ساعة" : "ساعات"}`);
+  if (minutes && parts.length < 2) parts.push(`${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}`);
+  return parts.join(" و ") || "أقل من دقيقة";
+}
+
+function calculateStatusDurations(timeline: TimelineEvent[], now: number): StatusDuration[] {
+  const durations = new Map<StatusValue, number>(statuses.map(item => [item.value, 0]));
+  const events = [...timeline].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  if (!events.length) return [];
+  let currentStatus: StatusValue = "new";
+  let statusStartedAt = new Date(events[0].createdAt).getTime();
+  for (const event of events.slice(1)) {
+    const transition = event.action === "complaint.update" ? getStatusTransition(event.metadataJson) : null;
+    if (!transition) continue;
+    const eventAt = new Date(event.createdAt).getTime();
+    durations.set(currentStatus, (durations.get(currentStatus) ?? 0) + Math.max(0, eventAt - statusStartedAt));
+    currentStatus = transition.to;
+    statusStartedAt = eventAt;
+  }
+  durations.set(currentStatus, (durations.get(currentStatus) ?? 0) + Math.max(0, now - statusStartedAt));
+  return statuses.map(item => ({ status: item.value, durationMs: durations.get(item.value) ?? 0 })).filter(item => item.durationMs > 0);
+}
+
 function AdminComplaintsContent() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -58,6 +106,7 @@ function AdminComplaintsContent() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [responseDraft, setResponseDraft] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<StatusValue>("new");
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const pendingTransitionRef = useRef<{ from: StatusValue; to: StatusValue } | null>(null);
   const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
   const complaintsQuery = trpc.admin.complaints.useQuery(queryInput, { enabled: isAdmin });
@@ -80,6 +129,12 @@ function AdminComplaintsContent() {
   });
 
   useEffect(() => {
+    if (selectedId === null) return;
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [selectedId]);
+
+  useEffect(() => {
     setResponseDraft(detailQuery.data?.adminResponse ?? "");
     if (detailQuery.data?.status) setSelectedStatus(detailQuery.data.status as StatusValue);
   }, [detailQuery.data?.adminResponse, detailQuery.data?.status, selectedId]);
@@ -92,6 +147,7 @@ function AdminComplaintsContent() {
   const totalPages = complaintsQuery.data?.totalPages ?? 1;
   const statusCounts = complaintsQuery.data?.statusCounts ?? {};
   const selected = detailQuery.data;
+  const statusDurations = useMemo(() => calculateStatusDurations((selected?.timeline ?? []) as TimelineEvent[], clockNow), [selected?.timeline, clockNow]);
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -154,7 +210,7 @@ function AdminComplaintsContent() {
 
     <div className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-[#68747a]">عرض الصفحة {page} من {totalPages}</p><div className="flex gap-2"><button type="button" disabled={page <= 1 || complaintsQuery.isFetching} onClick={() => setPage(current => current - 1)} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight className="h-4 w-4" aria-hidden="true" />السابق</button><button type="button" disabled={page >= totalPages || complaintsQuery.isFetching} onClick={() => setPage(current => current + 1)} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] disabled:cursor-not-allowed disabled:opacity-40">التالي<ChevronLeft className="h-4 w-4" aria-hidden="true" /></button></div></div>
 
-    {selectedId !== null && <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#173247]/45 p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="تفاصيل الشكوى"><div className="my-4 w-full max-w-3xl rounded-[28px] bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4 border-b border-[#eee7dc] pb-5"><div><p className="text-xs font-bold tracking-[0.14em] text-[#b9854a]">COMPLAINT DETAILS</p><h2 className="mt-2 font-display text-2xl font-bold text-[#173247]">تفاصيل الشكوى</h2></div><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق التفاصيل"><X className="h-5 w-5" /></button></div>{detailQuery.isLoading ? <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-[#b9854a]" /></div> : selected ? <div className="space-y-5 pt-5"><div className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs font-bold text-[#68747a]">رقم التذكرة</p><p className="mt-1 font-mono font-bold text-[#173247]" dir="ltr">{selected.ticketNumber}</p></div><div><p className="text-xs font-bold text-[#68747a]">تاريخ الإرسال</p><p className="mt-1 text-sm text-[#173247]">{formatDate(selected.createdAt)}</p></div><div><p className="text-xs font-bold text-[#68747a]">بيانات التواصل</p><p className="mt-1 text-sm text-[#173247]">{selected.fullName}<br /><span dir="ltr">{selected.email}</span>{selected.whatsapp ? <><br /><span dir="ltr">واتساب: {selected.whatsapp}</span></> : null}</p></div><div><p className="text-xs font-bold text-[#68747a]">التصنيف</p><p className="mt-1 text-sm text-[#173247]">{categories[selected.category] ?? selected.category}</p></div></div><div className="rounded-2xl bg-[#fcfaf6] p-4"><p className="text-xs font-bold text-[#68747a]">نص الشكوى</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#173247]">{selected.description}</p></div><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-[#173247]">الحالة<select value={selectedStatus} onChange={event => setSelectedStatus(event.target.value as StatusValue)} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal outline-none focus:border-[#b9854a]"><option value="new">جديدة</option><option value="in_review">قيد المراجعة</option><option value="needs_info">تحتاج معلومات</option><option value="responded">تم الرد</option><option value="closed">مغلقة</option></select></label><div className="rounded-2xl border border-[#e3d9ca] p-4 text-sm text-[#68747a]"><p className="font-bold text-[#173247]">ملاحظة أمنية</p><p className="mt-1 leading-6">لا تشارك بيانات الطالب خارج قنوات الدعم المعتمدة، وكل تغيير يُسجّل في سجل التدقيق.</p></div></div><label className="block text-sm font-bold text-[#173247]">الرد الإداري<textarea value={responseDraft} onChange={event => setResponseDraft(event.target.value)} maxLength={5000} rows={5} placeholder="اكتب الرد أو التعليمات التي ستظهر في سجل المعالجة…" className="mt-2 w-full resize-y rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal leading-7 outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></label><section aria-label="السجل الزمني للشكوى" className="rounded-2xl border border-[#e3d9ca] bg-[#fcfaf6] p-4"><div className="flex items-center gap-2"><History className="h-4 w-4 text-[#b9854a]" aria-hidden="true" /><h3 className="text-sm font-bold text-[#173247]">السجل الزمني للشكوى</h3></div><div className="mt-4 space-y-3">{selected.timeline?.map(event => <div key={event.id} className="relative flex gap-3 border-r-2 border-[#d5c5b1] pr-4 last:border-r-0"><span className="absolute -right-[5px] top-1 h-2 w-2 rounded-full bg-[#b9854a]" aria-hidden="true" /><div className="min-w-0 flex-1 rounded-xl border border-[#eee7dc] bg-white p-3"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-[#173247]">{timelineEventLabel(event.action, event.metadataJson)}</p><time className="text-xs text-[#68747a]">{formatDate(event.createdAt)}</time></div><p className="mt-1 text-xs text-[#68747a]">{event.actorUserId ? `مدير #${event.actorUserId}` : "الطالب"}</p></div></div>)}</div></section><div className="flex flex-col-reverse gap-3 border-t border-[#eee7dc] pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl border border-[#e3d9ca] px-5 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]">إلغاء</button><button type="button" disabled={updateMutation.isPending} onClick={saveComplaint} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#173247] px-5 py-3 text-sm font-bold text-white hover:bg-[#24465e] disabled:opacity-50">{updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}حفظ التحديث</button></div></div> : <p className="py-10 text-center text-sm text-[#68747a]">تعذر العثور على الشكوى.</p>}</div></div>}
+    {selectedId !== null && <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#173247]/45 p-4 sm:p-8" role="dialog" aria-modal="true" aria-label="تفاصيل الشكوى"><div className="my-4 w-full max-w-3xl rounded-[28px] bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4 border-b border-[#eee7dc] pb-5"><div><p className="text-xs font-bold tracking-[0.14em] text-[#b9854a]">COMPLAINT DETAILS</p><h2 className="mt-2 font-display text-2xl font-bold text-[#173247]">تفاصيل الشكوى</h2></div><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق التفاصيل"><X className="h-5 w-5" /></button></div>{detailQuery.isLoading ? <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-[#b9854a]" /></div> : selected ? <div className="space-y-5 pt-5"><div className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs font-bold text-[#68747a]">رقم التذكرة</p><p className="mt-1 font-mono font-bold text-[#173247]" dir="ltr">{selected.ticketNumber}</p></div><div><p className="text-xs font-bold text-[#68747a]">تاريخ الإرسال</p><p className="mt-1 text-sm text-[#173247]">{formatDate(selected.createdAt)}</p></div><div><p className="text-xs font-bold text-[#68747a]">بيانات التواصل</p><p className="mt-1 text-sm text-[#173247]">{selected.fullName}<br /><span dir="ltr">{selected.email}</span>{selected.whatsapp ? <><br /><span dir="ltr">واتساب: {selected.whatsapp}</span></> : null}</p></div><div><p className="text-xs font-bold text-[#68747a]">التصنيف</p><p className="mt-1 text-sm text-[#173247]">{categories[selected.category] ?? selected.category}</p></div></div><div className="rounded-2xl bg-[#fcfaf6] p-4"><p className="text-xs font-bold text-[#68747a]">نص الشكوى</p><p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#173247]">{selected.description}</p></div><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-[#173247]">الحالة<select value={selectedStatus} onChange={event => setSelectedStatus(event.target.value as StatusValue)} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal outline-none focus:border-[#b9854a]"><option value="new">جديدة</option><option value="in_review">قيد المراجعة</option><option value="needs_info">تحتاج معلومات</option><option value="responded">تم الرد</option><option value="closed">مغلقة</option></select></label><div className="rounded-2xl border border-[#e3d9ca] p-4 text-sm text-[#68747a]"><p className="font-bold text-[#173247]">ملاحظة أمنية</p><p className="mt-1 leading-6">لا تشارك بيانات الطالب خارج قنوات الدعم المعتمدة، وكل تغيير يُسجّل في سجل التدقيق.</p></div></div><label className="block text-sm font-bold text-[#173247]">الرد الإداري<textarea value={responseDraft} onChange={event => setResponseDraft(event.target.value)} maxLength={5000} rows={5} placeholder="اكتب الرد أو التعليمات التي ستظهر في سجل المعالجة…" className="mt-2 w-full resize-y rounded-xl border border-[#e3d9ca] bg-white px-3 py-3 font-normal leading-7 outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></label><section aria-label="السجل الزمني للشكوى" className="rounded-2xl border border-[#e3d9ca] bg-[#fcfaf6] p-4"><div className="flex items-center gap-2"><History className="h-4 w-4 text-[#b9854a]" aria-hidden="true" /><h3 className="text-sm font-bold text-[#173247]">السجل الزمني للشكوى</h3></div><div className="mt-4 grid gap-2 sm:grid-cols-2">{statusDurations.map(item => { const meta = statusMeta(item.status); return <div key={item.status} className="rounded-xl border border-[#eee7dc] bg-white px-3 py-2"><div className="flex items-center justify-between gap-2"><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${meta.className}`}>{meta.label}</span><span className="text-xs font-bold text-[#173247]">{formatDuration(item.durationMs)}</span></div><p className="mt-1 text-[11px] text-[#68747a]">المدة حتى الآن</p></div>; })}</div><div className="mt-4 space-y-3">{selected.timeline?.map(event => <div key={event.id} className="relative flex gap-3 border-r-2 border-[#d5c5b1] pr-4 last:border-r-0"><span className="absolute -right-[5px] top-1 h-2 w-2 rounded-full bg-[#b9854a]" aria-hidden="true" /><div className="min-w-0 flex-1 rounded-xl border border-[#eee7dc] bg-white p-3"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-[#173247]">{timelineEventLabel(event.action, event.metadataJson)}</p><time className="text-xs text-[#68747a]">{formatDate(event.createdAt)}</time></div><p className="mt-1 text-xs text-[#68747a]">{event.actorUserId ? `مدير #${event.actorUserId}` : "الطالب"}</p></div></div>)}</div></section><div className="flex flex-col-reverse gap-3 border-t border-[#eee7dc] pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={() => setSelectedId(null)} className="rounded-xl border border-[#e3d9ca] px-5 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]">إلغاء</button><button type="button" disabled={updateMutation.isPending} onClick={saveComplaint} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#173247] px-5 py-3 text-sm font-bold text-white hover:bg-[#24465e] disabled:opacity-50">{updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}حفظ التحديث</button></div></div> : <p className="py-10 text-center text-sm text-[#68747a]">تعذر العثور على الشكوى.</p>}</div></div>}
   </section>;
 }
 
