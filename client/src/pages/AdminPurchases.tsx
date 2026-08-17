@@ -25,7 +25,9 @@ function AdminPurchasesContent() {
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
-  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status }), [search, status]);
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const proofQuery = trpc.admin.purchaseProofUrl.useQuery(
@@ -68,11 +70,13 @@ function AdminPurchasesContent() {
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSearch(searchDraft.trim().slice(0, 160));
+    setPage(1);
   };
   const clearSearch = () => {
     setSearchDraft("");
     setSearch("");
     setStatus("all");
+    setPage(1);
   };
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
@@ -91,7 +95,7 @@ function AdminPurchasesContent() {
       </div>
       <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
         <span className="sr-only">تصفية حسب حالة الطلب</span>
-        <select value={status} onChange={event => setStatus(event.target.value as typeof status)} aria-label="تصفية حسب حالة الطلب" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
+        <select value={status} onChange={event => { setStatus(event.target.value as typeof status); setPage(1); }} aria-label="تصفية حسب حالة الطلب" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
           <option value="all">كل الحالات</option>
           <option value="pending">قيد المراجعة</option>
           <option value="approved">مقبول</option>
@@ -112,7 +116,7 @@ function AdminPurchasesContent() {
       <div className="overflow-x-auto"><table className="min-w-[950px] w-full text-right text-sm"><thead className="bg-white text-[#173247]"><tr><th className="px-4 py-4 font-bold">رقم الطلب</th><th className="px-4 py-4 font-bold">القيم السابقة</th><th className="px-4 py-4 font-bold">القيم المطلوبة</th><th className="px-4 py-4 font-bold">السبب</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead><tbody className="divide-y divide-[#eee7dc]">{correctionsQuery.isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">جارٍ تحميل طلبات التصحيح…</td></tr> : (correctionsQuery.data ?? []).length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[#68747a]">لا توجد طلبات تصحيح.</td></tr> : (correctionsQuery.data ?? []).map(item => <tr key={item.id} className="hover:bg-[#fcfaf6]"><td className="px-4 py-4 font-mono text-xs text-[#173247]">#{item.requestId}</td><td className="px-4 py-4 text-xs leading-6 text-[#68747a]">{item.oldEmail}<br />{item.oldPhone || "—"}</td><td className="px-4 py-4 text-xs leading-6 text-[#173247]">{item.requestedEmail || "—"}<br />{item.requestedPhone || "—"}</td><td className="max-w-[220px] px-4 py-4 text-xs leading-6 text-[#68747a]">{item.reason || "—"}</td><td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(item.status)}`}>{statusLabel(item.status)}</span></td><td className="px-4 py-4">{item.status === "pending" ? <div className="flex gap-2"><button type="button" onClick={() => reviewCorrection(item.id, "approved")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">موافقة</button><button type="button" onClick={() => reviewCorrection(item.id, "rejected")} disabled={reviewCorrectionMutation.isPending} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">رفض</button></div> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}</td></tr>)}</tbody></table></div>
     </div>
 
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#68747a]"><span>{search ? `نتائج البحث عن «${search}»` : "جميع طلبات الشراء"}{status !== "all" ? ` — الحالة: ${statusLabel(status)}` : ""} — {requestsQuery.isFetching ? "جارٍ التحديث…" : `${requests.length} طلب`}</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#68747a]"><span>{search ? `نتائج البحث عن «${search}»` : "جميع طلبات الشراء"}{status !== "all" ? ` — الحالة: ${statusLabel(status)}` : ""} — {requestsQuery.isFetching ? "جارٍ التحديث…" : `${requestsQuery.data?.total ?? requests.length} طلب`}</span><span>الصفحة {requestsQuery.data?.page ?? page} من {requestsQuery.data?.totalPages ?? 1}</span></div>
     <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm">
       <div className="overflow-x-auto"><table className="min-w-[1100px] w-full text-right text-sm">
         <thead className="bg-[#f8f3eb] text-[#173247]"><tr><th className="px-4 py-4 font-bold">بيانات العميل</th><th className="px-4 py-4 font-bold">المنتج</th><th className="px-4 py-4 font-bold">مرجع التحويل</th><th className="px-4 py-4 font-bold">إثبات التحويل</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">التاريخ</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead>
@@ -129,6 +133,13 @@ function AdminPurchasesContent() {
         </tbody>
       </table></div>
     </div>
+    <nav aria-label="ترقيم صفحات طلبات الشراء" className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#e3d9ca] bg-white px-4 py-3 shadow-sm">
+      <p className="text-sm font-bold text-[#173247]">الصفحة {requestsQuery.data?.page ?? page} من {requestsQuery.data?.totalPages ?? 1}</p>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page <= 1 || requestsQuery.isFetching} className="rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-40">السابق</button>
+        <button type="button" onClick={() => setPage(current => Math.min(requestsQuery.data?.totalPages ?? 1, current + 1))} disabled={page >= (requestsQuery.data?.totalPages ?? 1) || requestsQuery.isFetching} className="rounded-xl border border-[#e3d9ca] px-4 py-2 text-sm font-bold text-[#173247] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-40">التالي</button>
+      </div>
+    </nav>
 
     {selectedProofId !== null && <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-[#173247]/70 p-4" onClick={() => setSelectedProofId(null)}><div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[26px] bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold text-[#173247]">معاينة إثبات الدفع</h2><button type="button" onClick={() => setSelectedProofId(null)} className="rounded-lg p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق">×</button></div>{proofQuery.isLoading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-[#b9854a]" /></div> : proofQuery.error ? <p role="alert" className="rounded-xl bg-red-50 p-6 text-center text-sm font-bold text-red-700">تعذرت معاينة إثبات الدفع. قد يكون الرابط المؤقت انتهت صلاحيته؛ أغلق النافذة ثم أعد فتح المعاينة.</p> : proofQuery.data?.url ? proofQuery.data.contentType?.startsWith("image/") ? <img src={proofQuery.data.url} alt="إثبات الدفع" className="mx-auto max-h-[70vh] rounded-xl object-contain" /> : <iframe src={proofQuery.data.url} title="إثبات الدفع PDF" className="h-[70vh] w-full rounded-xl border" /> : <div className="py-16 text-center text-[#68747a]"><FileImage className="mx-auto mb-3 h-10 w-10" />لا يوجد إثبات متاح لهذا الطلب.</div>}<p className="mt-4 flex items-center gap-2 text-xs text-[#68747a]"><FileText className="h-4 w-4" />الرابط مؤقت ومخصص للمراجعة الإدارية فقط.</p></div></div>}
   </section>;

@@ -102,9 +102,10 @@ export const appRouter = router({
       if (leads.length !== uniqueIds.length) throw new Error("بعض التسجيلات المحددة غير موجودة أو محذوفة");
       return { filename: `midad-selected-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv: buildSampleLeadsCsv(leads) };
     }),
-    purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), status: z.enum(["pending", "approved", "rejected"]).optional() }).optional()).query(async ({ input }) => {
-      const requests = await getPurchaseRequests({ search: input?.search, status: input?.status });
-      return { requests, total: requests.length, search: input?.search?.trim() ?? "", status: input?.status ?? "all" };
+    purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), status: z.enum(["pending", "approved", "rejected"]).optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(25) }).optional()).query(async ({ input }) => {
+      const options = input ?? { page: 1, pageSize: 25 };
+      const result = await getPurchaseRequests(options);
+      return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: options.search?.trim() ?? "", status: options.status ?? "all" };
     }),
     purchaseRequestCorrections: adminProcedure.query(async () => getPurchaseRequestCorrections()),
     reviewPurchaseRequestCorrection: adminProcedure.input(z.object({ correctionId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), decisionNote: z.string().trim().max(500).optional() })).mutation(async ({ input, ctx }) => {

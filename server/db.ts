@@ -336,7 +336,7 @@ export async function reviewPurchaseRequestCorrection(input: { id: number; statu
   });
 }
 
-export async function getPurchaseRequests(options?: { search?: string; status?: "pending" | "approved" | "rejected" }) {
+export async function getPurchaseRequests(options?: { search?: string; status?: "pending" | "approved" | "rejected"; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const search = options?.search?.trim().slice(0, 160);
@@ -347,9 +347,15 @@ export async function getPurchaseRequests(options?: { search?: string; status?: 
     const pattern = `%${escaped}%`;
     conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
   }
-  return db.select().from(purchaseRequests)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(purchaseRequests.createdAt));
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+  const pageSize = Math.min(Math.max(options?.pageSize ?? 25, 1), 100);
+  const page = Math.max(options?.page ?? 1, 1);
+  const offset = (page - 1) * pageSize;
+  const [requests, countRows] = await Promise.all([
+    db.select().from(purchaseRequests).where(whereClause).orderBy(desc(purchaseRequests.createdAt)).limit(pageSize).offset(offset),
+    db.select({ count: count() }).from(purchaseRequests).where(whereClause),
+  ]);
+  return { requests, total: Number(countRows[0]?.count ?? 0), page, pageSize };
 }
 
 export async function approvePurchaseRequest(id: number, reviewedByUserId?: number) {
