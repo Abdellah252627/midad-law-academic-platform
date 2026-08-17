@@ -23,4 +23,11 @@ describe("contact and complaints page", () => {
     expect(homeSource).toContain('href="/contact"');
     expect(homeSource).toContain("تواصل معنا والشكاوى");
   });
+
+  it("includes payment and download troubleshooting FAQs", () => {
+    expect(pageSource).toContain("الأسئلة الشائعة حول الدفع والتنزيل");
+    expect(pageSource).toContain("متى تتم مراجعة طلبي؟");
+    expect(pageSource).toContain("انتهت صلاحية رابط التنزيل");
+    expect(pageSource).toContain("هل يمكنني طلب استرداد المبلغ بعد تنزيل الملف؟");
+  });
 });

@@ -1,4 +1,10 @@
 import { ArrowRight, CheckCircle2, MessageCircle, ShieldCheck } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const whatsappNumber = "212664173090";
 const whatsappMessage = encodeURIComponent(
@@ -11,6 +17,39 @@ const topics = [
   "لم يظهر الطلب بعد إرسال التحويل",
   "إرسال ملف غير صحيح أو وجود عيب تقني",
   "استفسار عن منتج أو طريقة التحويل البنكي",
+];
+
+const faqs = [
+  {
+    question: "أرسلت التحويل البنكي، متى تتم مراجعة طلبي؟",
+    answer:
+      "تتم مراجعة التحويل يدوياً بعد التحقق من وصول المبلغ في الحساب البنكي. أرسل رقم الطلب والبريد الإلكتروني المستخدم في الطلب عبر واتساب لتسهيل المتابعة.",
+  },
+  {
+    question: "أرسلت الطلب ولم يظهر رابط تنزيل الملف، ماذا أفعل؟",
+    answer:
+      "لا يظهر رابط التنزيل قبل اعتماد الطلب من الإدارة. بعد الموافقة، افتح رسالة نجاح الطلب واضغط على زر التحقق من حالة التسليم أو استخدم رابط التقييم والتسليم المرسل لك.",
+  },
+  {
+    question: "ظهر رابط التنزيل لكن الملف لم يفتح، ما الحل؟",
+    answer:
+      "جرّب تنزيل الملف من متصفح حديث، ثم افتحه باستخدام تطبيق قراءة PDF موثوق. إذا استمرت المشكلة، أرسل رقم الطلب ولقطة شاشة للخطأ عبر واتساب دون مشاركة أي كلمة مرور أو بيانات بنكية سرية.",
+  },
+  {
+    question: "انتهت صلاحية رابط التنزيل، هل أستطيع الحصول على رابط جديد؟",
+    answer:
+      "نعم، روابط التنزيل مؤقتة لأسباب أمنية. تواصل عبر واتساب مع رقم الطلب والبريد الإلكتروني، وستتم مساعدتك في إصدار رابط جديد للطلب المقبول.",
+  },
+  {
+    question: "ماذا أفعل إذا أرسلت ملفاً أو بيانات تحويل غير صحيحة؟",
+    answer:
+      "تواصل معنا فوراً عبر واتساب، واذكر رقم الطلب بوضوح. لا ترسل بيانات بنكية سرية أو كلمات مرور، ويمكنك إرسال صورة إثبات التحويل فقط عند الحاجة إلى التحقق.",
+  },
+  {
+    question: "هل يمكنني طلب استرداد المبلغ بعد تنزيل الملف؟",
+    answer:
+      "المنتج رقمي، لذلك لا يُقبل الاسترداد بعد تسليم الملف أو إتاحته للتنزيل، باستثناء إرسال ملف غير صحيح أو وجود عيب تقني يمنع فتح الملف وعدم القدرة على معالجته.",
+  },
 ];
 
 export default function ContactPage() {
@@ -74,6 +113,26 @@ export default function ContactPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="mt-5 rounded-[24px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-sm sm:p-8">
+          <div className="max-w-[700px]">
+            <p className="text-xs font-black tracking-[0.08em] text-[#b9854a]">إجابات سريعة</p>
+            <h2 className="mt-2 font-display text-2xl font-black text-[#172b3a]">الأسئلة الشائعة حول الدفع والتنزيل</h2>
+            <p className="mt-3 text-sm leading-[2] text-[#68747a]">قد تجد الإجابة التي تحتاجها هنا قبل التواصل معنا. إذا لم تُحل المشكلة، استخدم زر واتساب وأرسل رقم الطلب.</p>
+          </div>
+          <Accordion type="single" collapsible className="mt-5 w-full">
+            {faqs.map((faq, index) => (
+              <AccordionItem key={faq.question} value={`faq-${index}`} className="border-[#e3ddd1]">
+                <AccordionTrigger className="text-right text-sm font-bold text-[#172b3a] hover:no-underline">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-sm leading-[2] text-[#68747a]">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </section>
 
         <p className="mt-8 text-center text-xs leading-[1.9] text-[#8b9290]">تُستخدم بيانات التواصل لمعالجة الاستفسار أو الشكوى فقط وفق <a href="/privacy" className="text-[#b9854a] underline-offset-4 hover:underline">سياسة الخصوصية</a>.</p>
