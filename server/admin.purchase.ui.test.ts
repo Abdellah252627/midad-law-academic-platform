@@ -15,6 +15,16 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("[search, status, page, pageSize]");
   });
 
+  it("labels the admin search for order number and customer data", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain('placeholder="ابحث برقم الطلب أو اسم العميل أو بريده الإلكتروني"');
+    expect(source).toContain('aria-label="البحث برقم الطلب أو اسم العميل أو بريده الإلكتروني"');
+    expect(source).toContain("نتائج البحث عن رقم الطلب أو بيانات العميل");
+    expect(source).toContain("setSearch(searchDraft.trim().slice(0, 160));");
+    expect(source).toContain("setPage(1);");
+  });
+
   it("shows internal notes controls and an admin-only change history", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 

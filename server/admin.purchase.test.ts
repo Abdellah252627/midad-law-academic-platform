@@ -45,6 +45,13 @@ describe("admin purchase management", () => {
     expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", status: undefined, page: 1, pageSize: 25 });
   });
 
+  it("passes an order number search alongside the status filter", async () => {
+    getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 12, orderNumber: "MIDAD-20260817-AB12" }], total: 1, page: 1, pageSize: 25 });
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.admin.purchaseRequests({ search: "  MIDAD-20260817-AB12  ", status: "approved" })).resolves.toEqual({ requests: [{ id: 12, orderNumber: "MIDAD-20260817-AB12" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "MIDAD-20260817-AB12", status: "approved" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "MIDAD-20260817-AB12", status: "approved", page: 1, pageSize: 25 });
+  });
+
   it("passes a validated status filter alongside customer search", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 9, status: "approved" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());

@@ -399,7 +399,7 @@ export async function getPurchaseRequests(options?: { search?: string; status?: 
   if (search) {
     const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
     const pattern = `%${escaped}%`;
-    conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
+    conditions.push(or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
   }
   const whereClause = conditions.length ? and(...conditions) : undefined;
   const requestedPageSize = options?.pageSize ?? 25;
