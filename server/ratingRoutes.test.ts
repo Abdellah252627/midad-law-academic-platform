@@ -134,6 +134,29 @@ describe("rating REST endpoints", () => {
     expect(await duplicate.json()).toEqual({ message: "already rated" });
   });
 
+  it("creates a review for an approved order when the product title is absent", async () => {
+    mocks.getRatingContext.mockResolvedValue({
+      orderId: 60001,
+      status: "approved",
+      fullName: "ABDELLAH MOUHITI",
+      productId: "MIDAD-001",
+      productTitle: null,
+      reviewId: null,
+    });
+    mocks.createReview.mockResolvedValue({ id: 10 });
+    const response = await fetch(`${baseUrl}/api/reviews`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ order_id: 60001, rating: 5, comment: "مفيد" }),
+    });
+    expect(response.status).toBe(201);
+    expect(mocks.createReview).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 60001,
+      productId: "MIDAD-001",
+      fullName: "ABDELLAH MOUHITI",
+    }));
+  });
+
   it("returns only public fields for visible product reviews", async () => {
     mocks.getVisibleProductReviews.mockResolvedValue([{
       fullName: "ABDEL LAH",
