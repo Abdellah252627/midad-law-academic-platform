@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import PublicReviews from "@/components/PublicReviews";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import {
   ArrowLeft,
@@ -383,6 +384,8 @@ export default function Home() {
           </div>
         </section>
 
+        <PublicReviews productId={DEFAULT_PRODUCT_CODE} />
+
         <section id="faq" className="bg-[#f7f3eb] py-24 lg:py-32">
           <div className="mx-auto max-w-[900px] px-5 lg:px-8"><div className="text-center"><div className="section-kicker justify-center">05 / الأسئلة الشائعة</div><h2 className="mt-4 font-display text-4xl font-black tracking-[-0.05em] text-[#172b3a] md:text-5xl">قبل أن تبدأ</h2></div><div className="mt-12 divide-y divide-[#d9d0c2] border-y border-[#d9d0c2]">{faqs.map(([question, answer], index) => <div key={question}><button onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-5 py-6 text-right font-display text-[15px] font-extrabold text-[#172b3a] transition hover:text-[#b9854a]" aria-expanded={openFaq === index}><span>{question}</span><ChevronDown size={18} className={`shrink-0 text-[#b9854a] transition-transform duration-200 ${openFaq === index ? "rotate-180" : ""}`} /></button><div className={`grid transition-[grid-template-rows,opacity] duration-200 ${openFaq === index ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}><div className="overflow-hidden"><p className="max-w-[760px] pb-6 font-body text-[14px] leading-[2] text-[#68747a]">{answer}</p></div></div></div>)}</div></div>
         </section>
@@ -431,7 +434,7 @@ export default function Home() {
               <button type="button" onClick={resetTransferFlow} className="rounded-full border border-[#d9d0c2] p-2 text-[#53616a]" aria-label="إغلاق نموذج الشراء"><X size={17} /></button>
             </div>
             {transferSent ? (
-              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
+              <div className="mt-8 rounded-[18px] border border-[#b9854a]/30 bg-[#efe8dc] p-6"><div className="font-display text-lg font-black">تم استلام طلبك رقم #{transferSent}</div><p className="mt-3 font-body text-sm leading-[1.9] text-[#68747a]">بعد مراجعة التحويل، يمكنك استخدام زر التحقق لاسترجاع رابط PDF مؤقت. لن يظهر الرابط قبل اعتماد الطلب.</p><button type="button" disabled={downloadQuery.isFetching} onClick={async () => { const result = await downloadQuery.refetch(); if (result.data?.url) window.open(result.data.url, "_blank", "noopener,noreferrer"); else toast.info("الطلب ما زال قيد المراجعة"); }} className="mt-5 w-full rounded-full border border-[#b9854a] px-5 py-3 text-sm font-extrabold text-[#89663b] disabled:opacity-60">{downloadQuery.isFetching ? "جارٍ التحقق…" : "التحقق من حالة التسليم"}</button><a href={`/rate/${transferSent}`} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-full border border-[#173247] px-5 py-3 text-center text-sm font-extrabold text-[#173247] transition hover:bg-[#173247] hover:text-white">قيّم المنتج بعد تأكيد الدفع</a><button type="button" onClick={resetTransferFlow} className="mt-3 w-full rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white">إغلاق</button></div>
             ) : !showBankDetails ? (
                 <div className="mt-7 space-y-5">
                   <div className="rounded-[16px] border border-[#d9d0c2] bg-[#efe8dc] p-4 font-body text-xs leading-[1.9] text-[#68747a]">الخطوة الأولى: اعرض تعليمات التحويل، أرسل {productPriceMad} درهماً، ثم ارجع لإرسال مرجع العملية وإثبات الدفع. لن يتم تسليم الملف قبل المراجعة اليدوية.</div>
