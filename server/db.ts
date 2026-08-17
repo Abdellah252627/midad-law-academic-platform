@@ -185,6 +185,8 @@ export async function getAnalyticsSummary() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const rows = await db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt));
+  const revenueRows = await db.select({ totalRevenueMad: sql<number>`coalesce(sum(${purchaseRequests.pricePaid}), 0)` }).from(purchaseRequests).where(eq(purchaseRequests.status, "approved"));
+  const totalRevenueMad = Number(revenueRows[0]?.totalRevenueMad ?? 0);
   const now = Date.now();
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
   const weekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
@@ -196,7 +198,7 @@ export async function getAnalyticsSummary() {
   const weekVisitors = new Set(week.filter(row => row.eventType === "page_view").map(row => row.visitorKey).filter(Boolean)).size;
   const weekSamples = week.filter(row => row.eventType === "sample_download").length;
   const weekPurchases = week.filter(row => row.eventType === "purchase_request").length;
-  return { todayVisitors: uniqueTodayVisitors, todaySampleDownloads: sampleDownloadsToday, todayPurchaseRequests: purchaseRequestsToday, todayConversionRate: sampleDownloadsToday ? Number(((purchaseRequestsToday / sampleDownloadsToday) * 100).toFixed(1)) : 0, weekVisitors, weekSampleDownloads: weekSamples, weekPurchaseRequests: weekPurchases, weekConversionRate: weekSamples ? Number(((weekPurchases / weekSamples) * 100).toFixed(1)) : 0 };
+  return { totalRevenueMad, todayVisitors: uniqueTodayVisitors, todaySampleDownloads: sampleDownloadsToday, todayPurchaseRequests: purchaseRequestsToday, todayConversionRate: sampleDownloadsToday ? Number(((purchaseRequestsToday / sampleDownloadsToday) * 100).toFixed(1)) : 0, weekVisitors, weekSampleDownloads: weekSamples, weekPurchaseRequests: weekPurchases, weekConversionRate: weekSamples ? Number(((weekPurchases / weekSamples) * 100).toFixed(1)) : 0 };
 }
 
 const DEFAULT_PRODUCT_CODE = "MIDAD-001";

@@ -12,12 +12,14 @@ const anonymousContext = { user: undefined, req: { protocol: "https", headers: {
 const userContext = { user: { id: 7, openId: "student-7", role: "user", name: "طالب", email: "student@example.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 const adminContext = { user: { id: 1, openId: "admin-1", role: "admin", name: "مدير", email: "admin@example.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 
-const summary = { todayVisitors: 12, todaySampleDownloads: 8, todayPurchaseRequests: 2, todayConversionRate: 25, weekVisitors: 64, weekSampleDownloads: 31, weekPurchaseRequests: 7, weekConversionRate: 22.6 };
+const summary = { totalRevenueMad: 114, todayVisitors: 12, todaySampleDownloads: 8, todayPurchaseRequests: 2, todayConversionRate: 25, weekVisitors: 64, weekSampleDownloads: 31, weekPurchaseRequests: 7, weekConversionRate: 22.6 };
 
 describe("admin analytics summary", () => {
   it("returns the persisted summary for an admin", async () => {
     vi.mocked(db.getAnalyticsSummary).mockResolvedValue(summary);
-    await expect(appRouter.createCaller(adminContext).admin.analyticsSummary()).resolves.toEqual(summary);
+    const result = await appRouter.createCaller(adminContext).admin.analyticsSummary();
+    expect(result).toEqual(summary);
+    expect(result.totalRevenueMad).toBe(114);
   });
 
   it("rejects anonymous and non-admin access", async () => {
