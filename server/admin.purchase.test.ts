@@ -35,42 +35,42 @@ describe("admin purchase management", () => {
   it("lists purchase requests for admins", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "", status: "all" });
+    await expect(caller.admin.purchaseRequests()).resolves.toEqual({ requests: [{ id: 1, productCode: "MIDAD-001", status: "pending" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "", searchScope: "all", status: "all" });
   });
 
   it("passes a trimmed customer search to the database and returns the applied term", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  " })).resolves.toEqual({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "sara@example.com", status: "all" });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", status: undefined, page: 1, pageSize: 25 });
+    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  " })).resolves.toEqual({ requests: [{ id: 8, customerName: "سارة", customerEmail: "sara@example.com" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "sara@example.com", searchScope: "all", status: "all" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", searchScope: "all", status: undefined, page: 1, pageSize: 25 });
   });
 
   it("passes an order number search alongside the status filter", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 12, orderNumber: "MIDAD-20260817-AB12" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests({ search: "  MIDAD-20260817-AB12  ", status: "approved" })).resolves.toEqual({ requests: [{ id: 12, orderNumber: "MIDAD-20260817-AB12" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "MIDAD-20260817-AB12", status: "approved" });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "MIDAD-20260817-AB12", status: "approved", page: 1, pageSize: 25 });
+    await expect(caller.admin.purchaseRequests({ search: "  MIDAD-20260817-AB12  ", searchScope: "orderNumber", status: "approved" })).resolves.toEqual({ requests: [{ id: 12, orderNumber: "MIDAD-20260817-AB12" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "MIDAD-20260817-AB12", searchScope: "orderNumber", status: "approved" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "MIDAD-20260817-AB12", searchScope: "orderNumber", status: "approved", page: 1, pageSize: 25 });
   });
 
   it("passes a validated status filter alongside customer search", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 9, status: "approved" }], total: 1, page: 1, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  ", status: "approved" })).resolves.toEqual({ requests: [{ id: 9, status: "approved" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "sara@example.com", status: "approved" });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", status: "approved", page: 1, pageSize: 25 });
+    await expect(caller.admin.purchaseRequests({ search: "  sara@example.com  ", status: "approved" })).resolves.toEqual({ requests: [{ id: 9, status: "approved" }], total: 1, page: 1, pageSize: 25, totalPages: 1, search: "sara@example.com", searchScope: "all", status: "approved" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara@example.com", searchScope: "all", status: "approved", page: 1, pageSize: 25 });
   });
 
   it("returns pagination metadata and forwards page controls with filters", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [{ id: 26, status: "approved" }], total: 51, page: 2, pageSize: 25 });
     const caller = appRouter.createCaller(createAdminContext());
-    await expect(caller.admin.purchaseRequests({ search: "sara", status: "approved", page: 2, pageSize: 25 })).resolves.toEqual({ requests: [{ id: 26, status: "approved" }], total: 51, page: 2, pageSize: 25, totalPages: 3, search: "sara", status: "approved" });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara", status: "approved", page: 2, pageSize: 25 });
+    await expect(caller.admin.purchaseRequests({ search: "sara", status: "approved", page: 2, pageSize: 25 })).resolves.toEqual({ requests: [{ id: 26, status: "approved" }], total: 51, page: 2, pageSize: 25, totalPages: 3, search: "sara", searchScope: "all", status: "approved" });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ search: "sara", searchScope: "all", status: "approved", page: 2, pageSize: 25 });
   });
 
   it("accepts the maximum supported page size of 200 and forwards it", async () => {
     getPurchaseRequests.mockResolvedValueOnce({ requests: [], total: 401, page: 1, pageSize: 200 });
     const caller = appRouter.createCaller(createAdminContext());
     await expect(caller.admin.purchaseRequests({ page: 1, pageSize: 200 })).resolves.toMatchObject({ page: 1, pageSize: 200, totalPages: 3 });
-    expect(getPurchaseRequests).toHaveBeenCalledWith({ page: 1, pageSize: 200 });
+    expect(getPurchaseRequests).toHaveBeenCalledWith({ page: 1, pageSize: 200, searchScope: "all" });
   });
 
   it("rejects unsupported page sizes before querying", async () => {

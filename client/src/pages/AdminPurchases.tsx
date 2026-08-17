@@ -27,10 +27,11 @@ function AdminPurchasesContent() {
   const [approvedDownload, setApprovedDownload] = useState<{ url: string; expiresInMinutes: number } | null>(null);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
+  const [searchScope, setSearchScope] = useState<"all" | "orderNumber" | "customer">("all");
   const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<10 | 50 | 100 | 200>(50);
-  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize }), [search, status, page, pageSize]);
+  const purchaseQueryInput = useMemo(() => ({ search: search || undefined, searchScope, status: status === "all" ? undefined : status, page, pageSize }), [search, searchScope, status, page, pageSize]);
   const requestsQuery = trpc.admin.purchaseRequests.useQuery(purchaseQueryInput, { enabled: isAdmin });
   const correctionsQuery = trpc.admin.purchaseRequestCorrections.useQuery(undefined, { enabled: isAdmin });
   const notesQuery = trpc.admin.purchaseRequestNotes.useQuery(
@@ -104,6 +105,7 @@ function AdminPurchasesContent() {
   const clearSearch = () => {
     setSearchDraft("");
     setSearch("");
+    setSearchScope("all");
     setStatus("all");
     setPage(1);
   };
@@ -120,8 +122,16 @@ function AdminPurchasesContent() {
     <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm sm:flex-row sm:items-center">
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8f80]" aria-hidden="true" />
-        <input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث برقم الطلب أو اسم العميل أو بريده الإلكتروني" aria-label="البحث برقم الطلب أو اسم العميل أو بريده الإلكتروني" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" />
+        <input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder={searchScope === "orderNumber" ? "ابحث برقم الطلب فقط" : searchScope === "customer" ? "ابحث باسم العميل أو بريده أو واتسابه" : "ابحث برقم الطلب أو بيانات العميل"} aria-label="البحث في طلبات الشراء" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" />
       </div>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
+        <span>نطاق البحث</span>
+        <select value={searchScope} onChange={event => { setSearchScope(event.target.value as typeof searchScope); setPage(1); }} aria-label="تحديد نطاق البحث" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
+          <option value="all">رقم الطلب وبيانات العميل</option>
+          <option value="orderNumber">رقم الطلب فقط</option>
+          <option value="customer">بيانات العميل فقط</option>
+        </select>
+      </label>
       <label className="flex items-center gap-2 text-sm font-bold text-[#173247]">
         <span>حجم الصفحة</span>
         <select value={pageSize} onChange={event => { setPageSize(Number(event.target.value) as typeof pageSize); setPage(1); }} aria-label="اختيار حجم صفحة الطلبات" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20">
@@ -142,7 +152,7 @@ function AdminPurchasesContent() {
       </label>
       <div className="flex gap-2">
         <button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>
-        {(search || searchDraft || status !== "all") && <button type="button" onClick={clearSearch} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] transition hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}
+        {(search || searchDraft || searchScope !== "all" || status !== "all") && <button type="button" onClick={clearSearch} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] transition hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}
       </div>
     </form>
     <div className="grid gap-4 sm:grid-cols-3">

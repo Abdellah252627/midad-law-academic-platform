@@ -12,15 +12,18 @@ describe("admin purchase details UI", () => {
     expect(source).toContain('<option value={100}>100</option>');
     expect(source).toContain('<option value={200}>200</option>');
     expect(source).toContain("setPageSize(Number(event.target.value) as typeof pageSize); setPage(1);");
-    expect(source).toContain("[search, status, page, pageSize]");
+    expect(source).toContain("[search, searchScope, status, page, pageSize]");
   });
 
   it("labels the admin search for order number and customer data", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 
-    expect(source).toContain('placeholder="ابحث برقم الطلب أو اسم العميل أو بريده الإلكتروني"');
-    expect(source).toContain('aria-label="البحث برقم الطلب أو اسم العميل أو بريده الإلكتروني"');
-    expect(source).toContain("نتائج البحث عن رقم الطلب أو بيانات العميل");
+    expect(source).toContain('placeholder={searchScope === "orderNumber" ? "ابحث برقم الطلب فقط" : searchScope === "customer" ? "ابحث باسم العميل أو بريده أو واتسابه" : "ابحث برقم الطلب أو بيانات العميل"}');
+    expect(source).toContain('aria-label="البحث في طلبات الشراء"');
+    expect(source).toContain('aria-label="تحديد نطاق البحث"');
+    expect(source).toContain('<option value="orderNumber">رقم الطلب فقط</option>');
+    expect(source).toContain('<option value="customer">بيانات العميل فقط</option>');
+    expect(source).toContain('setSearchScope(event.target.value as typeof searchScope); setPage(1);');
     expect(source).toContain("setSearch(searchDraft.trim().slice(0, 160));");
     expect(source).toContain("setPage(1);");
   });

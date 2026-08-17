@@ -390,7 +390,7 @@ export async function deletePurchaseRequestNote(input: { noteId: number; userId:
   });
 }
 
-export async function getPurchaseRequests(options?: { search?: string; status?: "pending" | "approved" | "rejected"; page?: number; pageSize?: number }) {
+export async function getPurchaseRequests(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected"; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const search = options?.search?.trim().slice(0, 160);
@@ -399,7 +399,14 @@ export async function getPurchaseRequests(options?: { search?: string; status?: 
   if (search) {
     const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
     const pattern = `%${escaped}%`;
-    conditions.push(or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern))!);
+    const searchScope = options?.searchScope ?? "all";
+    if (searchScope === "orderNumber") {
+      conditions.push(like(purchaseRequests.orderNumber, pattern));
+    } else if (searchScope === "customer") {
+      conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
+    } else {
+      conditions.push(or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
+    }
   }
   const whereClause = conditions.length ? and(...conditions) : undefined;
   const requestedPageSize = options?.pageSize ?? 25;
