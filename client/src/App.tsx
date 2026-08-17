@@ -16,6 +16,7 @@ import AdminSettings from "./pages/AdminSettings";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import NotFound from "./pages/NotFound";
 import { DigitalFilesPolicyPage, PrivacyPolicyPage, TermsPage } from "./pages/LegalPage";
+import ContactPage from "./pages/ContactPage";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
 // This shell keeps the public experience focused: one RTL landing page, one clear CTA,
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/privacy" component={PrivacyPolicyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/digital-files" component={DigitalFilesPolicyPage} />
+      <Route path="/contact" component={ContactPage} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/account" component={AdminAccount} />
