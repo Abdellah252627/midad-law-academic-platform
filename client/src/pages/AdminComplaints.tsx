@@ -66,6 +66,7 @@ function AdminComplaintsContent() {
 
   const complaints = complaintsQuery.data?.complaints ?? [];
   const totalPages = complaintsQuery.data?.totalPages ?? 1;
+  const statusCounts = complaintsQuery.data?.statusCounts ?? {};
   const selected = detailQuery.data;
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
@@ -98,6 +99,23 @@ function AdminComplaintsContent() {
       <div className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">المعروض في الصفحة</p><p className="mt-2 text-3xl font-bold text-[#173247]">{complaints.length}</p></div>
       <div className="rounded-[22px] border border-[#e3d9ca] bg-white p-5 shadow-sm"><p className="text-sm font-bold text-[#68747a]">رقم الصفحة</p><p className="mt-2 text-3xl font-bold text-[#173247]">{page} <span className="text-base text-[#68747a]">من {totalPages}</span></p></div>
     </div>
+
+    <section aria-label="تصفية سريعة حسب حالة الشكوى" className="rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-bold text-[#173247]">تصفية سريعة</h2>
+        <p className="text-xs text-[#68747a]">اختر حالة للوصول المباشر إلى تذاكرها</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <button type="button" onClick={() => { setStatus("all"); setPage(1); }} aria-pressed={status === "all"} className={`rounded-2xl border px-3 py-3 text-right transition active:scale-[0.98] ${status === "all" ? "border-[#173247] bg-[#173247] text-white shadow-sm" : "border-[#e3d9ca] bg-[#fcfaf6] text-[#173247] hover:border-[#b9854a]"}`}>
+          <span className="block text-xs font-bold opacity-75">كل الشكاوى</span>
+          <span className="mt-1 block text-xl font-bold">{complaintsQuery.isLoading ? "…" : complaintsQuery.data?.statusCounts ? Object.values(statusCounts).reduce((sum, value) => sum + value, 0) : 0}</span>
+        </button>
+        {statuses.map(item => {
+          const countForStatus = statusCounts[item.value] ?? 0;
+          return <button key={item.value} type="button" onClick={() => { setStatus(item.value); setPage(1); }} aria-pressed={status === item.value} className={`rounded-2xl border px-3 py-3 text-right transition active:scale-[0.98] ${status === item.value ? "border-[#173247] bg-[#173247] text-white shadow-sm" : "border-[#e3d9ca] bg-[#fcfaf6] text-[#173247] hover:border-[#b9854a]"}`}><span className="block text-xs font-bold opacity-75">{item.label}</span><span className="mt-1 block text-xl font-bold">{complaintsQuery.isLoading ? "…" : countForStatus}</span></button>;
+        })}
+      </div>
+    </section>
 
     <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm lg:flex-row lg:items-center">
       <div className="relative flex-1"><Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8f80]" aria-hidden="true" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث برقم التذكرة أو اسم الطالب أو البريد الإلكتروني" aria-label="البحث في الشكاوى" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></div>

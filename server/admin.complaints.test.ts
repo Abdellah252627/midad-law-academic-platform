@@ -22,6 +22,8 @@ describe("admin complaints management", () => {
     expect(db).toContain("like(complaints.email");
     expect(db).toContain("offset((page - 1) * pageSize)");
     expect(db).toContain("export async function updateComplaintAdmin");
+    expect(db).toContain("statusCounts");
+    expect(db).toContain("groupBy(complaints.status)");
     expect(schema).toContain('adminResponse: text("adminResponse")');
     expect(schema).toContain('responseUpdatedByUserId: int("responseUpdatedByUserId")');
     expect(schema).toContain('responseUpdatedAt: timestamp("responseUpdatedAt")');
@@ -37,5 +39,8 @@ describe("admin complaints management", () => {
     expect(page).toContain("trpc.admin.complaints.useQuery");
     expect(page).toContain("trpc.admin.updateComplaint.useMutation");
     expect(page).toContain("الرد الإداري");
+    expect(page).toContain("تصفية سريعة حسب حالة الشكوى");
+    expect(page).toContain("aria-pressed={status === item.value}");
+    expect(page).toContain("statusCounts[item.value]");
   });
 });

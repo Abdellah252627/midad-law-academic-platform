@@ -595,11 +595,16 @@ export async function getAdminComplaints(options: ComplaintAdminListOptions = {}
   const pageSize = [10, 25, 50, 100, 200].includes(options.pageSize ?? 25) ? (options.pageSize ?? 25) : 25;
   const page = Math.max(options.page ?? 1, 1);
   const where = conditions.length ? and(...conditions) : undefined;
-  const [rows, totals] = await Promise.all([
+  const [rows, totals, groupedTotals] = await Promise.all([
     db.select().from(complaints).where(where).orderBy(desc(complaints.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ total: count() }).from(complaints).where(where),
+    db.select({ status: complaints.status, total: count() }).from(complaints).groupBy(complaints.status),
   ]);
-  return { complaints: rows, total: Number(totals[0]?.total ?? 0), page, pageSize };
+  const statusCounts = groupedTotals.reduce<Record<string, number>>((result, item) => {
+    result[item.status] = Number(item.total);
+    return result;
+  }, {});
+  return { complaints: rows, total: Number(totals[0]?.total ?? 0), page, pageSize, statusCounts };
 }
 
 export async function updateComplaintAdmin(input: {
