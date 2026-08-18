@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore, getQuizChapterAnchor, getQuizQuestionState, getQuizResultStatus, QUIZ_PASSING_PERCENTAGE, shuffleQuizQuestions } from "@shared/quiz";
+import { calculateQuizScore, getIncorrectReviewConcepts, getQuizChapterAnchor, getQuizQuestionState, getQuizResultStatus, QUIZ_PASSING_PERCENTAGE, shuffleQuizQuestions } from "@shared/quiz";
 
 describe("multi-question quiz scoring", () => {
   const questions = [
@@ -34,6 +34,15 @@ describe("multi-question quiz scoring", () => {
 
   it("creates a stable chapter anchor for the review action", () => {
     expect(getQuizChapterAnchor("04")).toBe("chapter-04");
+  });
+
+  it("lists unique review concepts for incorrect answers", () => {
+    const conceptQuestions = [
+      { question: "سؤال 1", options: ["أ", "ب"], correctIndex: 0, reviewConcept: "القاعدة القانونية" },
+      { question: "سؤال 2", options: ["أ", "ب"], correctIndex: 1, reviewConcept: "مصادر القانون" },
+      { question: "سؤال 3", options: ["أ", "ب"], correctIndex: 0, reviewConcept: "مصادر القانون" },
+    ];
+    expect(getIncorrectReviewConcepts(conceptQuestions, [1, 1, 1])).toEqual(["القاعدة القانونية", "مصادر القانون"]);
   });
 
   it("moves the correct answer with its option when choices are shuffled", () => {

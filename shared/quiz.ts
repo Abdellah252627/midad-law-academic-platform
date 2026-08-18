@@ -1,4 +1,4 @@
-export type QuizQuestion = { question: string; options: string[]; correctIndex: number; explanation?: string };
+export type QuizQuestion = { question: string; options: string[]; correctIndex: number; explanation?: string; reviewConcept?: string };
 
 export function calculateQuizScore(questions: QuizQuestion[], answers: Array<number | null>) {
   return questions.reduce((score, question, index) => score + (answers[index] === question.correctIndex ? 1 : 0), 0);
@@ -17,6 +17,15 @@ export function getQuizChapterAnchor(chapterNumber: string) {
 export function getQuizResultStatus(score: number, total: number) {
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   return { percentage, passed: percentage >= QUIZ_PASSING_PERCENTAGE };
+}
+
+export function getIncorrectReviewConcepts(questions: QuizQuestion[], answers: Array<number | null>) {
+  return Array.from(new Set(
+    questions
+      .filter((question, index) => answers[index] !== question.correctIndex)
+      .map(question => question.reviewConcept?.trim())
+      .filter((concept): concept is string => Boolean(concept)),
+  ));
 }
 
 export function shuffleQuizQuestions(questions: QuizQuestion[], random: () => number = Math.random): QuizQuestion[] {

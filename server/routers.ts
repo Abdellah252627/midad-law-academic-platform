@@ -36,6 +36,9 @@ const quizQuestionsSchema = z.string().trim().min(2).max(5000).superRefine((valu
       if (question.explanation !== undefined && typeof question.explanation !== "string") {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "شرح الإجابة يجب أن يكون نصاً" });
       }
+      if (question.reviewConcept !== undefined && (typeof question.reviewConcept !== "string" || !question.reviewConcept.trim())) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "مفهوم المراجعة يجب أن يكون نصاً غير فارغ" });
+      }
     });
   } catch {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "صيغة أسئلة الاختبار يجب أن تكون JSON صحيحة" });
