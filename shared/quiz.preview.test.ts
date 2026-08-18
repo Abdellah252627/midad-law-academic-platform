@@ -20,3 +20,15 @@ describe("isQuizPreviewReady", () => {
     expect(isQuizPreviewReady([{ ...validQuestion, correctIndex: 4 }])).toBe(false);
   });
 });
+
+
+it("supports the final preview result with passing status and review concepts", async () => {
+  const { getIncorrectReviewConcepts, getQuizResultStatus } = await import("./quiz");
+  const questions = [
+    { question: "س1", options: ["أ", "ب", "ج", "د"], correctIndex: 0, reviewConcept: "المفهوم الأول" },
+    { question: "س2", options: ["أ", "ب", "ج", "د"], correctIndex: 2, reviewConcept: "المفهوم الثاني" },
+    { question: "س3", options: ["أ", "ب", "ج", "د"], correctIndex: 1, reviewConcept: "المفهوم الأول" },
+  ];
+  expect(getQuizResultStatus(2, questions.length, 60)).toMatchObject({ percentage: 67, passingPercentage: 60, passed: true });
+  expect(getIncorrectReviewConcepts(questions, [0, 0, 1])).toEqual(["المفهوم الثاني", "المفهوم الأول"]);
+});
