@@ -35,7 +35,7 @@ describe("single-account admin access", () => {
     ).toBe(false);
   });
 
-  it("rejects the configured identity if its role is not admin", () => {
+  it("allows the configured owner identity even if its stored role is stale", () => {
     expect(
       isAuthorizedAdmin({
         id: 3,
@@ -48,6 +48,6 @@ describe("single-account admin access", () => {
         updatedAt: new Date(),
         lastSignedIn: new Date(),
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });

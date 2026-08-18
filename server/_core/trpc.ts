@@ -34,11 +34,17 @@ export const protectedProcedure = t.procedure.use(requireUser);
 export const AUTHORIZED_ADMIN_OPEN_ID = ENV.ownerOpenId || (!ENV.isProduction ? "admin-1" : "");
 
 export function isAuthorizedAdmin(user: TrpcContext["user"]): boolean {
-  if (!user || user.role !== "admin") return false;
-  const isConfiguredOwner = Boolean(ENV.ownerOpenId && user.openId === ENV.ownerOpenId);
+  if (!user) return false;
+
+  // The single configured owner is the source of truth in production. Do not
+  // require the database role here: an OAuth account may be provisioned with a
+  // stale/default role while its trusted OWNER_OPEN_ID is still unambiguous.
+  if (ENV.ownerOpenId && user.openId === ENV.ownerOpenId) return true;
+
+  // Test-only identities remain available outside production for isolated specs.
+  if (ENV.isProduction || user.role !== "admin") return false;
   const localTestAdminIds = new Set(["admin", "admin-1", "admin-open-id"]);
-  const isLocalTestAdmin = !ENV.isProduction && localTestAdminIds.has(user.openId);
-  return isConfiguredOwner || isLocalTestAdmin;
+  return localTestAdminIds.has(user.openId);
 }
 
 export const adminProcedure = t.procedure.use(
