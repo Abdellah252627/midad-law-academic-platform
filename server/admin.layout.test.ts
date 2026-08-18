@@ -28,3 +28,21 @@ describe("quiz passing percentage control", () => {
     expect(dashboard).toContain("تُستخدم هذه النسبة في شاشة النتيجة للطلاب وفي المعاينة");
   });
 });
+
+
+describe("quiz result message controls", () => {
+  it("exposes editable success and failure messages and previews them", () => {
+    const dashboard = readFileSync(resolve(process.cwd(), "client/src/pages/AdminDashboard.tsx"), "utf8");
+    const home = readFileSync(resolve(process.cwd(), "client/src/pages/Home.tsx"), "utf8");
+    const router = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+
+    expect(dashboard).toContain("رسالة النجاح");
+    expect(dashboard).toContain("رسالة الرسوب أو المواساة");
+    expect(dashboard).toContain('saveQuizMessage("quizSuccessMessage", successMessage)');
+    expect(dashboard).toContain('saveQuizMessage("quizFailureMessage", failureMessage)');
+    expect(dashboard).toContain("{previewResultData.passed ? successMessage : failureMessage}");
+    expect(home).toContain("quizSuccessMessage");
+    expect(home).toContain("quizFailureMessage");
+    expect(router).toContain('"quizSuccessMessage", "quizFailureMessage"');
+  });
+});
