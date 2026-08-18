@@ -20,6 +20,10 @@ export function getQuizResultStatus(score: number, total: number, passingPercent
   return { percentage, passingPercentage: safePassingPercentage, passed: percentage >= safePassingPercentage };
 }
 
+export function buildPreviewAnswers(questions: QuizQuestion[], passed: boolean) {
+  return questions.map(question => passed ? question.correctIndex : question.correctIndex === 0 ? 1 : 0);
+}
+
 export function getIncorrectReviewConcepts(questions: QuizQuestion[], answers: Array<number | null>) {
   return Array.from(new Set(
     questions
