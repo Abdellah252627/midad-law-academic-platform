@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore, getQuizQuestionState, getQuizResultStatus, QUIZ_PASSING_PERCENTAGE, shuffleQuizQuestions } from "@shared/quiz";
+import { calculateQuizScore, getQuizChapterAnchor, getQuizQuestionState, getQuizResultStatus, QUIZ_PASSING_PERCENTAGE, shuffleQuizQuestions } from "@shared/quiz";
 
 describe("multi-question quiz scoring", () => {
   const questions = [
@@ -30,6 +30,10 @@ describe("multi-question quiz scoring", () => {
     expect(QUIZ_PASSING_PERCENTAGE).toBe(60);
     expect(getQuizResultStatus(3, 5)).toEqual({ percentage: 60, passed: true });
     expect(getQuizResultStatus(2, 5)).toEqual({ percentage: 40, passed: false });
+  });
+
+  it("creates a stable chapter anchor for the review action", () => {
+    expect(getQuizChapterAnchor("04")).toBe("chapter-04");
   });
 
   it("moves the correct answer with its option when choices are shuffled", () => {

@@ -10,6 +10,10 @@ export function getQuizQuestionState(answers: Array<number | null>, evaluated: b
 
 export const QUIZ_PASSING_PERCENTAGE = 60;
 
+export function getQuizChapterAnchor(chapterNumber: string) {
+  return `chapter-${chapterNumber}`;
+}
+
 export function getQuizResultStatus(score: number, total: number) {
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   return { percentage, passed: percentage >= QUIZ_PASSING_PERCENTAGE };
