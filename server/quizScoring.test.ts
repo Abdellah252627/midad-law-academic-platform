@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore, getQuizQuestionState } from "@shared/quiz";
+import { calculateQuizScore, getQuizQuestionState, shuffleQuizQuestions } from "@shared/quiz";
 
 describe("multi-question quiz scoring", () => {
   const questions = [
@@ -24,5 +24,12 @@ describe("multi-question quiz scoring", () => {
     const evaluated = [true, true, false];
     expect(getQuizQuestionState(answers, evaluated, 0)).toEqual({ selectedIndex: 0, submitted: true });
     expect(getQuizQuestionState(answers, evaluated, 2)).toEqual({ selectedIndex: null, submitted: false });
+  });
+
+  it("moves the correct answer with its option when choices are shuffled", () => {
+    const [shuffled] = shuffleQuizQuestions([{ question: "سؤال", options: ["الصحيح", "الخاطئ", "المشتت"], correctIndex: 0 }], () => 0);
+    expect(shuffled.options).toEqual(["الخاطئ", "المشتت", "الصحيح"]);
+    expect(shuffled.correctIndex).toBe(2);
+    expect(calculateQuizScore([shuffled], [2])).toBe(1);
   });
 });

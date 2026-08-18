@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import PublicReviews from "@/components/PublicReviews";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { calculateQuizScore, getQuizQuestionState, type QuizQuestion } from "@shared/quiz";
+import { calculateQuizScore, getQuizQuestionState, shuffleQuizQuestions, type QuizQuestion } from "@shared/quiz";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -26,7 +26,7 @@ const heroTexture = "/manus-storage/midad-hero-texture_780e9e01.png";
 const brandMark = "/manus-storage/midad-mark_68d51083.png";
 const landingInput = { productCode: DEFAULT_PRODUCT_CODE };
 
-type ActiveQuiz = { chapterNumber: string; questionIndex: number; score: number; selectedIndex: number | null; submitted: boolean; completed: boolean; answers: Array<number | null>; evaluated: boolean[] };
+type ActiveQuiz = { chapterNumber: string; questionIndex: number; score: number; selectedIndex: number | null; submitted: boolean; completed: boolean; answers: Array<number | null>; evaluated: boolean[]; questions: QuizQuestion[] };
 
 function parseQuestions(value: string) {
   try {
@@ -179,7 +179,7 @@ export default function Home() {
   );
 
   const activeQuizPreview = activeQuiz ? chapterPreviews.find(preview => preview.number === activeQuiz.chapterNumber) : null;
-  const activeQuizQuestion = activeQuizPreview && activeQuiz ? activeQuizPreview.quiz[activeQuiz.questionIndex] : undefined;
+  const activeQuizQuestion = activeQuiz ? activeQuiz.questions[activeQuiz.questionIndex] : undefined;
 
   const openChapterQuiz = (chapterNumber: string) => {
     const preview = chapterPreviews.find(item => item.number === chapterNumber);
@@ -187,7 +187,8 @@ export default function Home() {
       toast.info("سيُضاف اختبار هذا المحور قريباً.");
       return;
     }
-    setActiveQuiz({ chapterNumber, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(preview.quiz.length).fill(null), evaluated: Array(preview.quiz.length).fill(false) });
+    const questions = shuffleQuizQuestions(preview.quiz);
+    setActiveQuiz({ chapterNumber, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(questions.length).fill(null), evaluated: Array(questions.length).fill(false), questions });
   };
 
   const chooseQuizAnswer = (selectedIndex: number) => {
@@ -201,14 +202,14 @@ export default function Home() {
     if (!activeQuiz || activeQuiz.selectedIndex === null) return;
     const evaluated = [...activeQuiz.evaluated];
     evaluated[activeQuiz.questionIndex] = true;
-    const score = calculateQuizScore(activeQuizPreview?.quiz ?? [], activeQuiz.answers);
+    const score = calculateQuizScore(activeQuiz.questions, activeQuiz.answers);
     setActiveQuiz({ ...activeQuiz, score, evaluated, submitted: true });
   };
 
   const nextQuizQuestion = () => {
     if (!activeQuiz || !activeQuizPreview) return;
     if (activeQuiz.questionIndex + 1 >= activeQuizPreview.quiz.length) {
-      setActiveQuiz({ ...activeQuiz, score: calculateQuizScore(activeQuizPreview.quiz, activeQuiz.answers), completed: true });
+      setActiveQuiz({ ...activeQuiz, score: calculateQuizScore(activeQuiz.questions, activeQuiz.answers), completed: true });
       toast.success("أحسنت، اكتمل اختبار المحور.");
       return;
     }
@@ -226,7 +227,8 @@ export default function Home() {
 
   const retryQuiz = () => {
     if (!activeQuiz || !activeQuizPreview) return;
-    setActiveQuiz({ ...activeQuiz, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(activeQuizPreview.quiz.length).fill(null), evaluated: Array(activeQuizPreview.quiz.length).fill(false) });
+    const questions = shuffleQuizQuestions(activeQuizPreview.quiz);
+    setActiveQuiz({ ...activeQuiz, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(questions.length).fill(null), evaluated: Array(questions.length).fill(false), questions });
   };
 
   const resetTransferFlow = () => {
