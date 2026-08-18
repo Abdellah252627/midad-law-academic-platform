@@ -126,6 +126,7 @@ export default function Home() {
   // nonce cookie and must run only at the moment of navigation.
   let { user, loading, error, isAuthenticated, logout } = useAuth();
   const landingQuery = trpc.landing.published.useQuery(landingInput, { retry: false });
+  const { data: isAuthorizedAdmin } = trpc.auth.isAdmin.useQuery();
   const trackAnalytics = trpc.analytics.track.useMutation();
   useEffect(() => {
     const storageKey = "midad-anonymous-visitor";
@@ -526,7 +527,7 @@ export default function Home() {
         )}
         </main>
 
-      <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[#d5a15f]" aria-label="الروابط القانونية"><a href="/privacy" className="underline-offset-4 transition hover:underline">سياسة الخصوصية</a><a href="/terms" className="underline-offset-4 transition hover:underline">شروط الاستخدام</a><a href="/digital-files" className="underline-offset-4 transition hover:underline">سياسة الملفات الرقمية</a><a href="/contact" className="underline-offset-4 transition hover:underline">تواصل معنا والشكاوى</a></nav></footer>
+      <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[#d5a15f]" aria-label="الروابط القانونية"><a href="/privacy" className="underline-offset-4 transition hover:underline">سياسة الخصوصية</a><a href="/terms" className="underline-offset-4 transition hover:underline">شروط الاستخدام</a><a href="/digital-files" className="underline-offset-4 transition hover:underline">سياسة الملفات الرقمية</a><a href="/contact" className="underline-offset-4 transition hover:underline">تواصل معنا والشكاوى</a></nav>{isAuthorizedAdmin && <a href="/admin" className="mt-4 inline-flex rounded-full border border-[#cfa56f]/45 px-4 py-2 text-[#d5a15f] transition hover:border-[#d5a15f] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a15f]">دخول الإدارة</a>}</footer>
 
       <a
         href={whatsappLink}
