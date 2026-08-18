@@ -1,0 +1,9 @@
+{
+  "entry": "main.typ",
+  "mode": "markdown",
+  "source": {
+    "original_path": "/home/ubuntu/midad-landing-page/MIDAD_MARKETING_AND_CUSTOMER_ACQUISITION_PLAN.md",
+    "prepared_path": "source.md"
+  },
+  "theme": "report-theme.typ"
+}
