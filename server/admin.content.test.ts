@@ -50,7 +50,20 @@ const adminContent = {
     priceMad: 19,
     isPublished: 1,
   },
-  chapters: [],
+  chapters: [
+    {
+      id: 12,
+      productCode: "MIDAD-001",
+      chapterNumber: "01",
+      title: "مفهوم القانون",
+      excerpt: "شرح مختصر صالح للمعاينة التعليمية.",
+      learningObjectives: "[]",
+      questionsJson: "[]",
+      sortOrder: 1,
+      isPublished: 1,
+      deletedAt: null,
+    },
+  ],
   faqs: [
     {
       id: 1,
@@ -96,6 +109,13 @@ describe("admin landing content procedures", () => {
     });
     expect(db.saveLandingProduct).toHaveBeenCalledWith(expect.objectContaining({ productCode: "MIDAD-001", isPublished: 1 }));
     expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_product", entityId: "MIDAD-001" }));
+  });
+
+  it("returns available chapters to the admin quiz editor", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    const content = await caller.admin.landingContent({ productCode: "MIDAD-001" });
+    expect(content.chapters).toHaveLength(1);
+    expect(content.chapters[0]).toMatchObject({ chapterNumber: "01", title: "مفهوم القانون" });
   });
 
   it("returns available FAQs to the admin content view", async () => {
