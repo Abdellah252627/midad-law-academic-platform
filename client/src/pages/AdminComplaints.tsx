@@ -96,8 +96,8 @@ function calculateStatusDurations(timeline: TimelineEvent[], now: number): Statu
 }
 
 function AdminComplaintsContent() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { data: isAuthorizedAdmin } = trpc.auth.isAdmin.useQuery();
+  const isAdmin = isAuthorizedAdmin === true;
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusValue | "all">("all");

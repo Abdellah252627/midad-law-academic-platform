@@ -1,10 +1,12 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import { ArrowRight, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { Link } from "wouter";
 
 function AdminAccountContent() {
   const { user } = useAuth();
+  const { data: isAuthorizedAdmin } = trpc.auth.isAdmin.useQuery();
 
   return (
     <div dir="rtl" className="mx-auto max-w-4xl space-y-6">
@@ -27,7 +29,7 @@ function AdminAccountContent() {
           </div>
           <div className="rounded-2xl bg-[#f8f3eb] p-4 sm:col-span-2">
             <div className="flex items-center gap-2 text-sm font-bold text-[#68747a]"><ShieldCheck className="h-4 w-4" /> مستوى الوصول</div>
-            <p className="mt-2 font-bold text-[#173247]">{user?.role === "admin" ? "مدير النظام" : "مستخدم"}</p>
+            <p className="mt-2 font-bold text-[#173247]">{isAuthorizedAdmin ? "مدير النظام" : "مستخدم"}</p>
           </div>
         </div>
         <Link href="/admin" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#173247] px-5 py-3 font-bold text-white transition hover:bg-[#24485f]">

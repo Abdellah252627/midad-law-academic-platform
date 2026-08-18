@@ -14,8 +14,8 @@ function formatDate(value: Date | string) {
 }
 
 function AdminLeadsContent() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { data: isAuthorizedAdmin } = trpc.auth.isAdmin.useQuery();
+  const isAdmin = isAuthorizedAdmin === true;
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");

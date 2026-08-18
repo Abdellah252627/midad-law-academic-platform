@@ -18,8 +18,8 @@ function statusClass(status: string) {
 }
 
 function AdminPurchasesContent() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { data: isAuthorizedAdmin } = trpc.auth.isAdmin.useQuery();
+  const isAdmin = isAuthorizedAdmin === true;
   const [selectedProofId, setSelectedProofId] = useState<number | null>(null);
   const [selectedNoteRequestId, setSelectedNoteRequestId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
