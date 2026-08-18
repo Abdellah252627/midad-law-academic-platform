@@ -34,6 +34,8 @@ function parseQuestions(value: string) {
   }
 }
 
+const parseObjectives = parseQuestions;
+
 const fallbackChapters = [
   ["01", "مفهوم القانون ووظائفه", "المفاهيم التي تمنحك نقطة البداية."],
   ["02", "القاعدة القانونية وخصائصها", "الإلزام والعموم والتجريد والجزاء."],
@@ -46,14 +48,14 @@ const fallbackChapters = [
 ];
 
 const fallbackChapterPreviews = [
-  { number: "01", title: "مفهوم القانون ووظائفه", excerpt: "القانون مجموعة قواعد عامة ومجردة تهدف إلى تنظيم سلوك الأفراد داخل المجتمع، وتستمد أهميتها من اقترانها بجزاء يضمن احترامها.", questions: ["ما الفرق بين القاعدة القانونية والقاعدة الأخلاقية؟", "ما الوظيفة التي يحققها القانون داخل المجتمع؟"] },
-  { number: "02", title: "القاعدة القانونية وخصائصها", excerpt: "تتميز القاعدة القانونية بالعموم والتجريد والإلزام، ولا تخاطب شخصاً بعينه أو واقعة منفردة، بل تضع نموذجاً ينطبق على الحالات المتشابهة.", questions: ["ماذا نعني بكون القاعدة القانونية عامة ومجردة؟", "ما المقصود بالجزاء القانوني؟"] },
-  { number: "03", title: "تصنيفات القواعد القانونية", excerpt: "يساعد تصنيف القواعد إلى آمرة ومكملة، وإلى موضوعية وشكلية، على فهم نطاق تطبيقها ومعرفة ما إذا كان يجوز للأفراد الاتفاق على مخالفتها.", questions: ["كيف تميز القاعدة الآمرة عن القاعدة المكملة؟", "لماذا يفيد تقسيم القانون إلى قواعد موضوعية وشكلية؟"] },
-  { number: "04", title: "مصادر القانون", excerpt: "يأتي التشريع في مقدمة المصادر الرسمية للقانون، إلى جانب العرف ومبادئ الشريعة والقضاء والفقه بحسب ترتيبها وقيمتها داخل النظام القانوني.", questions: ["ما الفرق بين المصدر الرسمي والمصدر التفسيري؟", "متى يمكن أن يكتسب العرف قيمة قانونية؟"] },
-  { number: "05", title: "فروع القانون", excerpt: "يقوم التمييز بين القانون العام والقانون الخاص على طبيعة المصالح والعلاقات التي ينظمها كل فرع، مع وجود فروع تتداخل فيها الاعتبارات العامة والخاصة.", questions: ["ما أساس التمييز بين القانون العام والقانون الخاص؟", "أين يندرج القانون الإداري ضمن هذا التقسيم؟"] },
-  { number: "06", title: "أشخاص القانون", excerpt: "الشخص القانوني هو من تثبت له أهلية اكتساب الحقوق وتحمل الالتزامات؛ وقد يكون شخصاً طبيعياً أو كياناً اعتبارياً يعترف له القانون بالشخصية.", questions: ["ما المقصود بالشخصية القانونية؟", "ما الفرق بين أهلية الوجوب وأهلية الأداء؟"] },
-  { number: "07", title: "الحق", excerpt: "الحق مصلحة أو سلطة يحميها القانون، ويقوم عادة على صاحب حق ومحل ووسيلة حماية. وتختلف الحقوق باختلاف موضوعها وأصحابها وآثارها.", questions: ["ما العناصر الأساسية التي يقوم عليها الحق؟", "كيف تميز بين الحق الشخصي والحق العيني؟"] },
-  { number: "08", title: "الالتزام", excerpt: "الالتزام رابطة قانونية بين دائن ومدين، يلتزم بموجبها المدين بأداء عمل أو الامتناع عنه أو نقل حق، ويقابلها حق للدائن في المطالبة بالتنفيذ.", questions: ["ما أطراف الالتزام وما محله؟", "ما الفرق بين الالتزام المدني والالتزام الطبيعي؟"] },
+  { number: "01", title: "مفهوم القانون ووظائفه", excerpt: "القانون مجموعة قواعد عامة ومجردة تهدف إلى تنظيم سلوك الأفراد داخل المجتمع، وتستمد أهميتها من اقترانها بجزاء يضمن احترامها.", objectives: ["تعريف القانون وبيان وظائفه داخل المجتمع.", "تمييز القاعدة القانونية عن القواعد الاجتماعية الأخرى."], questions: ["ما الفرق بين القاعدة القانونية والقاعدة الأخلاقية؟", "ما الوظيفة التي يحققها القانون داخل المجتمع؟"] },
+  { number: "02", title: "القاعدة القانونية وخصائصها", excerpt: "تتميز القاعدة القانونية بالعموم والتجريد والإلزام، ولا تخاطب شخصاً بعينه أو واقعة منفردة، بل تضع نموذجاً ينطبق على الحالات المتشابهة.", objectives: ["فهم خصائص القاعدة القانونية.", "شرح معنى الإلزام والجزاء القانوني."], questions: ["ماذا نعني بكون القاعدة القانونية عامة ومجردة؟", "ما المقصود بالجزاء القانوني؟"] },
+  { number: "03", title: "تصنيفات القواعد القانونية", excerpt: "يساعد تصنيف القواعد إلى آمرة ومكملة، وإلى موضوعية وشكلية، على فهم نطاق تطبيقها ومعرفة ما إذا كان يجوز للأفراد الاتفاق على مخالفتها.", objectives: ["التمييز بين القواعد الآمرة والقواعد المكملة.", "فهم أهمية تصنيف القواعد القانونية."], questions: ["كيف تميز القاعدة الآمرة عن القاعدة المكملة؟", "لماذا يفيد تقسيم القانون إلى قواعد موضوعية وشكلية؟"] },
+  { number: "04", title: "مصادر القانون", excerpt: "يأتي التشريع في مقدمة المصادر الرسمية للقانون، إلى جانب العرف ومبادئ الشريعة والقضاء والفقه بحسب ترتيبها وقيمتها داخل النظام القانوني.", objectives: ["التعرف إلى المصادر الرسمية والتفسيرية للقانون.", "ترتيب قيمة التشريع والعرف والقضاء والفقه في بناء القاعدة القانونية."], questions: ["ما الفرق بين المصدر الرسمي والمصدر التفسيري؟", "متى يمكن أن يكتسب العرف قيمة قانونية؟"] },
+  { number: "05", title: "فروع القانون", excerpt: "يقوم التمييز بين القانون العام والقانون الخاص على طبيعة المصالح والعلاقات التي ينظمها كل فرع، مع وجود فروع تتداخل فيها الاعتبارات العامة والخاصة.", objectives: ["التمييز بين القانون العام والقانون الخاص.", "التعرف إلى أهم فروع القانون ومجالاتها."], questions: ["ما أساس التمييز بين القانون العام والقانون الخاص؟", "أين يندرج القانون الإداري ضمن هذا التقسيم؟"] },
+  { number: "06", title: "أشخاص القانون", excerpt: "الشخص القانوني هو من تثبت له أهلية اكتساب الحقوق وتحمل الالتزامات؛ وقد يكون شخصاً طبيعياً أو كياناً اعتبارياً يعترف له القانون بالشخصية.", objectives: ["تعريف الشخصية القانونية وأطرافها.", "التمييز بين الشخص الطبيعي والشخص الاعتباري والأهلية."], questions: ["ما المقصود بالشخصية القانونية؟", "ما الفرق بين أهلية الوجوب وأهلية الأداء؟"] },
+  { number: "07", title: "الحق", excerpt: "الحق مصلحة أو سلطة يحميها القانون، ويقوم عادة على صاحب حق ومحل ووسيلة حماية. وتختلف الحقوق باختلاف موضوعها وأصحابها وآثارها.", objectives: ["تحديد مفهوم الحق وعناصره الأساسية.", "التمييز بين أنواع الحقوق ووسائل حمايتها."], questions: ["ما العناصر الأساسية التي يقوم عليها الحق؟", "كيف تميز بين الحق الشخصي والحق العيني؟"] },
+  { number: "08", title: "الالتزام", excerpt: "الالتزام رابطة قانونية بين دائن ومدين، يلتزم بموجبها المدين بأداء عمل أو الامتناع عنه أو نقل حق، ويقابلها حق للدائن في المطالبة بالتنفيذ.", objectives: ["تعريف الالتزام وتحديد أطرافه ومحله.", "فهم مصادر الالتزام وآثاره الأساسية."], questions: ["ما أطراف الالتزام وما محله؟", "ما الفرق بين الالتزام المدني والالتزام الطبيعي؟"] },
 ];
 
 const fallbackFaqs = [
@@ -119,7 +121,7 @@ export default function Home() {
     ? landingQuery.data.chapters.map(chapter => [chapter.chapterNumber, chapter.title, chapter.excerpt] as [string, string, string])
     : fallbackChapters;
   const chapterPreviews = landingQuery.data?.chapters?.length
-    ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, questions: parseQuestions(chapter.questionsJson) }))
+    ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, objectives: parseObjectives(chapter.learningObjectives ?? "[]"), questions: parseQuestions(chapter.questionsJson) }))
     : fallbackChapterPreviews;
   const faqs = landingQuery.data?.faqs?.length
     ? landingQuery.data.faqs.map(faq => [faq.question, faq.answer] as [string, string])
@@ -385,7 +387,8 @@ export default function Home() {
                   <div className="flex items-center justify-between border-b border-[#ded6c9] pb-4"><span className="font-display text-xs font-black tracking-[0.15em] text-[#b9854a]">{preview.number}</span><span className="h-px w-10 bg-[#b9854a]/60" /></div>
                   <h3 className="mt-6 font-display text-lg font-extrabold leading-[1.55] text-[#172b3a] group-hover:text-[#b9854a]">{preview.title}</h3>
                   <p className="mt-3 font-body text-[13px] leading-[1.9] text-[#68747a]">{preview.excerpt}</p>
-                  <div className="mt-auto border-t border-[#ded6c9] pt-4"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">أسئلة مراجعة</p><div className="space-y-2">{preview.questions.map((question) => <p key={question} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {question}</p>)}</div><button onClick={scrollToPurchase} className="mt-4 inline-flex items-center gap-1 text-[11px] font-extrabold text-[#b9854a] transition hover:text-[#89663b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">أكمل هذا المحور <ArrowLeft size={13} /></button></div>
+                   <div className="mt-4 rounded-xl bg-[#efe8dc] p-3"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">الأهداف التعليمية</p><div className="space-y-1.5">{preview.objectives.map((objective) => <p key={objective} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {objective}</p>)}</div></div>
+                   <div className="mt-auto border-t border-[#ded6c9] pt-4"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">أسئلة مراجعة</p><div className="space-y-2">{preview.questions.map((question) => <p key={question} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {question}</p>)}</div><button onClick={scrollToPurchase} className="mt-4 inline-flex items-center gap-1 text-[11px] font-extrabold text-[#b9854a] transition hover:text-[#89663b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">أكمل هذا المحور <ArrowLeft size={13} /></button></div>
                 </article>
               ))}
             </div>

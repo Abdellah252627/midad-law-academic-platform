@@ -1,0 +1,1 @@
+ALTER TABLE `landing_chapters` ADD `learningObjectives` text DEFAULT ('[]') NOT NULL;

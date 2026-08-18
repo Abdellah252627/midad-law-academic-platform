@@ -1,0 +1,1 @@
+ALTER TABLE `landing_chapters` MODIFY COLUMN `learningObjectives` text;

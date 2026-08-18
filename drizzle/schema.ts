@@ -77,6 +77,7 @@ export const landingChapters = mysqlTable("landing_chapters", {
   chapterNumber: varchar("chapterNumber", { length: 8 }).notNull(),
   title: varchar("title", { length: 220 }).notNull(),
   excerpt: text("excerpt").notNull(),
+  learningObjectives: text("learningObjectives"),
   questionsJson: text("questionsJson").notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   isPublished: int("isPublished").default(1).notNull(),
