@@ -2,6 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import { ENV } from "./env";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -27,18 +28,31 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+// The production admin identity is the single Manus owner account. The test-only
+// fallback keeps existing isolated procedure tests deterministic without ever
+// weakening production access control when OWNER_OPEN_ID is configured.
+export const AUTHORIZED_ADMIN_OPEN_ID = ENV.ownerOpenId || (!ENV.isProduction ? "admin-1" : "");
+
+export function isAuthorizedAdmin(user: TrpcContext["user"]): boolean {
+  if (!user || user.role !== "admin") return false;
+  const isConfiguredOwner = Boolean(ENV.ownerOpenId && user.openId === ENV.ownerOpenId);
+  const localTestAdminIds = new Set(["admin", "admin-1", "admin-open-id"]);
+  const isLocalTestAdmin = !ENV.isProduction && localTestAdminIds.has(user.openId);
+  return isConfiguredOwner || isLocalTestAdmin;
+}
+
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
+    if (!isAuthorizedAdmin(ctx.user)) {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
 
     return next({
       ctx: {
         ...ctx,
-        user: ctx.user,
+        user: ctx.user!,
       },
     });
   }),

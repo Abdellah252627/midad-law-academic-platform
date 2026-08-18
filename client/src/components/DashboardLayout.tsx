@@ -25,6 +25,7 @@ import { BarChart3, ExternalLink, FileCog, Files, LogOut, MessageSquareWarning, 
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { trpc } from "@/lib/trpc";
 import { Button } from "./ui/button";
 
 const menuItems = [
@@ -53,12 +54,13 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const { data: isAuthorizedAdmin, isLoading: adminCheckLoading } = trpc.auth.isAdmin.useQuery();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading) {
+  if (loading || adminCheckLoading) {
     return <DashboardLayoutSkeleton />
   }
 
@@ -89,7 +91,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (user.role !== "admin") {
+  if (!isAuthorizedAdmin) {
     return <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4"><div className="max-w-md rounded-[28px] border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه اللوحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></div>;
   }
 

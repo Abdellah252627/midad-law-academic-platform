@@ -7,7 +7,7 @@ import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from
 import { getSessionCookieOptions } from "./_core/cookies";
 import { buildPurchaseRequestsXlsx, type PurchaseExportRow } from "./xlsxExport";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, isAuthorizedAdmin, publicProcedure, router } from "./_core/trpc";
 
 const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } as const;
 const SAMPLE_PDF_KEYS: Record<string, string> = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" };
@@ -68,6 +68,7 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    isAdmin: publicProcedure.query(opts => isAuthorizedAdmin(opts.ctx.user)),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
