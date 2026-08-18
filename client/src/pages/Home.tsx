@@ -3,7 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import PublicReviews from "@/components/PublicReviews";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { calculateQuizScore, type QuizQuestion } from "@shared/quiz";
+import { calculateQuizScore, getQuizQuestionState, type QuizQuestion } from "@shared/quiz";
 import {
   ArrowLeft,
   ArrowUpLeft,
@@ -26,7 +26,7 @@ const heroTexture = "/manus-storage/midad-hero-texture_780e9e01.png";
 const brandMark = "/manus-storage/midad-mark_68d51083.png";
 const landingInput = { productCode: DEFAULT_PRODUCT_CODE };
 
-type ActiveQuiz = { chapterNumber: string; questionIndex: number; score: number; selectedIndex: number | null; submitted: boolean; completed: boolean };
+type ActiveQuiz = { chapterNumber: string; questionIndex: number; score: number; selectedIndex: number | null; submitted: boolean; completed: boolean; answers: Array<number | null>; evaluated: boolean[] };
 
 function parseQuestions(value: string) {
   try {
@@ -187,32 +187,46 @@ export default function Home() {
       toast.info("سيُضاف اختبار هذا المحور قريباً.");
       return;
     }
-    setActiveQuiz({ chapterNumber, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false });
+    setActiveQuiz({ chapterNumber, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(preview.quiz.length).fill(null), evaluated: Array(preview.quiz.length).fill(false) });
   };
 
   const chooseQuizAnswer = (selectedIndex: number) => {
     if (!activeQuiz || activeQuiz.submitted) return;
-    setActiveQuiz({ ...activeQuiz, selectedIndex });
+    const answers = [...activeQuiz.answers];
+    answers[activeQuiz.questionIndex] = selectedIndex;
+    setActiveQuiz({ ...activeQuiz, selectedIndex, answers });
   };
 
   const submitQuizAnswer = () => {
     if (!activeQuiz || activeQuiz.selectedIndex === null) return;
-    setActiveQuiz({ ...activeQuiz, score: activeQuiz.score + (activeQuizQuestion ? calculateQuizScore([activeQuizQuestion], [activeQuiz.selectedIndex]) : 0), submitted: true });
+    const evaluated = [...activeQuiz.evaluated];
+    evaluated[activeQuiz.questionIndex] = true;
+    const score = calculateQuizScore(activeQuizPreview?.quiz ?? [], activeQuiz.answers);
+    setActiveQuiz({ ...activeQuiz, score, evaluated, submitted: true });
   };
 
   const nextQuizQuestion = () => {
     if (!activeQuiz || !activeQuizPreview) return;
     if (activeQuiz.questionIndex + 1 >= activeQuizPreview.quiz.length) {
-      setActiveQuiz({ ...activeQuiz, score: activeQuiz.score, completed: true });
+      setActiveQuiz({ ...activeQuiz, score: calculateQuizScore(activeQuizPreview.quiz, activeQuiz.answers), completed: true });
       toast.success("أحسنت، اكتمل اختبار المحور.");
       return;
     }
-    setActiveQuiz({ chapterNumber: activeQuiz.chapterNumber, questionIndex: activeQuiz.questionIndex + 1, score: activeQuiz.score, selectedIndex: null, submitted: false, completed: false });
+    const nextIndex = activeQuiz.questionIndex + 1;
+    const nextState = getQuizQuestionState(activeQuiz.answers, activeQuiz.evaluated, nextIndex);
+    setActiveQuiz({ ...activeQuiz, questionIndex: nextIndex, ...nextState, completed: false });
+  };
+
+  const previousQuizQuestion = () => {
+    if (!activeQuiz || activeQuiz.questionIndex === 0) return;
+    const previousIndex = activeQuiz.questionIndex - 1;
+    const previousState = getQuizQuestionState(activeQuiz.answers, activeQuiz.evaluated, previousIndex);
+    setActiveQuiz({ ...activeQuiz, questionIndex: previousIndex, ...previousState, completed: false });
   };
 
   const retryQuiz = () => {
-    if (!activeQuiz) return;
-    setActiveQuiz({ ...activeQuiz, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false });
+    if (!activeQuiz || !activeQuizPreview) return;
+    setActiveQuiz({ ...activeQuiz, questionIndex: 0, score: 0, selectedIndex: null, submitted: false, completed: false, answers: Array(activeQuizPreview.quiz.length).fill(null), evaluated: Array(activeQuizPreview.quiz.length).fill(false) });
   };
 
   const resetTransferFlow = () => {
@@ -493,7 +507,7 @@ export default function Home() {
               <button type="button" onClick={() => setActiveQuiz(null)} className="absolute left-5 top-5 rounded-full p-2 text-[#68747a] transition hover:bg-[#e8d9c5] hover:text-[#172b3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a]" aria-label="إغلاق الاختبار"><X size={19} /></button>
               <div className="section-kicker">اختبار المحور {activeQuizPreview.number}</div>
               <h2 id="quiz-title" className="mt-3 pr-10 font-display text-2xl font-black leading-[1.45] text-[#172b3a]">اختبر فهمك: {activeQuizPreview.title}</h2>
-              {activeQuiz.completed ? <div className="mt-8 text-center"><div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#e2f0e3] text-3xl font-black text-[#285d35]">{Math.round((activeQuiz.score / activeQuizPreview.quiz.length) * 100)}%</div><p className="mt-5 font-display text-2xl font-black text-[#172b3a]">نتيجتك النهائية</p><p className="mt-3 text-lg font-bold text-[#53616a]">أجبت إجابة صحيحة عن {activeQuiz.score} من أصل {activeQuizPreview.quiz.length} أسئلة.</p><p className="mt-3 text-sm leading-[1.8] text-[#68747a]">يمكنك إعادة الاختبار لتثبيت المفاهيم ومراجعة إجاباتك مرة أخرى.</p><div className="mt-7 flex justify-center gap-3"><button type="button" onClick={() => setActiveQuiz(null)} className="rounded-full border border-[#d1c5b5] px-5 py-3 text-sm font-extrabold text-[#68747a] transition hover:bg-[#efe8dc]">إغلاق</button><button type="button" onClick={retryQuiz} className="rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a]">إعادة الاختبار</button></div></div> : activeQuizQuestion ? <><div className="mt-7 flex items-center justify-between text-xs font-bold text-[#768087]"><span>السؤال {activeQuiz.questionIndex + 1} من {activeQuizPreview.quiz.length}</span><span>النتيجة الحالية: {activeQuiz.score}</span></div><div className="mt-4 rounded-[18px] border border-[#ded6c9] bg-white/60 p-5"><p className="font-display text-lg font-extrabold leading-[1.8] text-[#172b3a]">{activeQuizQuestion.question}</p><div className="mt-5 space-y-3">{activeQuizQuestion.options.map((option, optionIndex) => { const isSelected = activeQuiz.selectedIndex === optionIndex; const isCorrect = activeQuizQuestion.correctIndex === optionIndex; const optionClass = activeQuiz.submitted ? (isCorrect ? "border-[#4b8b5a] bg-[#e2f0e3] text-[#285d35]" : isSelected ? "border-[#b85c55] bg-[#f8e1df] text-[#8f3933]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#68747a]") : isSelected ? "border-[#b9854a] bg-[#f4eadb] text-[#172b3a]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#53616a]"; return <button key={option} type="button" onClick={() => chooseQuizAnswer(optionIndex)} disabled={activeQuiz.submitted} className={`flex w-full items-start gap-3 rounded-[14px] border px-4 py-3 text-right text-sm font-bold leading-[1.7] transition ${optionClass} disabled:cursor-default`}><span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-xs">{String.fromCharCode(1571 + optionIndex)}</span><span>{option}</span>{activeQuiz.submitted && isCorrect && <Check size={17} className="mr-auto mt-1 shrink-0" />}{activeQuiz.submitted && isSelected && !isCorrect && <X size={17} className="mr-auto mt-1 shrink-0" />}</button>; })}</div></div>{activeQuiz.submitted && <div className={`mt-4 rounded-[14px] p-4 text-sm leading-[1.8] ${activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "bg-[#e2f0e3] text-[#285d35]" : "bg-[#f8e1df] text-[#8f3933]"}`}><p className="font-extrabold">{activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "إجابة صحيحة" : "إجابة غير صحيحة"}</p><p className="mt-1">{activeQuizQuestion.explanation ?? `الإجابة الصحيحة هي: ${activeQuizQuestion.options[activeQuizQuestion.correctIndex]}`}</p></div>}<div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setActiveQuiz(null)} className="rounded-full border border-[#d1c5b5] px-5 py-3 text-sm font-extrabold text-[#68747a] transition hover:bg-[#efe8dc]">إغلاق</button>{!activeQuiz.submitted ? <button type="button" onClick={submitQuizAnswer} disabled={activeQuiz.selectedIndex === null} className="rounded-full bg-[#b9854a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-50">تحقق من الإجابة</button> : <button type="button" onClick={nextQuizQuestion} className="rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a]">{activeQuiz.questionIndex + 1 < activeQuizPreview.quiz.length ? "السؤال التالي" : "عرض النتيجة"}</button>}</div></> : null}
+              {activeQuiz.completed ? <div className="mt-8 text-center"><div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#e2f0e3] text-3xl font-black text-[#285d35]">{Math.round((activeQuiz.score / activeQuizPreview.quiz.length) * 100)}%</div><p className="mt-5 font-display text-2xl font-black text-[#172b3a]">نتيجتك النهائية</p><p className="mt-3 text-lg font-bold text-[#53616a]">أجبت إجابة صحيحة عن {activeQuiz.score} من أصل {activeQuizPreview.quiz.length} أسئلة.</p><p className="mt-3 text-sm leading-[1.8] text-[#68747a]">يمكنك إعادة الاختبار لتثبيت المفاهيم ومراجعة إجاباتك مرة أخرى.</p><div className="mt-7 flex justify-center gap-3"><button type="button" onClick={() => setActiveQuiz(null)} className="rounded-full border border-[#d1c5b5] px-5 py-3 text-sm font-extrabold text-[#68747a] transition hover:bg-[#efe8dc]">إغلاق</button><button type="button" onClick={retryQuiz} className="rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a]">إعادة الاختبار</button></div></div> : activeQuizQuestion ? <><div className="mt-7 flex items-center justify-between text-xs font-bold text-[#768087]"><span>السؤال {activeQuiz.questionIndex + 1} من {activeQuizPreview.quiz.length}</span><span>النتيجة الحالية: {activeQuiz.score}</span></div><div className="mt-4 rounded-[18px] border border-[#ded6c9] bg-white/60 p-5"><p className="font-display text-lg font-extrabold leading-[1.8] text-[#172b3a]">{activeQuizQuestion.question}</p><div className="mt-5 space-y-3">{activeQuizQuestion.options.map((option, optionIndex) => { const isSelected = activeQuiz.selectedIndex === optionIndex; const isCorrect = activeQuizQuestion.correctIndex === optionIndex; const optionClass = activeQuiz.submitted ? (isCorrect ? "border-[#4b8b5a] bg-[#e2f0e3] text-[#285d35]" : isSelected ? "border-[#b85c55] bg-[#f8e1df] text-[#8f3933]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#68747a]") : isSelected ? "border-[#b9854a] bg-[#f4eadb] text-[#172b3a]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#53616a]"; return <button key={option} type="button" onClick={() => chooseQuizAnswer(optionIndex)} disabled={activeQuiz.submitted} className={`flex w-full items-start gap-3 rounded-[14px] border px-4 py-3 text-right text-sm font-bold leading-[1.7] transition ${optionClass} disabled:cursor-default`}><span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-xs">{String.fromCharCode(1571 + optionIndex)}</span><span>{option}</span>{activeQuiz.submitted && isCorrect && <Check size={17} className="mr-auto mt-1 shrink-0" />}{activeQuiz.submitted && isSelected && !isCorrect && <X size={17} className="mr-auto mt-1 shrink-0" />}</button>; })}</div></div>{activeQuiz.submitted && <div className={`mt-4 rounded-[14px] p-4 text-sm leading-[1.8] ${activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "bg-[#e2f0e3] text-[#285d35]" : "bg-[#f8e1df] text-[#8f3933]"}`}><p className="font-extrabold">{activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "إجابة صحيحة" : "إجابة غير صحيحة"}</p><p className="mt-1">{activeQuizQuestion.explanation ?? `الإجابة الصحيحة هي: ${activeQuizQuestion.options[activeQuizQuestion.correctIndex]}`}</p></div>}<div className="mt-6 flex flex-wrap justify-end gap-3"><button type="button" onClick={() => setActiveQuiz(null)} className="rounded-full border border-[#d1c5b5] px-5 py-3 text-sm font-extrabold text-[#68747a] transition hover:bg-[#efe8dc]">إغلاق</button>{activeQuiz.questionIndex > 0 && <button type="button" onClick={previousQuizQuestion} className="rounded-full border border-[#172b3a] px-5 py-3 text-sm font-extrabold text-[#172b3a] transition hover:bg-[#e8d9c5]">السؤال السابق</button>}{!activeQuiz.submitted ? <button type="button" onClick={submitQuizAnswer} disabled={activeQuiz.selectedIndex === null} className="rounded-full bg-[#b9854a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-50">تحقق من الإجابة</button> : <button type="button" onClick={nextQuizQuestion} className="rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a]">{activeQuiz.questionIndex + 1 < activeQuizPreview.quiz.length ? "السؤال التالي" : "عرض النتيجة"}</button>}</div></> : null}
             </div>
           </div>
         )}

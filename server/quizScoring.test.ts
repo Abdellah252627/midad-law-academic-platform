@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore } from "@shared/quiz";
+import { calculateQuizScore, getQuizQuestionState } from "@shared/quiz";
 
 describe("multi-question quiz scoring", () => {
   const questions = [
@@ -17,5 +17,12 @@ describe("multi-question quiz scoring", () => {
     const score = calculateQuizScore(questions, [0, 1, 1]);
     expect(score).toBe(2);
     expect(Math.round((score / questions.length) * 100)).toBe(67);
+  });
+
+  it("restores the selected answer and submitted state when navigating back", () => {
+    const answers = [0, 1, null];
+    const evaluated = [true, true, false];
+    expect(getQuizQuestionState(answers, evaluated, 0)).toEqual({ selectedIndex: 0, submitted: true });
+    expect(getQuizQuestionState(answers, evaluated, 2)).toEqual({ selectedIndex: null, submitted: false });
   });
 });
