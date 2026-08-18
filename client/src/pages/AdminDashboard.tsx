@@ -1,8 +1,9 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
+import { isQuizPreviewReady } from "@shared/quiz";
 import { Link } from "wouter";
-import { Check, FileText, HelpCircle, ListChecks, Loader2, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
+import { Check, Eye, FileText, HelpCircle, ListChecks, Loader2, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -45,7 +46,7 @@ function AdminDashboardContent() {
   const chapters = contentQuery.data?.chapters ?? [];
   const faqs = contentQuery.data?.faqs ?? [];
   const selectedQuizChapter = chapters.find(item => item.id === quizChapterId);
-  const quizIsValid = quizQuestions.length > 0 && quizQuestions.every(item => item.question.trim() && item.options.length === 4 && item.options.every(option => option.trim()) && item.correctIndex >= 0 && item.correctIndex < 4);
+  const quizIsValid = isQuizPreviewReady(quizQuestions);
   const handleProduct = (event: FormEvent) => { event.preventDefault(); saveProduct.mutate({ productCode, ...product }); };
   const handleChapter = (event: FormEvent) => { event.preventDefault(); saveChapter.mutate({ ...chapter, id: chapterId, productCode }); };
   const handleFaq = (event: FormEvent) => { event.preventDefault(); saveFaq.mutate({ ...faq, id: faqId, productCode }); };
@@ -66,7 +67,77 @@ function AdminDashboardContent() {
 }
 
 function QuizManager({ chapters, selectedId, questions, onSelect, onChange, onAdd, onRemove, onSave, saving, valid }: { chapters: Array<any>; selectedId?: number; questions: QuizEditorQuestion[]; onSelect: (item: any) => void; onChange: (index: number, patch: Partial<QuizEditorQuestion>) => void; onAdd: () => void; onRemove: (index: number) => void; onSave: () => void; saving: boolean; valid: boolean }) {
-  return <div className="space-y-5"><div className="rounded-[26px] bg-[#173247] p-6 text-white shadow-sm"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold tracking-[0.16em] text-[#d5a15f]">MIDAD / QUIZ EDITOR</p><h2 className="mt-2 font-display text-2xl font-bold">إدارة «اختبر فهمك»</h2><p className="mt-2 text-sm leading-7 text-white/70">اختر محوراً، أضف أسئلته، وحدد الإجابة الصحيحة ومفهوم المراجعة المرتبط بها.</p></div><ListChecks className="h-8 w-8 text-[#d5a15f]" /></div></div><div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]"><div className="space-y-3 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm"><h3 className="font-display text-xl font-bold text-[#173247]">اختر المحور</h3>{chapters.length ? chapters.map(item => <button type="button" key={item.id} onClick={() => onSelect(item)} className={`w-full rounded-xl border p-4 text-right transition ${selectedId === item.id ? "border-[#b9854a] bg-[#fffaf2]" : "border-[#eee7dc] hover:border-[#b9854a]/60"}`}><span className="block text-sm font-bold text-[#173247]">{item.chapterNumber} — {item.title}</span><span className="mt-1 block text-xs text-[#68747a]">{parseQuestions(item.questionsJson).length} أسئلة محفوظة</span></button>) : <p className="rounded-xl bg-[#f8f3eb] p-4 text-sm text-[#68747a]">لا توجد محاور بعد.</p>}</div><div className="space-y-5 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm">{selectedId ? <><div className="flex flex-col justify-between gap-3 border-b border-[#eee7dc] pb-4 sm:flex-row sm:items-center"><div><h3 className="font-display text-xl font-bold text-[#173247]">أسئلة المحور المحدد</h3><p className="mt-1 text-xs text-[#68747a]">الإجابة الصحيحة تحفظ داخلياً وتُخلط للطالب عند بدء المحاولة.</p></div><div className="flex gap-2"><button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-full bg-[#f8f3eb] px-4 py-2 text-xs font-bold text-[#173247]"><Plus className="h-4 w-4" />إضافة سؤال</button><button type="button" onClick={onSave} disabled={!valid || saving} className="inline-flex items-center gap-2 rounded-full bg-[#173247] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save className="h-4 w-4" />{saving ? "جارٍ الحفظ…" : "حفظ أسئلة المحور"}</button></div></div>{questions.length ? questions.map((item, index) => <div key={index} className="space-y-3 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-4"><div className="flex items-center justify-between"><span className="rounded-full bg-[#173247] px-3 py-1 text-xs font-bold text-white">السؤال {index + 1}</span><button type="button" onClick={() => onRemove(index)} className="rounded-lg p-2 text-red-700 hover:bg-red-50" aria-label={`حذف السؤال ${index + 1}`}><X className="h-4 w-4" /></button></div><label className="block text-sm font-bold text-[#173247]">نص السؤال<textarea value={item.question} onChange={event => onChange(index, { question: event.target.value })} className="mt-2 min-h-20 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /></label><div className="grid gap-3 sm:grid-cols-2">{item.options.map((option, optionIndex) => <label key={optionIndex} className="text-sm font-bold text-[#173247]">الخيار {optionIndex + 1}<div className="mt-2 flex gap-2"><input value={option} onChange={event => onChange(index, { options: item.options.map((current, currentIndex) => currentIndex === optionIndex ? event.target.value : current) })} className="min-w-0 flex-1 rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /><label className="flex items-center gap-1 rounded-xl bg-[#f8f3eb] px-2 text-[11px] font-bold"><input type="radio" name={`correct-${index}`} checked={item.correctIndex === optionIndex} onChange={() => onChange(index, { correctIndex: optionIndex })} />صحيحة</label></div></label>)}</div><label className="block text-sm font-bold text-[#173247]">التفسير<textarea value={item.explanation} onChange={event => onChange(index, { explanation: event.target.value })} className="mt-2 min-h-16 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /></label><Field label="مفهوم المراجعة" value={item.reviewConcept} onChange={value => onChange(index, { reviewConcept: value })} /></div>) : <div className="rounded-2xl border border-dashed border-[#d9cbb7] p-8 text-center text-sm text-[#68747a]"><p>لا توجد أسئلة لهذا المحور.</p><button type="button" onClick={onAdd} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#173247] px-4 py-2 text-xs font-bold text-white"><Plus className="h-4 w-4" />إضافة أول سؤال</button></div>}</> : <div className="flex min-h-80 items-center justify-center rounded-2xl bg-[#fffaf2] p-8 text-center text-sm leading-7 text-[#68747a]">اختر محوراً من القائمة لبدء إدارة أسئلة «اختبر فهمك».</div>}</div></div></div>;
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewAnswer, setPreviewAnswer] = useState<number | null>(null);
+  const previewQuestion = questions[previewIndex];
+  const openPreview = () => {
+    if (!valid) {
+      toast.error("أكمل الأسئلة والخيارات الأربعة قبل المعاينة");
+      return;
+    }
+    setPreviewIndex(0);
+    setPreviewAnswer(null);
+    setPreviewOpen(true);
+  };
+  const movePreview = (direction: number) => {
+    setPreviewIndex(index => Math.min(Math.max(index + direction, 0), questions.length - 1));
+    setPreviewAnswer(null);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-[26px] bg-[#173247] p-6 text-white shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold tracking-[0.16em] text-[#d5a15f]">MIDAD / QUIZ EDITOR</p>
+            <h2 className="mt-2 font-display text-2xl font-bold">إدارة «اختبر فهمك»</h2>
+            <p className="mt-2 text-sm leading-7 text-white/70">اختر محوراً، أضف أسئلته، وحدد الإجابة الصحيحة ومفهوم المراجعة المرتبط بها.</p>
+          </div>
+          <ListChecks className="h-8 w-8 text-[#d5a15f]" />
+        </div>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="space-y-3 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm">
+          <h3 className="font-display text-xl font-bold text-[#173247]">اختر المحور</h3>
+          {chapters.length ? chapters.map(item => (
+            <button type="button" key={item.id} onClick={() => onSelect(item)} className={`w-full rounded-xl border p-4 text-right transition ${selectedId === item.id ? "border-[#b9854a] bg-[#fffaf2]" : "border-[#eee7dc] hover:border-[#b9854a]/60"}`}>
+              <span className="block text-sm font-bold text-[#173247]">{item.chapterNumber} — {item.title}</span>
+              <span className="mt-1 block text-xs text-[#68747a]">{parseQuestions(item.questionsJson).length} أسئلة محفوظة</span>
+            </button>
+          )) : <p className="rounded-xl bg-[#f8f3eb] p-4 text-sm text-[#68747a]">لا توجد محاور بعد.</p>}
+        </div>
+        <div className="space-y-5 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm">
+          {selectedId ? <>
+            <div className="flex flex-col justify-between gap-3 border-b border-[#eee7dc] pb-4 sm:flex-row sm:items-center">
+              <div><h3 className="font-display text-xl font-bold text-[#173247]">أسئلة المحور المحدد</h3><p className="mt-1 text-xs text-[#68747a]">الإجابة الصحيحة تحفظ داخلياً وتُخلط للطالب عند بدء المحاولة.</p></div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-full bg-[#f8f3eb] px-4 py-2 text-xs font-bold text-[#173247]"><Plus className="h-4 w-4" />إضافة سؤال</button>
+                <button type="button" onClick={openPreview} disabled={!valid} className="inline-flex items-center gap-2 rounded-full bg-[#fff4df] px-4 py-2 text-xs font-bold text-[#8a5a24] disabled:cursor-not-allowed disabled:opacity-50"><Eye className="h-4 w-4" />معاينة الاختبار</button>
+                <button type="button" onClick={onSave} disabled={!valid || saving} className="inline-flex items-center gap-2 rounded-full bg-[#173247] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save className="h-4 w-4" />{saving ? "جارٍ الحفظ…" : "حفظ أسئلة المحور"}</button>
+              </div>
+            </div>
+            {questions.length ? questions.map((item, index) => (
+              <div key={index} className="space-y-3 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-4">
+                <div className="flex items-center justify-between"><span className="rounded-full bg-[#173247] px-3 py-1 text-xs font-bold text-white">السؤال {index + 1}</span><button type="button" onClick={() => onRemove(index)} className="rounded-lg p-2 text-red-700 hover:bg-red-50" aria-label={`حذف السؤال ${index + 1}`}><X className="h-4 w-4" /></button></div>
+                <label className="block text-sm font-bold text-[#173247]">نص السؤال<textarea value={item.question} onChange={event => onChange(index, { question: event.target.value })} className="mt-2 min-h-20 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /></label>
+                <div className="grid gap-3 sm:grid-cols-2">{item.options.map((option, optionIndex) => <label key={optionIndex} className="text-sm font-bold text-[#173247]">الخيار {optionIndex + 1}<div className="mt-2 flex gap-2"><input value={option} onChange={event => onChange(index, { options: item.options.map((current, currentIndex) => currentIndex === optionIndex ? event.target.value : current) })} className="min-w-0 flex-1 rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /><span className="flex items-center gap-1 rounded-xl bg-[#f8f3eb] px-2 text-[11px] font-bold"><input type="radio" name={`correct-${index}`} checked={item.correctIndex === optionIndex} onChange={() => onChange(index, { correctIndex: optionIndex })} />صحيحة</span></div></label>)}</div>
+                <label className="block text-sm font-bold text-[#173247]">التفسير<textarea value={item.explanation} onChange={event => onChange(index, { explanation: event.target.value })} className="mt-2 min-h-16 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" /></label>
+                <Field label="مفهوم المراجعة" value={item.reviewConcept} onChange={value => onChange(index, { reviewConcept: value })} />
+              </div>
+            )) : <div className="rounded-2xl border border-dashed border-[#d9cbb7] p-8 text-center text-sm text-[#68747a]"><p>لا توجد أسئلة لهذا المحور.</p><button type="button" onClick={onAdd} className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#173247] px-4 py-2 text-xs font-bold text-white"><Plus className="h-4 w-4" />إضافة أول سؤال</button></div>}
+          </> : <div className="flex min-h-80 items-center justify-center rounded-2xl bg-[#fffaf2] p-8 text-center text-sm leading-7 text-[#68747a]">اختر محوراً من القائمة لبدء إدارة أسئلة «اختبر فهمك».</div>}
+        </div>
+      </div>
+      {previewOpen && previewQuestion ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#173247]/60 p-4" role="dialog" aria-modal="true" aria-labelledby="quiz-preview-title">
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-[#fffdf9] p-6 shadow-2xl">
+          <div className="flex items-start justify-between gap-4 border-b border-[#eee7dc] pb-4"><div><p className="text-xs font-bold tracking-[0.16em] text-[#b9854a]">PREVIEW / LOCAL DRAFT</p><h3 id="quiz-preview-title" className="mt-2 font-display text-2xl font-bold text-[#173247]">معاينة الاختبار</h3><p className="mt-1 text-xs text-[#68747a]">هذه معاينة للتعديلات الحالية فقط، ولم يتم حفظها أو نشرها بعد.</p></div><button type="button" onClick={() => setPreviewOpen(false)} className="rounded-full p-2 text-[#68747a] hover:bg-[#f8f3eb]" aria-label="إغلاق المعاينة"><X className="h-5 w-5" /></button></div>
+          <div className="mt-5"><div className="mb-4 flex items-center justify-between text-xs font-bold text-[#68747a]"><span>السؤال {previewIndex + 1} من {questions.length}</span><span>{Math.round(((previewIndex + 1) / questions.length) * 100)}%</span></div><div className="rounded-2xl border border-[#e3d9ca] bg-white p-5"><h4 className="text-lg font-bold leading-8 text-[#173247]">{previewQuestion.question}</h4><div className="mt-5 space-y-3">{previewQuestion.options.map((option, optionIndex) => <button type="button" key={optionIndex} onClick={() => setPreviewAnswer(optionIndex)} className={`flex w-full items-center gap-3 rounded-xl border p-4 text-right text-sm font-bold transition ${previewAnswer === optionIndex ? optionIndex === previewQuestion.correctIndex ? "border-emerald-400 bg-emerald-50 text-emerald-900" : "border-red-300 bg-red-50 text-red-900" : "border-[#eee7dc] bg-[#fffdf9] text-[#173247] hover:border-[#b9854a]"}`}><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f8f3eb] text-xs">{optionIndex + 1}</span><span>{option}</span>{previewAnswer === optionIndex ? optionIndex === previewQuestion.correctIndex ? <Check className="mr-auto h-4 w-4" /> : <X className="mr-auto h-4 w-4" /> : null}</button>)}</div>{previewAnswer !== null ? <div className={`mt-5 rounded-xl p-4 text-sm leading-7 ${previewAnswer === previewQuestion.correctIndex ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-900"}`}><p className="font-bold">{previewAnswer === previewQuestion.correctIndex ? "إجابة صحيحة" : `الإجابة الصحيحة: الخيار ${previewQuestion.correctIndex + 1}`}</p>{previewQuestion.explanation ? <p className="mt-1">{previewQuestion.explanation}</p> : null}</div> : <p className="mt-5 text-xs text-[#68747a]">اختر إجابة لمراجعة التصحيح والتفسير.</p>}</div></div>
+          <div className="mt-5 flex flex-wrap justify-between gap-3"><button type="button" onClick={() => movePreview(-1)} disabled={previewIndex === 0} className="rounded-full bg-[#f8f3eb] px-5 py-2 text-xs font-bold text-[#173247] disabled:opacity-40">السؤال السابق</button>{previewIndex < questions.length - 1 ? <button type="button" onClick={() => movePreview(1)} className="rounded-full bg-[#173247] px-5 py-2 text-xs font-bold text-white">السؤال التالي</button> : <button type="button" onClick={() => setPreviewOpen(false)} className="rounded-full bg-[#173247] px-5 py-2 text-xs font-bold text-white">إنهاء المعاينة</button>}</div>
+        </div>
+      </div> : null}
+    </div>
+  );
 }
 
 function Field({ label, value, onChange, required, type = "text" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string }) { return <label className="space-y-2 text-sm font-bold text-[#173247]">{label}<input type={type} required={required} value={value} onChange={event => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-[#fffdf9] px-4 py-3 outline-none focus:border-[#b9854a]" /></label>; }

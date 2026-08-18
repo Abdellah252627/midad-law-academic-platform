@@ -43,3 +43,15 @@ export function shuffleQuizQuestions(questions: QuizQuestion[], random: () => nu
     };
   });
 }
+
+
+export function isQuizPreviewReady(questions: QuizQuestion[]) {
+  return questions.length > 0 && questions.every(question => (
+    question.question.trim().length > 0
+    && question.options.length === 4
+    && question.options.every(option => option.trim().length > 0)
+    && Number.isInteger(question.correctIndex)
+    && question.correctIndex >= 0
+    && question.correctIndex < 4
+  ));
+}
