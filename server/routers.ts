@@ -287,7 +287,11 @@ export const appRouter = router({
       return { success: true as const, fileId, version };
     }),
     settings: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA }).default({ productCode: DEFAULT_PRODUCT_CODE })).query(({ input }) => getAppSettings(input.productCode)),
-    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad", "quizPassingPercentage"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+      if (input.settingKey === "quizPassingPercentage") {
+        const percentage = Number(input.settingValue);
+        if (!Number.isInteger(percentage) || percentage < 0 || percentage > 100) throw new Error("نسبة النجاح يجب أن تكون رقماً صحيحاً بين 0 و100");
+      }
       await upsertAppSetting({ ...input, updatedByUserId: ctx.user.id });
       await createAuditLog({ actorUserId: ctx.user.id, action: "settings.save", entityType: "app_setting", entityId: input.settingKey, productCode: input.productCode, metadataJson: null });
       return { success: true as const };

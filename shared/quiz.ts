@@ -14,9 +14,10 @@ export function getQuizChapterAnchor(chapterNumber: string) {
   return `chapter-${chapterNumber}`;
 }
 
-export function getQuizResultStatus(score: number, total: number) {
+export function getQuizResultStatus(score: number, total: number, passingPercentage = QUIZ_PASSING_PERCENTAGE) {
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-  return { percentage, passed: percentage >= QUIZ_PASSING_PERCENTAGE };
+  const safePassingPercentage = Math.min(100, Math.max(0, Math.round(passingPercentage)));
+  return { percentage, passingPercentage: safePassingPercentage, passed: percentage >= safePassingPercentage };
 }
 
 export function getIncorrectReviewConcepts(questions: QuizQuestion[], answers: Array<number | null>) {

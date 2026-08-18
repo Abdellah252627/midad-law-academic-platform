@@ -10,9 +10,12 @@ const fields = [
   { key: "bankBeneficiary", label: "اسم المستفيد البنكي", placeholder: "الاسم الكامل للمستفيد", description: "يظهر للطالب ضمن تعليمات التحويل البنكي." },
   { key: "bankRib", label: "RIB", placeholder: "24 رقماً", description: "بيانات التحويل التي يراجعها الطالب قبل إرسال إثبات الدفع." },
   { key: "defaultPriceMad", label: "السعر الافتراضي بالدرهم", placeholder: "19", description: "قيمة احتياطية عند عدم وجود سعر منشور للمنتج." },
+  { key: "quizPassingPercentage", label: "نسبة النجاح في اختبار «اختبر فهمك»", placeholder: "60", description: "نسبة مئوية من 0 إلى 100. القيمة الافتراضية 60%." },
 ] as const;
 
 type SettingKey = (typeof fields)[number]["key"];
+
+const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "quizPassingPercentage"]);
 
 function AdminSettingsContent() {
   const query = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
@@ -25,7 +28,7 @@ function AdminSettingsContent() {
     },
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
-  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", defaultPriceMad: "19" });
+  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", defaultPriceMad: "19", quizPassingPercentage: "60" });
 
   useEffect(() => {
     if (!query.data) return;
@@ -45,7 +48,14 @@ function AdminSettingsContent() {
         toast.error(`أدخل قيمة: ${field.label}`);
         return;
       }
-      save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: values[field.key].trim(), description: field.description });
+      if (numericSettingKeys.has(field.key)) {
+        const number = Number(value);
+        if (!Number.isInteger(number) || number < 0 || number > 100 || (field.key === "defaultPriceMad" && number === 0)) {
+          toast.error(field.key === "quizPassingPercentage" ? "أدخل نسبة صحيحة بين 0 و100" : "أدخل سعراً صحيحاً");
+          return;
+        }
+      }
+      save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: value, description: field.description });
     }
   };
 
@@ -58,7 +68,7 @@ function AdminSettingsContent() {
     {query.isLoading ? <div className="rounded-2xl bg-white p-10 text-center text-[#68747a]"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div> : <form onSubmit={handleSubmit} className="space-y-5 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-center gap-3 border-b border-[#eee7dc] pb-5"><Settings2 className="h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">قيم التشغيل</h2><p className="mt-1 text-xs text-[#68747a]">كل تغيير يُسجّل في سجل التدقيق.</p></div></div>
       <div className="grid gap-5 sm:grid-cols-2">
-        {fields.map(field => <label key={field.key} className="space-y-2 text-sm font-bold text-[#173247]">{field.label}<input required value={values[field.key]} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} inputMode={field.key === "defaultPriceMad" ? "numeric" : undefined} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-[#fffdf9] px-4 py-3 outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal leading-6 text-[#68747a]">{field.description}</span></label>)}
+        {fields.map(field => <label key={field.key} className="space-y-2 text-sm font-bold text-[#173247]">{field.label}<input required value={values[field.key]} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} inputMode={numericSettingKeys.has(field.key) ? "numeric" : undefined} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-[#fffdf9] px-4 py-3 outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal leading-6 text-[#68747a]">{field.description}</span></label>)}
       </div>
       <button type="submit" disabled={save.isPending || !changed} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#173247] px-5 py-3 font-bold text-white transition hover:bg-[#24485f] disabled:cursor-not-allowed disabled:opacity-60"><Save className="h-4 w-4" />{save.isPending ? "جارٍ الحفظ…" : "حفظ الإعدادات"}</button>
     </form>}

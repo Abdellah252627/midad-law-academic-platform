@@ -28,8 +28,8 @@ describe("multi-question quiz scoring", () => {
 
   it("uses 60% as the passing threshold", () => {
     expect(QUIZ_PASSING_PERCENTAGE).toBe(60);
-    expect(getQuizResultStatus(3, 5)).toEqual({ percentage: 60, passed: true });
-    expect(getQuizResultStatus(2, 5)).toEqual({ percentage: 40, passed: false });
+    expect(getQuizResultStatus(3, 5)).toEqual({ percentage: 60, passed: true, passingPercentage: 60 });
+    expect(getQuizResultStatus(2, 5)).toEqual({ percentage: 40, passed: false, passingPercentage: 60 });
   });
 
   it("creates a stable chapter anchor for the review action", () => {
