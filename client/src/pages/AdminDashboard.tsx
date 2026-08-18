@@ -89,6 +89,11 @@ function QuizManager({ chapters, selectedId, questions, onSelect, onChange, onAd
   const safePassingPercentage = Number.isInteger(Number(passingPercentage)) ? Math.min(100, Math.max(0, Number(passingPercentage))) : QUIZ_PASSING_PERCENTAGE;
   const previewScore = previewAnswers.reduce((score: number, answer, index) => score + (answer !== null && answer === questions[index]?.correctIndex ? 1 : 0), 0);
   const previewResultData = getQuizResultStatus(previewScore, questions.length, safePassingPercentage);
+  const livePreviewTotal = 10;
+  const livePassedScore = Math.min(livePreviewTotal, Math.max(0, Math.ceil((safePassingPercentage / 100) * livePreviewTotal)));
+  const liveFailedScore = safePassingPercentage === 0 ? 0 : Math.max(0, livePassedScore - 1);
+  const livePassedResult = getQuizResultStatus(livePassedScore, livePreviewTotal, safePassingPercentage);
+  const liveFailedResult = getQuizResultStatus(liveFailedScore, livePreviewTotal, safePassingPercentage);
   const previewReviewConcepts = getIncorrectReviewConcepts(questions, previewAnswers);
   const openPreview = () => {
     if (!valid) {
@@ -174,6 +179,18 @@ function QuizManager({ chapters, selectedId, questions, onSelect, onChange, onAd
                 </button>
               </div>
               <p className="mt-2 text-xs leading-6 text-[#68747a]">تُستخدم هذه النسبة في شاشة النتيجة للطلاب وفي المعاينة. القيمة الحالية: {safePassingPercentage}%.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2" aria-live="polite">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold text-emerald-900">مثال نتيجة ناجحة</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">ناجح</span></div>
+                  <p className="mt-3 text-2xl font-bold text-emerald-950">{livePassedResult.percentage}%</p>
+                  <p className="mt-1 text-xs text-emerald-800">{livePassedScore} من {livePreviewTotal} إجابات صحيحة، والحد المطلوب {safePassingPercentage}%.</p>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold text-amber-950">مثال نتيجة راسبة</span><span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">يحتاج إلى مراجعة</span></div>
+                  <p className="mt-3 text-2xl font-bold text-amber-950">{liveFailedResult.percentage}%</p>
+                  <p className="mt-1 text-xs text-amber-900">{liveFailedScore} من {livePreviewTotal} إجابات صحيحة، والحد المطلوب {safePassingPercentage}%.</p>
+                </div>
+              </div>
             </div>
             {questions.length ? questions.map((item, index) => (
               <div key={index} className="space-y-3 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-4">
