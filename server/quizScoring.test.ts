@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateQuizScore, getQuizQuestionState, shuffleQuizQuestions } from "@shared/quiz";
+import { calculateQuizScore, getQuizQuestionState, getQuizResultStatus, QUIZ_PASSING_PERCENTAGE, shuffleQuizQuestions } from "@shared/quiz";
 
 describe("multi-question quiz scoring", () => {
   const questions = [
@@ -24,6 +24,12 @@ describe("multi-question quiz scoring", () => {
     const evaluated = [true, true, false];
     expect(getQuizQuestionState(answers, evaluated, 0)).toEqual({ selectedIndex: 0, submitted: true });
     expect(getQuizQuestionState(answers, evaluated, 2)).toEqual({ selectedIndex: null, submitted: false });
+  });
+
+  it("uses 60% as the passing threshold", () => {
+    expect(QUIZ_PASSING_PERCENTAGE).toBe(60);
+    expect(getQuizResultStatus(3, 5)).toEqual({ percentage: 60, passed: true });
+    expect(getQuizResultStatus(2, 5)).toEqual({ percentage: 40, passed: false });
   });
 
   it("moves the correct answer with its option when choices are shuffled", () => {
