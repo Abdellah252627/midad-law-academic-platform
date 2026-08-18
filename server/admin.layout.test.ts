@@ -17,3 +17,14 @@ describe("admin layout stacking", () => {
     expect(layout).toContain("إذا تعذر التحقق الخارجي أو ظهرت رسالة CAPTCHA");
   });
 });
+
+
+describe("quiz passing percentage control", () => {
+  it("exposes an admin control for editing and saving the quiz threshold", () => {
+    const dashboard = readFileSync(resolve(process.cwd(), "client/src/pages/AdminDashboard.tsx"), "utf8");
+    expect(dashboard).toContain("نسبة النجاح في هذا الاختبار");
+    expect(dashboard).toContain('settingKey: "quizPassingPercentage"');
+    expect(dashboard).toContain("أدخل نسبة صحيحة بين 0 و100");
+    expect(dashboard).toContain("تُستخدم هذه النسبة في شاشة النتيجة للطلاب وفي المعاينة");
+  });
+});

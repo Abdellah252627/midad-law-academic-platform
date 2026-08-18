@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { buildPreviewAnswers, getIncorrectReviewConcepts, getQuizResultStatus, isQuizPreviewReady } from "@shared/quiz";
+import { buildPreviewAnswers, getIncorrectReviewConcepts, getQuizResultStatus, isQuizPreviewReady, QUIZ_PASSING_PERCENTAGE } from "@shared/quiz";
 import { Link } from "wouter";
 import { Check, Eye, FileText, HelpCircle, ListChecks, Loader2, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -72,9 +72,23 @@ function QuizManager({ chapters, selectedId, questions, onSelect, onChange, onAd
   const [previewAnswer, setPreviewAnswer] = useState<number | null>(null);
   const [previewAnswers, setPreviewAnswers] = useState<Array<number | null>>([]);
   const [previewResult, setPreviewResult] = useState(false);
+  const [passingPercentage, setPassingPercentage] = useState(String(QUIZ_PASSING_PERCENTAGE));
+  const settingsQuery = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
+  const savePassingPercentage = trpc.admin.saveSetting.useMutation({
+    onSuccess: () => {
+      toast.success("تم حفظ نسبة النجاح");
+      void settingsQuery.refetch();
+    },
+    onError: error => toast.error(error.message || "تعذر حفظ نسبة النجاح"),
+  });
+  useEffect(() => {
+    const saved = settingsQuery.data?.find(item => item.settingKey === "quizPassingPercentage")?.settingValue;
+    if (saved !== undefined) setPassingPercentage(saved);
+  }, [settingsQuery.data]);
   const previewQuestion = questions[previewIndex];
+  const safePassingPercentage = Number.isInteger(Number(passingPercentage)) ? Math.min(100, Math.max(0, Number(passingPercentage))) : QUIZ_PASSING_PERCENTAGE;
   const previewScore = previewAnswers.reduce((score: number, answer, index) => score + (answer !== null && answer === questions[index]?.correctIndex ? 1 : 0), 0);
-  const previewResultData = getQuizResultStatus(previewScore, questions.length);
+  const previewResultData = getQuizResultStatus(previewScore, questions.length, safePassingPercentage);
   const previewReviewConcepts = getIncorrectReviewConcepts(questions, previewAnswers);
   const openPreview = () => {
     if (!valid) {
@@ -139,6 +153,27 @@ function QuizManager({ chapters, selectedId, questions, onSelect, onChange, onAd
                 <button type="button" onClick={openPreview} disabled={!valid} className="inline-flex items-center gap-2 rounded-full bg-[#fff4df] px-4 py-2 text-xs font-bold text-[#8a5a24] disabled:cursor-not-allowed disabled:opacity-50"><Eye className="h-4 w-4" />معاينة الاختبار</button>
                 <button type="button" onClick={onSave} disabled={!valid || saving} className="inline-flex items-center gap-2 rounded-full bg-[#173247] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save className="h-4 w-4" />{saving ? "جارٍ الحفظ…" : "حفظ أسئلة المحور"}</button>
               </div>
+            </div>
+            <div className="rounded-2xl border border-[#e3d9ca] bg-[#fffaf2] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <label className="block max-w-xs text-sm font-bold text-[#173247]">نسبة النجاح في هذا الاختبار
+                  <div className="mt-2 flex items-center gap-2">
+                    <input type="number" min="0" max="100" step="1" value={passingPercentage} onChange={event => setPassingPercentage(event.target.value)} className="w-28 rounded-xl border border-[#e3d9ca] bg-white px-3 py-2 outline-none focus:border-[#b9854a]" aria-label="نسبة النجاح" />
+                    <span className="text-sm text-[#68747a]">%</span>
+                  </div>
+                </label>
+                <button type="button" onClick={() => {
+                  const percentage = Number(passingPercentage);
+                  if (!Number.isInteger(percentage) || percentage < 0 || percentage > 100) {
+                    toast.error("أدخل نسبة صحيحة بين 0 و100");
+                    return;
+                  }
+                  savePassingPercentage.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: "quizPassingPercentage", settingValue: String(percentage), description: "نسبة النجاح في اختبار اختبر فهمك" });
+                }} disabled={savePassingPercentage.isPending || !passingPercentage.trim()} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#b9854a] px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  {savePassingPercentage.isPending ? "جارٍ الحفظ…" : "حفظ نسبة النجاح"}
+                </button>
+              </div>
+              <p className="mt-2 text-xs leading-6 text-[#68747a]">تُستخدم هذه النسبة في شاشة النتيجة للطلاب وفي المعاينة. القيمة الحالية: {safePassingPercentage}%.</p>
             </div>
             {questions.length ? questions.map((item, index) => (
               <div key={index} className="space-y-3 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-4">
