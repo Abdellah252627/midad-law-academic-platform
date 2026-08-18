@@ -66,6 +66,7 @@ const adminContent = {
 
 describe("admin landing content procedures", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(db.getLandingAdminContent).mockResolvedValue(adminContent as never);
     vi.mocked(db.getPublishedLandingContent).mockResolvedValue({ product: adminContent.product, chapters: [], faqs: adminContent.faqs } as never);
     vi.mocked(db.saveLandingProduct).mockResolvedValue(undefined);
@@ -131,6 +132,43 @@ describe("admin landing content procedures", () => {
     expect(db.saveLandingFaq).toHaveBeenCalledWith(expect.objectContaining({ isPublished: 1 }));
     expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_chapter", entityId: "12" }));
     expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "content.save", entityType: "landing_faq", entityId: "9" }));
+  });
+
+  it("accepts multiple-choice quiz questions with a correct answer index", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    await caller.admin.saveChapter({
+      productCode: "MIDAD-001",
+      chapterNumber: "01",
+      title: "مفهوم القانون",
+      excerpt: "شرح مختصر صالح للمعاينة التعليمية.",
+      questionsJson: JSON.stringify([
+        {
+          question: "ما المقصود بالقاعدة القانونية؟",
+          options: ["قاعدة عامة ومجردة", "رأي شخصي", "خبر صحفي"],
+          correctIndex: 0,
+          explanation: "القاعدة القانونية تكون عامة ومجردة وملزمة.",
+        },
+      ]),
+      sortOrder: 1,
+      isPublished: 1,
+    });
+    expect(db.saveLandingChapter).toHaveBeenCalledWith(expect.objectContaining({
+      questionsJson: expect.stringContaining("correctIndex"),
+    }));
+  });
+
+  it("rejects malformed multiple-choice quiz questions", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    await expect(caller.admin.saveChapter({
+      productCode: "MIDAD-001",
+      chapterNumber: "01",
+      title: "مفهوم القانون",
+      excerpt: "شرح مختصر صالح للمعاينة التعليمية.",
+      questionsJson: JSON.stringify([{ question: "سؤال بلا خيارات", options: ["خيار واحد"], correctIndex: 2 }]),
+      sortOrder: 1,
+      isPublished: 1,
+    })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.saveLandingChapter).not.toHaveBeenCalled();
   });
 
   it("records delete and restore actions for chapters and FAQs", async () => {

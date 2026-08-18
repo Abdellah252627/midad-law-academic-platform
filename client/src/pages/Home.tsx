@@ -25,10 +25,22 @@ const heroTexture = "/manus-storage/midad-hero-texture_780e9e01.png";
 const brandMark = "/manus-storage/midad-mark_68d51083.png";
 const landingInput = { productCode: DEFAULT_PRODUCT_CODE };
 
+type QuizQuestion = { question: string; options: string[]; correctIndex: number; explanation?: string };
+
 function parseQuestions(value: string) {
   try {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseQuizQuestions(value: string): QuizQuestion[] {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is QuizQuestion => Boolean(item && typeof item.question === "string" && Array.isArray(item.options) && item.options.length >= 2 && item.options.every((option: unknown) => typeof option === "string") && Number.isInteger(item.correctIndex) && item.correctIndex >= 0 && item.correctIndex < item.options.length));
   } catch {
     return [];
   }
@@ -46,6 +58,17 @@ const fallbackChapters = [
   ["07", "الحق", "المفهوم والعناصر والأنواع."],
   ["08", "الالتزام", "المفهوم والمصادر والآثار."],
 ];
+
+const fallbackQuizzes: Record<string, QuizQuestion[]> = {
+  "01": [{ question: "أي خاصية تعني أن القاعدة القانونية تخاطب الأشخاص بصفاتهم لا بذواتهم؟", options: ["العمومية والتجريد", "الطابع الفردي", "الرأي الشخصي", "العادة الخاصة"], correctIndex: 0, explanation: "العمومية والتجريد يجعلان القاعدة منطبقة على كل من تتوافر فيه الصفة المحددة." }],
+  "02": [{ question: "ما المقصود بالجزاء القانوني؟", options: ["جزاء توقعه الجهة المختصة عند مخالفة القاعدة", "نصيحة أخلاقية فقط", "عادة اجتماعية غير ملزمة", "رأي فقهي غير مؤثر"], correctIndex: 0, explanation: "الجزاء القانوني توقعه سلطة أو جهة مختصة وفقاً للقانون." }],
+  "03": [{ question: "ما القاعدة التي لا يجوز الاتفاق على مخالفتها؟", options: ["القاعدة الآمرة", "القاعدة المكملة", "القاعدة التفسيرية فقط", "القاعدة الاختيارية دائماً"], correctIndex: 0, explanation: "القاعدة الآمرة ترتبط بمصلحة أساسية ولا يجوز الاتفاق على مخالفتها." }],
+  "04": [{ question: "أي مما يلي يعد مصدراً رسمياً للقانون؟", options: ["التشريع", "التوقع الشخصي", "المذكرة الخاصة", "الرأي غير المنشور"], correctIndex: 0, explanation: "التشريع مصدر رسمي ينشئ قواعد قانونية وفق الإجراءات المعتمدة." }],
+  "05": [{ question: "ما أساس التمييز بين القانون العام والقانون الخاص؟", options: ["طبيعة المصالح والعلاقات المنظمة", "عدد صفحات القانون", "لغة النص فقط", "مكان دراسة المادة"], correctIndex: 0, explanation: "يقوم التقسيم على طبيعة المصالح والعلاقات التي ينظمها كل فرع." }],
+  "06": [{ question: "من تثبت له الشخصية القانونية؟", options: ["الشخص الطبيعي أو الشخص الاعتباري", "الأشياء المادية فقط", "الوقائع دون أصحابها", "النصوص غير المنشورة"], correctIndex: 0, explanation: "تثبت الشخصية القانونية للشخص الطبيعي وللكيان الاعتباري المعترف به قانوناً." }],
+  "07": [{ question: "ما المقصود بصاحب الحق؟", options: ["الشخص الذي تثبت له المصلحة أو السلطة المحمية", "الجزاء وحده", "النص دون مستفيد", "المكان الذي وقع فيه التصرف"], correctIndex: 0, explanation: "صاحب الحق هو الشخص الذي تثبت له المصلحة أو السلطة التي يحميها القانون." }],
+  "08": [{ question: "ما أطراف الالتزام في صورته الأساسية؟", options: ["الدائن والمدين", "القاضي والشاهد دائماً", "المشرع والناخب", "المحامي والخبير فقط"], correctIndex: 0, explanation: "الالتزام رابطة قانونية بين دائن له حق المطالبة ومدين يقع عليه الأداء." }],
+};
 
 const fallbackChapterPreviews = [
   { number: "01", title: "مفهوم القانون ووظائفه", excerpt: "القانون مجموعة قواعد عامة ومجردة تهدف إلى تنظيم سلوك الأفراد داخل المجتمع، وتستمد أهميتها من اقترانها بجزاء يضمن احترامها.", objectives: ["تعريف القانون وبيان وظائفه داخل المجتمع.", "تمييز القاعدة القانونية عن القواعد الاجتماعية الأخرى."], questions: ["ما الفرق بين القاعدة القانونية والقاعدة الأخلاقية؟", "ما الوظيفة التي يحققها القانون داخل المجتمع؟"] },
@@ -121,14 +144,15 @@ export default function Home() {
     ? landingQuery.data.chapters.map(chapter => [chapter.chapterNumber, chapter.title, chapter.excerpt] as [string, string, string])
     : fallbackChapters;
   const chapterPreviews = landingQuery.data?.chapters?.length
-    ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, objectives: parseObjectives(chapter.learningObjectives ?? "[]"), questions: parseQuestions(chapter.questionsJson) }))
-    : fallbackChapterPreviews;
+    ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, objectives: parseObjectives(chapter.learningObjectives ?? "[]"), questions: parseQuestions(chapter.questionsJson), quiz: parseQuizQuestions(chapter.questionsJson) }))
+    : fallbackChapterPreviews.map(preview => ({ ...preview, quiz: fallbackQuizzes[preview.number] ?? [] }));
   const faqs = landingQuery.data?.faqs?.length
     ? landingQuery.data.faqs.map(faq => [faq.question, faq.answer] as [string, string])
     : fallbackFaqs;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [activeQuiz, setActiveQuiz] = useState<{ chapterNumber: string; questionIndex: number; selectedIndex: number | null; submitted: boolean } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [transferSent, setTransferSent] = useState<number | null>(null);
@@ -152,6 +176,38 @@ export default function Home() {
     { requestId: transferSent ?? 0, customerEmail: form.customerEmail },
     { enabled: false, retry: false },
   );
+
+  const activeQuizPreview = activeQuiz ? chapterPreviews.find(preview => preview.number === activeQuiz.chapterNumber) : null;
+  const activeQuizQuestion = activeQuizPreview && activeQuiz ? activeQuizPreview.quiz[activeQuiz.questionIndex] : undefined;
+
+  const openChapterQuiz = (chapterNumber: string) => {
+    const preview = chapterPreviews.find(item => item.number === chapterNumber);
+    if (!preview?.quiz.length) {
+      toast.info("سيُضاف اختبار هذا المحور قريباً.");
+      return;
+    }
+    setActiveQuiz({ chapterNumber, questionIndex: 0, selectedIndex: null, submitted: false });
+  };
+
+  const chooseQuizAnswer = (selectedIndex: number) => {
+    if (!activeQuiz || activeQuiz.submitted) return;
+    setActiveQuiz({ ...activeQuiz, selectedIndex });
+  };
+
+  const submitQuizAnswer = () => {
+    if (!activeQuiz || activeQuiz.selectedIndex === null) return;
+    setActiveQuiz({ ...activeQuiz, submitted: true });
+  };
+
+  const nextQuizQuestion = () => {
+    if (!activeQuiz || !activeQuizPreview) return;
+    if (activeQuiz.questionIndex + 1 >= activeQuizPreview.quiz.length) {
+      setActiveQuiz(null);
+      toast.success("أحسنت، انتهيت من اختبار المحور.");
+      return;
+    }
+    setActiveQuiz({ chapterNumber: activeQuiz.chapterNumber, questionIndex: activeQuiz.questionIndex + 1, selectedIndex: null, submitted: false });
+  };
 
   const resetTransferFlow = () => {
     setTransferOpen(false);
@@ -388,7 +444,7 @@ export default function Home() {
                   <h3 className="mt-6 font-display text-lg font-extrabold leading-[1.55] text-[#172b3a] group-hover:text-[#b9854a]">{preview.title}</h3>
                   <p className="mt-3 font-body text-[13px] leading-[1.9] text-[#68747a]">{preview.excerpt}</p>
                    <div className="mt-4 rounded-xl bg-[#efe8dc] p-3"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">الأهداف التعليمية</p><div className="space-y-1.5">{preview.objectives.map((objective) => <p key={objective} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {objective}</p>)}</div></div>
-                   <div className="mt-auto border-t border-[#ded6c9] pt-4"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">أسئلة مراجعة</p><div className="space-y-2">{preview.questions.map((question) => <p key={question} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {question}</p>)}</div><button onClick={scrollToPurchase} className="mt-4 inline-flex items-center gap-1 text-[11px] font-extrabold text-[#b9854a] transition hover:text-[#89663b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">أكمل هذا المحور <ArrowLeft size={13} /></button></div>
+                   <div className="mt-auto border-t border-[#ded6c9] pt-4"><p className="mb-2 text-[11px] font-extrabold text-[#89663b]">أسئلة مراجعة</p><div className="space-y-2">{preview.questions.map((question) => <p key={question} className="font-body text-[12px] leading-[1.7] text-[#53616a]">— {question}</p>)}</div><div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={() => openChapterQuiz(preview.number)} className="inline-flex items-center gap-2 rounded-full bg-[#172b3a] px-4 py-2 text-[11px] font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">اختبر فهمك <Check size={13} /></button><button type="button" onClick={scrollToPurchase} className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#b9854a] transition hover:text-[#89663b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a] focus-visible:ring-offset-2">أكمل هذا المحور <ArrowLeft size={13} /></button></div></div>
                 </article>
               ))}
             </div>
@@ -425,7 +481,20 @@ export default function Home() {
         </section>
 
         <section className="border-t border-[#ded6c9] bg-[#efe8dc] py-16"><div className="mx-auto flex max-w-[1100px] flex-col items-start justify-between gap-8 px-5 sm:flex-row sm:items-center lg:px-8"><div><div className="flex items-center gap-3"><img src={brandMark} alt="" className="h-9 w-9 rounded-[10px] bg-[#172b3a] p-1" /><span className="font-display text-xl font-black text-[#172b3a]">مِداد</span></div><p className="mt-4 max-w-[420px] font-body text-sm leading-[1.9] text-[#68747a]">ملخصات دراسية رقمية منظمة لطلبة القانون والشريعة.</p></div><button onClick={scrollToPurchase} className="group inline-flex items-center gap-3 rounded-full bg-[#172b3a] px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-[#b9854a] active:scale-[0.97]">ابدأ المراجعة <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /></button></div></section>
-      </main>
+        {activeQuiz && activeQuizQuestion && activeQuizPreview && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#172b3a]/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+            <div className="relative max-h-[90vh] w-full max-w-[620px] overflow-y-auto rounded-[24px] bg-[#f7f3eb] p-6 text-right shadow-[0_25px_80px_rgba(0,0,0,0.28)] sm:p-8">
+              <button type="button" onClick={() => setActiveQuiz(null)} className="absolute left-5 top-5 rounded-full p-2 text-[#68747a] transition hover:bg-[#e8d9c5] hover:text-[#172b3a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a]" aria-label="إغلاق الاختبار"><X size={19} /></button>
+              <div className="section-kicker">اختبار المحور {activeQuizPreview.number}</div>
+              <h2 id="quiz-title" className="mt-3 pr-10 font-display text-2xl font-black leading-[1.45] text-[#172b3a]">اختبر فهمك: {activeQuizPreview.title}</h2>
+              <div className="mt-7 flex items-center justify-between text-xs font-bold text-[#768087]"><span>السؤال {activeQuiz.questionIndex + 1} من {activeQuizPreview.quiz.length}</span><span>اختر إجابة واحدة</span></div>
+              <div className="mt-4 rounded-[18px] border border-[#ded6c9] bg-white/60 p-5"><p className="font-display text-lg font-extrabold leading-[1.8] text-[#172b3a]">{activeQuizQuestion.question}</p><div className="mt-5 space-y-3">{activeQuizQuestion.options.map((option, optionIndex) => { const isSelected = activeQuiz.selectedIndex === optionIndex; const isCorrect = activeQuizQuestion.correctIndex === optionIndex; const optionClass = activeQuiz.submitted ? (isCorrect ? "border-[#4b8b5a] bg-[#e2f0e3] text-[#285d35]" : isSelected ? "border-[#b85c55] bg-[#f8e1df] text-[#8f3933]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#68747a]") : isSelected ? "border-[#b9854a] bg-[#f4eadb] text-[#172b3a]" : "border-[#ded6c9] bg-[#fbf8f2] text-[#53616a]"; return <button key={option} type="button" onClick={() => chooseQuizAnswer(optionIndex)} disabled={activeQuiz.submitted} className={`flex w-full items-start gap-3 rounded-[14px] border px-4 py-3 text-right text-sm font-bold leading-[1.7] transition ${optionClass} disabled:cursor-default`}><span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-xs">{String.fromCharCode(1571 + optionIndex)}</span><span>{option}</span>{activeQuiz.submitted && isCorrect && <Check size={17} className="mr-auto mt-1 shrink-0" />}{activeQuiz.submitted && isSelected && !isCorrect && <X size={17} className="mr-auto mt-1 shrink-0" />}</button>; })}</div></div>
+              {activeQuiz.submitted && <div className={`mt-4 rounded-[14px] p-4 text-sm leading-[1.8] ${activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "bg-[#e2f0e3] text-[#285d35]" : "bg-[#f8e1df] text-[#8f3933]"}`}><p className="font-extrabold">{activeQuiz.selectedIndex === activeQuizQuestion.correctIndex ? "إجابة صحيحة" : "إجابة غير صحيحة"}</p><p className="mt-1">{activeQuizQuestion.explanation ?? `الإجابة الصحيحة هي: ${activeQuizQuestion.options[activeQuizQuestion.correctIndex]}`}</p></div>}
+              <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setActiveQuiz(null)} className="rounded-full border border-[#d1c5b5] px-5 py-3 text-sm font-extrabold text-[#68747a] transition hover:bg-[#efe8dc]">إغلاق</button>{!activeQuiz.submitted ? <button type="button" onClick={submitQuizAnswer} disabled={activeQuiz.selectedIndex === null} className="rounded-full bg-[#b9854a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#a8733d] disabled:cursor-not-allowed disabled:opacity-50">تحقق من الإجابة</button> : <button type="button" onClick={nextQuizQuestion} className="rounded-full bg-[#172b3a] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#b9854a]">{activeQuiz.questionIndex + 1 < activeQuizPreview.quiz.length ? "السؤال التالي" : "إنهاء الاختبار"}</button>}</div>
+            </div>
+          </div>
+        )}
+        </main>
 
       <footer className="bg-[#172b3a] px-5 py-7 text-center font-body text-[11px] leading-[1.9] text-[#aab8b9]"><p>مِداد © 2026 · منتج تعليمي رقمي مستقل للمراجعة الذاتية</p><p className="mt-1 text-[#768b8b]">لا يمثل هذا المنتج وثيقة رسمية أو مادة معتمدة من جامعة ابن زهر.</p><nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[#d5a15f]" aria-label="الروابط القانونية"><a href="/privacy" className="underline-offset-4 transition hover:underline">سياسة الخصوصية</a><a href="/terms" className="underline-offset-4 transition hover:underline">شروط الاستخدام</a><a href="/digital-files" className="underline-offset-4 transition hover:underline">سياسة الملفات الرقمية</a><a href="/contact" className="underline-offset-4 transition hover:underline">تواصل معنا والشكاوى</a></nav><a href="/admin" className="mt-4 inline-flex rounded-full border border-[#cfa56f]/45 px-4 py-2 text-[#d5a15f] transition hover:border-[#d5a15f] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a15f]">دخول الإدارة</a></footer>
 

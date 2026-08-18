@@ -14,6 +14,34 @@ const SAMPLE_PDF_KEYS: Record<string, string> = { "MIDAD-001": "MIDAD-001-sample
 const PRODUCT_CODE_SCHEMA = z.string().trim().regex(/^[A-Z0-9-]{3,32}$/, "رمز المنتج غير صالح");
 const SAMPLE_CONSENT_VERSION = "2026-08-16";
 
+const quizQuestionsSchema = z.string().trim().min(2).max(5000).superRefine((value, ctx) => {
+  try {
+    const questions = JSON.parse(value);
+    if (!Array.isArray(questions)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "أسئلة الاختبار يجب أن تكون قائمة JSON" });
+      return;
+    }
+    questions.forEach((question, index) => {
+      if (typeof question === "string") return;
+      if (!question || typeof question !== "object" || typeof question.question !== "string" || !question.question.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "نص السؤال غير صالح" });
+        return;
+      }
+      if (!Array.isArray(question.options) || question.options.length < 2 || question.options.length > 6 || question.options.some((option: unknown) => typeof option !== "string" || !option.trim())) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "يجب أن يحتوي السؤال على خيارين إلى ستة خيارات نصية" });
+      }
+      if (!Number.isInteger(question.correctIndex) || question.correctIndex < 0 || question.correctIndex >= (question.options?.length ?? 0)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "رقم الإجابة الصحيحة غير صالح" });
+      }
+      if (question.explanation !== undefined && typeof question.explanation !== "string") {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [index], message: "شرح الإجابة يجب أن يكون نصاً" });
+      }
+    });
+  } catch {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "صيغة أسئلة الاختبار يجب أن تكون JSON صحيحة" });
+  }
+});
+
 function csvCell(value: string | number | Date | null) {
   const raw = value instanceof Date ? value.toISOString() : String(value ?? "");
   const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
@@ -113,7 +141,7 @@ export const appRouter = router({
     landingContent: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(({ input }) => getLandingAdminContent(input.productCode)),
     previewContent: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(async ({ input }) => { const content = await getLandingAdminContent(input.productCode); return { product: content?.product, chapters: (content?.chapters ?? []).filter(item => !item.deletedAt), faqs: (content?.faqs ?? []).filter(item => !item.deletedAt) }; }),
     saveProduct: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA, title: z.string().trim().min(3).max(220), category: z.string().trim().min(2).max(120), university: z.string().trim().min(2).max(180), track: z.string().trim().max(180).optional(), description: z.string().trim().min(10).max(5000), priceMad: z.number().int().min(0).max(100000), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { await saveLandingProduct(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_product", entityId: input.productCode, productCode: input.productCode, metadataJson: JSON.stringify({ priceMad: input.priceMad, isPublished: input.isPublished }) }); return { success: true as const }; }),
-    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: PRODUCT_CODE_SCHEMA, chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), learningObjectives: z.string().trim().min(2).max(5000).optional().default("[]"), questionsJson: z.string().trim().min(2).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
+    saveChapter: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: PRODUCT_CODE_SCHEMA, chapterNumber: z.string().trim().min(1).max(8), title: z.string().trim().min(2).max(220), excerpt: z.string().trim().min(10).max(3000), learningObjectives: z.string().trim().min(2).max(5000).optional().default("[]"), questionsJson: quizQuestionsSchema, sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingChapter(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_chapter", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ chapterNumber: input.chapterNumber, isPublished: input.isPublished }) }); return id; }),
     deleteChapter: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await deleteLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.delete", entityType: "landing_chapter", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
     restoreChapter: adminProcedure.input(z.object({ id: z.number().int().positive(), productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) })).mutation(async ({ input, ctx }) => { await restoreLandingChapter(input.id); await createAuditLog({ actorUserId: ctx.user.id, action: "content.restore", entityType: "landing_chapter", entityId: String(input.id), productCode: input.productCode, metadataJson: null }); return { success: true as const }; }),
     saveFaq: adminProcedure.input(z.object({ id: z.number().int().positive().optional(), productCode: PRODUCT_CODE_SCHEMA, question: z.string().trim().min(3).max(300), answer: z.string().trim().min(5).max(5000), sortOrder: z.number().int().min(0).max(999), isPublished: z.union([z.literal(0), z.literal(1)]) })).mutation(async ({ input, ctx }) => { const id = await saveLandingFaq(input); await createAuditLog({ actorUserId: ctx.user.id, action: "content.save", entityType: "landing_faq", entityId: String(id), productCode: input.productCode, metadataJson: JSON.stringify({ isPublished: input.isPublished }) }); return id; }),
