@@ -482,7 +482,11 @@ export async function getPurchaseRequests(options?: { search?: string; searchSco
     db.select().from(purchaseRequests).where(whereClause).orderBy(desc(purchaseRequests.createdAt)).limit(pageSize).offset(offset),
     db.select({ count: count() }).from(purchaseRequests).where(whereClause),
   ]);
-  return { requests, total: Number(countRows[0]?.count ?? 0), page, pageSize };
+  const enrichedRequests = requests.map(request => ({
+    ...request,
+    isTestOrder: EXCLUDED_EARLY_BIRD_ORDER_NUMBERS.includes(request.orderNumber as typeof EXCLUDED_EARLY_BIRD_ORDER_NUMBERS[number]),
+  }));
+  return { requests: enrichedRequests, total: Number(countRows[0]?.count ?? 0), page, pageSize };
 }
 
 export async function getPurchaseRequestsForExport(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected" }) {

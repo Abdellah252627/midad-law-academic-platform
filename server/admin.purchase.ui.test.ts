@@ -60,6 +60,15 @@ describe("admin purchase details UI", () => {
     expect(source).not.toContain("/api/admin/purchase-requests.xlsx?");
   });
 
+  it("marks excluded experimental orders with a clear admin-only label", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("request.isTestOrder");
+    expect(source).toContain("طلب تجريبي مستثنى");
+    expect(source).toContain("لا يدخل هذا الطلب في عداد Early Bird");
+    expect(source).toContain("{request.isTestOrder &&");
+  });
+
   it("shows the customer identity fields and proof preview in the purchases table", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 
