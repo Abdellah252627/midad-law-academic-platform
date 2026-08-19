@@ -54,7 +54,12 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
-  const { data: isAuthorizedAdmin, isLoading: adminCheckLoading } = trpc.auth.isAdmin.useQuery();
+  const {
+    data: isAuthorizedAdmin,
+    isLoading: adminCheckLoading,
+    isError: adminCheckError,
+    refetch: refetchAdminCheck,
+  } = trpc.auth.isAdmin.useQuery();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -86,6 +91,19 @@ export default function DashboardLayout({
           >
             تسجيل الدخول
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (adminCheckError) {
+    return (
+      <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4">
+        <div className="max-w-md rounded-[28px] border border-amber-200 bg-white p-8 text-center shadow-sm">
+          <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-amber-700" aria-hidden="true" />
+          <h1 className="text-2xl font-bold text-[#173247]">تعذر التحقق من الصلاحية</h1>
+          <p className="mt-3 text-sm leading-7 text-[#68747a]">تعذر الاتصال بخدمة التحقق مؤقتاً، ولم يتم اعتبار الحساب غير مصرح.</p>
+          <Button onClick={() => refetchAdminCheck()} className="mt-5 bg-[#173247] text-white hover:bg-[#24465e]">إعادة المحاولة</Button>
         </div>
       </div>
     );

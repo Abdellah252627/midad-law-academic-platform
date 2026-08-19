@@ -50,4 +50,36 @@ describe("single-account admin access", () => {
       }),
     ).toBe(true);
   });
+
+  it("allows the explicitly authorized owner email when OpenID rotates", () => {
+    expect(
+      isAuthorizedAdmin({
+        id: 4,
+        openId: "rotated-owner-open-id",
+        name: "Abdellah",
+        email: " AbdellahMR538@GMAIL.COM ",
+        loginMethod: "manus",
+        role: "user",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects a different email even when the account has an admin role", () => {
+    expect(
+      isAuthorizedAdmin({
+        id: 5,
+        openId: "different-open-id",
+        name: "Other",
+        email: "other@example.com",
+        loginMethod: "manus",
+        role: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastSignedIn: new Date(),
+      }),
+    ).toBe(false);
+  });
 });

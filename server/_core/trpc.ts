@@ -32,16 +32,18 @@ export const protectedProcedure = t.procedure.use(requireUser);
 // fallback keeps existing isolated procedure tests deterministic without ever
 // weakening production access control when OWNER_OPEN_ID is configured.
 export const AUTHORIZED_ADMIN_OPEN_ID = ENV.ownerOpenId || (!ENV.isProduction ? "admin-1" : "");
+// البريد الموثوق للحساب الإداري الوحيد الذي حدده مالك المنصة.
+export const AUTHORIZED_ADMIN_EMAIL = "abdellahmr538@gmail.com";
 
 export function isAuthorizedAdmin(user: TrpcContext["user"]): boolean {
   if (!user) return false;
 
-  // The single configured owner is the source of truth in production. Do not
-  // require the database role here: an OAuth account may be provisioned with a
-  // stale/default role while its trusted OWNER_OPEN_ID is still unambiguous.
+  // OpenID هو المعيار الأقوى عند توفره في بيئة النشر.
   if (ENV.ownerOpenId && user.openId === ENV.ownerOpenId) return true;
+  // يسمح هذا بالاسترداد الآمن إذا تغير OpenID التقني مع بقاء بريد OAuth الموثق.
+  if (user.email?.trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL) return true;
 
-  // Test-only identities remain available outside production for isolated specs.
+  // هويات الاختبار متاحة خارج الإنتاج فقط لاختبارات الإجراءات المعزولة.
   if (ENV.isProduction || user.role !== "admin") return false;
   const localTestAdminIds = new Set(["admin", "admin-1", "admin-open-id"]);
   return localTestAdminIds.has(user.openId);
