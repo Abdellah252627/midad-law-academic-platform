@@ -12,7 +12,7 @@ describe("admin purchase details UI", () => {
     expect(source).toContain('<option value={100}>100</option>');
     expect(source).toContain('<option value={200}>200</option>');
     expect(source).toContain("setPageSize(Number(event.target.value) as typeof pageSize); setPage(1);");
-    expect(source).toContain("[search, searchScope, status, page, pageSize]");
+    expect(source).toContain("[search, searchScope, status, includeTestOrders, page, pageSize]");
   });
 
   it("labels the admin search for order number and customer data", () => {
@@ -38,6 +38,18 @@ describe("admin purchase details UI", () => {
     expect(source).toContain('confirmExperimentalStatusChange(request, "rejected")');
     expect(source).toContain("if (!confirmExperimentalStatusChange(request, \"approved\")) return;");
     expect(source).toContain("if (!confirmExperimentalStatusChange(request, \"rejected\")) return;");
+  });
+
+  it("provides a one-click filter for showing or hiding excluded experimental orders", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("const [includeTestOrders, setIncludeTestOrders] = useState(true);");
+    expect(source).toContain("includeTestOrders");
+    expect(source).toContain("setIncludeTestOrders(current => !current)");
+    expect(source).toContain('aria-pressed={!includeTestOrders}');
+    expect(source).toContain("إخفاء الطلبات التجريبية");
+    expect(source).toContain("إظهار الطلبات التجريبية");
+    expect(source).toContain("بدون الطلبات التجريبية المستثناة");
   });
 
   it("shows internal notes controls and an admin-only change history", () => {

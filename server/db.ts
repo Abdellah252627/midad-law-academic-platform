@@ -455,12 +455,13 @@ export async function deletePurchaseRequestNote(input: { noteId: number; userId:
   });
 }
 
-export async function getPurchaseRequests(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected"; page?: number; pageSize?: number }) {
+export async function getPurchaseRequests(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected"; includeTestOrders?: boolean; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const search = options?.search?.trim().slice(0, 160);
   const conditions = [];
   if (options?.status) conditions.push(eq(purchaseRequests.status, options.status));
+  if (options?.includeTestOrders === false) conditions.push(notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]));
   if (search) {
     const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
     const pattern = `%${escaped}%`;

@@ -176,10 +176,10 @@ export const appRouter = router({
         csv: buildPurchaseRequestsCsv(rows),
       };
     }),
-    purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional(), page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100, 200].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
-      const options = input ?? { page: 1, pageSize: 25, searchScope: "all" as const };
+    purchaseRequests: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), searchScope: z.enum(["all", "orderNumber", "customer"]).default("all"), status: z.enum(["pending", "approved", "rejected"]).optional(), includeTestOrders: z.boolean().default(true), page: z.number().int().min(1).max(100000).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100, 200].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
+      const options = input ?? { page: 1, pageSize: 25, searchScope: "all" as const, includeTestOrders: true };
       const result = await getPurchaseRequests(options);
-      return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: options.search?.trim() ?? "", searchScope: options.searchScope ?? "all", status: options.status ?? "all" };
+      return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: options.search?.trim() ?? "", searchScope: options.searchScope ?? "all", status: options.status ?? "all", includeTestOrders: options.includeTestOrders ?? true };
     }),
     purchaseRequestNotes: adminProcedure.input(z.object({ requestId: z.number().int().positive() })).query(async ({ input }) => {
       const request = await getPurchaseRequestById(input.requestId);
