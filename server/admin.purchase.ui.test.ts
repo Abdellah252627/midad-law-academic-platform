@@ -73,6 +73,13 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("trpc.admin.deletePurchaseRequestNote");
   });
 
+  it("shows the rejected purchase counter beside the existing status counters", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("grid grid-cols-2 gap-3 sm:gap-4");
+    expect(source).toContain("['المرفوضة', requests.filter(item => item.status === 'rejected').length]");
+  });
+
   it("shows the visible order number in customer confirmation and admin views", () => {
     const homeSource = readFileSync(resolve(process.cwd(), "client/src/pages/Home.tsx"), "utf8");
     const adminSource = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
