@@ -1,9 +1,11 @@
-import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState, encodeOAuthState } from "@shared/const";
+import crypto from "node:crypto";
 import { parse as parseCookieHeader } from "cookie";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -11,6 +13,31 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
+  app.get("/api/oauth/start", (req: Request, res: Response) => {
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const redirectUri = `${origin}/api/oauth/callback`;
+    const nonce = crypto.randomUUID();
+    const state = encodeOAuthState({ redirectUri, nonce });
+    const portalUrl = process.env.VITE_OAUTH_PORTAL_URL;
+    if (!portalUrl || !ENV.appId) {
+      res.status(500).json({ error: "OAuth configuration is incomplete" });
+      return;
+    }
+    res.cookie(OAUTH_STATE_COOKIE, nonce, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 10 * 60 * 1000,
+    });
+    const url = new URL(`${portalUrl.replace(/\/+$/, "")}/app-auth`);
+    url.searchParams.set("appId", ENV.appId);
+    url.searchParams.set("redirectUri", redirectUri);
+    url.searchParams.set("state", state);
+    url.searchParams.set("type", "signIn");
+    res.redirect(302, url.toString());
+  });
+
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
