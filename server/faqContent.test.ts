@@ -25,6 +25,12 @@ describe("FAQ content coverage", () => {
     expect(homeSource).toContain("answer.replace(/خلال\\s+\\d+\\s+ساعة/g");
   });
 
+  it("shows the customer service WhatsApp availability window on the landing page", () => {
+    expect(homeSource).toContain("فريق مركز الخدمات متاح للرد عليك");
+    expect(homeSource).toContain("عبر WhatsApp من 09:00 صباحاً إلى 20:00 مساءً");
+    expect(homeSource).toContain("تواصل مع الفريق عبر WhatsApp");
+  });
+
   it("keeps the admin setting contract for bank transfer review duration", () => {
     const routerSource = readFileSync(resolve(projectRoot, "server/routers.ts"), "utf8");
     const settingsSource = readFileSync(resolve(projectRoot, "client/src/pages/AdminSettings.tsx"), "utf8");
