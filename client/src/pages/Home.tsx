@@ -60,7 +60,7 @@ const fallbackChapters = [
   ["08", "الالتزام", "المفهوم والمصادر والآثار."],
 ];
 
-const upcomingChapters = [
+const fallbackUpcomingChapters = [
   "قانون الالتزامات والعقود",
   "القانون الدستوري",
   "التنظيم الإداري",
@@ -161,6 +161,7 @@ export default function Home() {
   const whatsappNumber = appSettings.whatsappNumber ?? "0664173090";
   const quizSuccessMessage = appSettings.quizSuccessMessage ?? "أحسنت، لقد بلغت حد النجاح. واصل القراءة والتحليل والمراجعة.";
   const quizFailureMessage = appSettings.quizFailureMessage ?? "تحتاج إلى مراجعة إضافية. أعد قراءة المحور وحلل المفاهيم ثم أعد المحاولة.";
+  const upcomingChapters = (() => { try { const parsed = JSON.parse(appSettings.upcomingChapters ?? ""); return Array.isArray(parsed) && parsed.length ? parsed.map(String).filter(Boolean) : fallbackUpcomingChapters; } catch { return fallbackUpcomingChapters; } })();
   const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, "").replace(/^0/, "212")}?text=${encodeURIComponent("السلام عليكم، أرغب في الاستفسار عن ${DEFAULT_PRODUCT_CODE}")}`;
   const bankBeneficiary = appSettings.bankBeneficiary ?? "M MOUHAMITI ABDELLAH";
   const bankRib = appSettings.bankRib ?? "007430000270870030001970";

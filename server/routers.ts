@@ -288,7 +288,7 @@ export const appRouter = router({
       return { success: true as const, fileId, version };
     }),
     settings: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA }).default({ productCode: DEFAULT_PRODUCT_CODE })).query(({ input }) => getAppSettings(input.productCode)),
-    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage"]), settingValue: z.string().trim().min(1).max(500), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage", "upcomingChapters"]), settingValue: z.string().trim().min(1).max(5000), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
       if (input.settingKey === "quizSuccessMessage" || input.settingKey === "quizFailureMessage") {
         if (input.settingValue.length < 10) throw new Error("رسالة النتيجة يجب أن تحتوي على 10 أحرف على الأقل");
       }

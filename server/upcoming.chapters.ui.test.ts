@@ -24,4 +24,13 @@ describe("upcoming chapters landing section", () => {
     expect(home).toContain("upcomingChapters.map");
     for (const title of titles) expect(home).toContain(title);
   });
+
+  it("provides an admin editor backed by the upcomingChapters setting", () => {
+    const admin = readFileSync(resolve(process.cwd(), "client/src/pages/AdminDashboard.tsx"), "utf8");
+    const router = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+    expect(admin).toContain('"upcoming", FileText, "الفصول القادمة"');
+    expect(admin).toContain('settingKey: "upcomingChapters"');
+    expect(admin).toContain("كل سطر يمثل فصلاً واحداً");
+    expect(router).toContain('"upcomingChapters"');
+  });
 });
