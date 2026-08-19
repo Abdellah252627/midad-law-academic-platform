@@ -17,6 +17,7 @@ vi.mock("./db", async importOriginal => {
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 
 import { appRouter } from "./routers";
+import { EXCLUDED_EARLY_BIRD_ORDER_NUMBERS } from "./db";
 import type { TrpcContext } from "./_core/context";
 
 function createPublicContext(): TrpcContext {
@@ -33,6 +34,15 @@ describe("tiered product pricing", () => {
     createPurchaseRequest.mockResolvedValue({ id: 41, orderNumber: "MIDAD-20260819-TEST" });
     createAnalyticsEvent.mockResolvedValue(undefined);
     storageGetSignedUrl.mockResolvedValue("https://signed.example/cover.png");
+  });
+
+  it("keeps the four owner test orders outside the Early Bird counter", () => {
+    expect(EXCLUDED_EARLY_BIRD_ORDER_NUMBERS).toEqual([
+      "MIDAD-00090001",
+      "MIDAD-00060001",
+      "MIDAD-00030001",
+      "MIDAD-00000001",
+    ]);
   });
 
   it("returns Early Bird price and remaining seats while approved buyers are below ten", async () => {

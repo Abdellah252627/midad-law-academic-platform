@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, users } from "../drizzle/schema";
@@ -236,13 +236,23 @@ const PRODUCT_TITLE_FALLBACKS: Record<string, string> = {
 export const EARLY_BIRD_LIMIT = 10;
 export const EARLY_BIRD_PRICE_MAD = 19;
 export const PERMANENT_PRICE_MAD = 49;
+export const EXCLUDED_EARLY_BIRD_ORDER_NUMBERS = [
+  "MIDAD-00090001",
+  "MIDAD-00060001",
+  "MIDAD-00030001",
+  "MIDAD-00000001",
+] as const;
 
 export async function getProductPricing(productCode: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const [productRows, approvedRows] = await Promise.all([
     db.select({ priceMad: landingProducts.priceMad }).from(landingProducts).where(and(eq(landingProducts.productCode, productCode), isNull(landingProducts.deletedAt))).limit(1),
-    db.select({ total: count() }).from(purchaseRequests).where(and(eq(purchaseRequests.productCode, productCode), eq(purchaseRequests.status, "approved"))),
+    db.select({ total: count() }).from(purchaseRequests).where(and(
+      eq(purchaseRequests.productCode, productCode),
+      eq(purchaseRequests.status, "approved"),
+      notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
+    )),
   ]);
   const approvedBuyers = Number(approvedRows[0]?.total ?? 0);
   const manualPriceMad = Number(productRows[0]?.priceMad ?? 0);
