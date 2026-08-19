@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { buildPreviewAnswers, getIncorrectReviewConcepts, getQuizResultStatus, isQuizPreviewReady, QUIZ_PASSING_PERCENTAGE } from "@shared/quiz";
 import { Link } from "wouter";
-import { BarChart3, Check, Eye, FileText, HelpCircle, ListChecks, Loader2, Plus, RotateCcw, Save, Settings2, ShoppingBag, Trash2, Users, X } from "lucide-react";
+import { BarChart3, Check, Eye, FileText, HelpCircle, ListChecks, Loader2, Plus, RefreshCw, RotateCcw, Save, Settings2, ShoppingBag, Trash2, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -65,6 +65,7 @@ function AdminDashboardContent() {
       <div className="rounded-[26px] border border-[#d7c09b] bg-[#fffaf1] p-6 shadow-sm sm:p-7">
         <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold tracking-[0.16em] text-[#b9854a]">BACK OFFICE / OVERVIEW</p><h2 className="mt-2 font-display text-2xl font-bold text-[#173247]">مرحباً بك، {user?.name || "مدير المنصة"}</h2><p className="mt-2 max-w-xl text-sm leading-7 text-[#68747a]">هذه نظرة سريعة على نشاط المنصة. يمكنك الانتقال إلى الأقسام من القائمة لإدارة المحتوى والطلبات والشكاوى.</p></div><BarChart3 className="hidden h-9 w-9 text-[#b9854a] sm:block" aria-hidden="true" /></div>
       </div>
+      <div className="flex flex-col gap-3"><p className="text-xs text-[#68747a]">تُحدّث الأرقام من قاعدة البيانات دون إعادة تحميل الصفحة.</p><button type="button" onClick={() => { void analyticsQuery.refetch().then(result => { if (result.error) toast.error("تعذر تحديث الإحصائيات"); else toast.success("تم تحديث الإحصائيات"); }); }} disabled={analyticsQuery.isFetching} className="inline-flex items-center justify-center gap-2 rounded-full border border-[#b9854a] bg-white px-4 py-2 text-xs font-bold text-[#173247] transition hover:bg-[#fffaf1] disabled:cursor-wait disabled:opacity-60 self-start"><RefreshCw className={`h-4 w-4 ${analyticsQuery.isFetching ? "animate-spin" : ""}`} aria-hidden="true" />{analyticsQuery.isFetching ? "جارٍ التحديث…" : "تحديث الإحصائيات"}</button></div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {([
           [Users, "الزوار اليوم", analyticsQuery.data?.todayVisitors ?? "…"],
