@@ -127,6 +127,13 @@
       "when": 1787017016941,
       "tag": "0017_lean_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1787182073419,
+      "tag": "0018_stale_masque",
+      "breakpoints": true
     }
   ]
 }

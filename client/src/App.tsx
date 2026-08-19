@@ -15,6 +15,7 @@ import AdminPreview from "./pages/AdminPreview";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminComplaints from "./pages/AdminComplaints";
+import AdminFollowUps from "./pages/AdminFollowUps";
 import NotFound from "./pages/NotFound";
 import { DigitalFilesPolicyPage, PrivacyPolicyPage, TermsPage } from "./pages/LegalPage";
 import ContactPage from "./pages/ContactPage";
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/admin/settings" component={AdminSettings} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/complaints" component={AdminComplaints} />
+      <Route path="/admin/follow-ups" component={AdminFollowUps} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -100,6 +100,46 @@ export async function createPurchaseRequest(input: Omit<InsertPurchaseRequest, "
   const orderNumber = input.orderNumber ?? generateOrderNumber();
   const result = await db.insert(purchaseRequests).values({ ...input, orderNumber });
   return { id: Number(result[0].insertId), orderNumber };
+}
+
+export async function createSupportFollowUp(input: InsertSupportFollowUp) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(supportFollowUps).values(input);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getSupportFollowUps(options?: { search?: string; status?: "new" | "contacted" | "closed"; page?: number; pageSize?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const conditions = [];
+  const search = options?.search?.trim();
+  if (search) conditions.push(or(like(supportFollowUps.phone, `%${search}%`), like(supportFollowUps.message, `%${search}%`)));
+  if (options?.status) conditions.push(eq(supportFollowUps.status, options.status));
+  const requestedPageSize = options?.pageSize ?? 25;
+  const pageSize = [10, 25, 50, 100].includes(requestedPageSize) ? requestedPageSize : 25;
+  const page = Math.max(options?.page ?? 1, 1);
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+  const [rows, totalRows, statusRows] = await Promise.all([
+    db.select().from(supportFollowUps).where(whereClause).orderBy(desc(supportFollowUps.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
+    db.select({ total: count() }).from(supportFollowUps).where(whereClause),
+    db.select({ status: supportFollowUps.status, total: count() }).from(supportFollowUps).groupBy(supportFollowUps.status),
+  ]);
+  return { followUps: rows, total: Number(totalRows[0]?.total ?? 0), page, pageSize, statusCounts: Object.fromEntries(statusRows.map(row => [row.status, Number(row.total)])) };
+}
+
+export async function getSupportFollowUpById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(supportFollowUps).where(eq(supportFollowUps.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updateSupportFollowUp(input: { id: number; status: "new" | "contacted" | "closed"; adminNote: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(supportFollowUps).set({ status: input.status, adminNote: input.adminNote, contactedAt: input.status === "contacted" ? new Date() : null }).where(eq(supportFollowUps.id, input.id));
+  return getSupportFollowUpById(input.id);
 }
 
 export async function createSampleDownloadLead(input: InsertSampleDownloadLead) {

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -90,6 +91,12 @@ export const appRouter = router({
         settings: await getAppSettingsMap(),
         coverUrl: activeCover ? await storageGetSignedUrl(activeCover.fileKey) : null,
       };
+    }),
+  }),
+  support: router({
+    submitFollowUp: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) }).merge(supportFollowUpFieldsSchema)).mutation(async ({ input }) => {
+      const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, message: input.message || null });
+      return { success: true as const, id: result.id };
     }),
   }),
   sample: router({
@@ -268,6 +275,23 @@ export const appRouter = router({
       if (!updated) throw new Error("الشكوى غير موجودة");
       await createAuditLog({ actorUserId: ctx.user.id, action: "complaint.update", entityType: "complaint", entityId: String(updated.id), metadataJson: JSON.stringify({ ticketNumber: updated.ticketNumber, previousStatus: previous.status, status: updated.status, responseChanged: responseValue !== undefined && responseValue !== previous.adminResponse }) });
       return { success: true as const, complaint: updated };
+    }),
+    supportFollowUps: adminProcedure.input(z.object({ search: z.string().trim().max(160).optional(), status: z.enum(["new", "contacted", "closed"]).optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => {
+      const result = await getSupportFollowUps(input ?? { page: 1, pageSize: 25 });
+      return { ...result, totalPages: Math.max(1, Math.ceil(result.total / result.pageSize)), search: input?.search?.trim() ?? "", status: input?.status ?? "all" };
+    }),
+    supportFollowUp: adminProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const followUp = await getSupportFollowUpById(input.id);
+      if (!followUp) throw new Error("طلب المتابعة غير موجود");
+      return followUp;
+    }),
+    updateSupportFollowUp: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["new", "contacted", "closed"]), adminNote: z.string().trim().max(500).nullable().optional() })).mutation(async ({ input, ctx }) => {
+      const previous = await getSupportFollowUpById(input.id);
+      if (!previous) throw new Error("طلب المتابعة غير موجود");
+      const updated = await updateSupportFollowUp({ id: input.id, status: input.status, adminNote: input.adminNote === undefined ? previous.adminNote : (input.adminNote || null) });
+      if (!updated) throw new Error("طلب المتابعة غير موجود");
+      await createAuditLog({ actorUserId: ctx.user.id, action: "support_follow_up.update", entityType: "support_follow_up", entityId: String(updated.id), productCode: updated.productCode, metadataJson: JSON.stringify({ previousStatus: previous.status, status: updated.status }) });
+      return { success: true as const, followUp: updated };
     }),
     files: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA })).query(({ input }) => getProductFiles(input.productCode)),
     fileUrl: adminProcedure.input(z.object({ fileId: z.number().int().positive() })).query(async ({ input }) => {

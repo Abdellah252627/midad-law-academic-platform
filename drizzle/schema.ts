@@ -174,6 +174,18 @@ export const complaints = mysqlTable("complaints", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const supportFollowUps = mysqlTable("support_follow_ups", {
+  id: int("id").autoincrement().primaryKey(),
+  productCode: varchar("productCode", { length: 32 }).notNull().default("MIDAD-001"),
+  phone: varchar("phone", { length: 32 }),
+  message: varchar("message", { length: 1000 }),
+  status: mysqlEnum("status", ["new", "contacted", "closed"]).default("new").notNull(),
+  adminNote: varchar("adminNote", { length: 500 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  contactedAt: timestamp("contactedAt"),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -209,6 +221,8 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export type SupportFollowUp = typeof supportFollowUps.$inferSelect;
+export type InsertSupportFollowUp = typeof supportFollowUps.$inferInsert;
 export type PurchaseRequestNote = typeof purchaseRequestNotes.$inferSelect;
 export type InsertPurchaseRequestNote = typeof purchaseRequestNotes.$inferInsert;
 export type PurchaseRequestNoteEvent = typeof purchaseRequestNoteEvents.$inferSelect;
