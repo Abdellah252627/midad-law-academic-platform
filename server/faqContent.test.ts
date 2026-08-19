@@ -13,6 +13,9 @@ describe("FAQ content coverage", () => {
     expect(homeSource).toContain("هل يضمن الملخص النجاح في الامتحان؟");
     expect(homeSource).toContain("هل يمكنني قراءة الملف على الهاتف؟");
     expect(homeSource).toContain("كيف يتم تأكيد الطلب وتسليم الملف؟");
+    expect(homeSource).toContain("ما طرق الدفع المتاحة وكم تستغرق مراجعة التحويل؟");
+    expect(homeSource).toContain("التجاري وفا بنك");
+    expect(homeSource).toContain("فريق مركز الاتصال عبر WhatsApp");
     expect(homeSource).toContain("هل يشمل المنتج استشارة قانونية؟");
     expect(homeSource).toContain("ماذا يشمل الشراء؟");
     expect(homeSource).toContain("ماذا تعني المراجعة التطبيقية؟");
