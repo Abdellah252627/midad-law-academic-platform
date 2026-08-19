@@ -77,10 +77,19 @@ function AdminPurchasesContent() {
   }
 
   const requests = requestsQuery.data?.requests ?? [];
-  const approve = (requestId: number) => approveMutation.mutate({ requestId });
-  const reject = (requestId: number) => {
+  const confirmExperimentalStatusChange = (request: { isTestOrder: boolean; orderNumber: string }, nextStatus: "approved" | "rejected") => {
+    if (!request.isTestOrder) return true;
+    const nextStatusLabel = nextStatus === "approved" ? "مقبول" : "مرفوض";
+    return window.confirm(`تنبيه إداري: الطلب ${request.orderNumber} موسوم «طلب تجريبي مستثنى» ولن يدخل في عداد Early Bird. هل تريد فعلاً تغيير حالته إلى «${nextStatusLabel}»؟`);
+  };
+  const approve = (request: { id: number; isTestOrder: boolean; orderNumber: string }) => {
+    if (!confirmExperimentalStatusChange(request, "approved")) return;
+    approveMutation.mutate({ requestId: request.id });
+  };
+  const reject = (request: { id: number; isTestOrder: boolean; orderNumber: string }) => {
+    if (!confirmExperimentalStatusChange(request, "rejected")) return;
     const reason = window.prompt("اكتب سبب رفض التحويل:");
-    if (reason?.trim()) rejectMutation.mutate({ requestId, reason: reason.trim() });
+    if (reason?.trim()) rejectMutation.mutate({ requestId: request.id, reason: reason.trim() });
   };
   const reissueDownload = (requestId: number) => reissueDownloadMutation.mutate({ requestId });
   const reviewCorrection = (correctionId: number, decision: "approved" | "rejected") => {
@@ -192,7 +201,7 @@ function AdminPurchasesContent() {
             <td className="px-4 py-4">{request.proofKey ? <div className="flex flex-col items-start gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700"><FileImage className="h-3.5 w-3.5" />مرفق</span><button type="button" onClick={() => setSelectedProofId(request.id)} className="inline-flex items-center gap-2 rounded-full bg-[#f8f3eb] px-3 py-2 text-xs font-bold text-[#173247] hover:bg-[#efe5d6]"><Eye className="h-4 w-4" />معاينة الإثبات</button></div> : <span className="text-xs text-[#68747a]">غير مرفق</span>}</td>
             <td className="px-4 py-4"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusClass(request.status)}`}>{statusLabel(request.status)}</span>{request.rejectionReason && <p className="mt-2 max-w-[180px] text-xs leading-5 text-red-700">{request.rejectionReason}</p>}</td>
             <td className="px-4 py-4 text-xs text-[#68747a]">{formatDate(request.createdAt)}</td>
-            <td className="px-4 py-4"><div className="flex flex-wrap gap-2">{request.status === "pending" ? <><button type="button" onClick={() => approve(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></> : request.status === "approved" ? <button type="button" onClick={() => reissueDownload(request.id)} disabled={reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-[#173247] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#214963] disabled:opacity-50" title="إصدار رابط تنزيل صالح لمدة 15 دقيقة"><Download className="h-4 w-4" />إصدار رابط PDF</button> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}<button type="button" onClick={() => openNotes(request.id)} className="inline-flex items-center gap-1 rounded-lg border border-[#d9c9b4] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#173247] transition hover:bg-[#f8f3eb]"><History className="h-4 w-4" />الملاحظات</button></div></td>
+            <td className="px-4 py-4"><div className="flex flex-wrap gap-2">{request.status === "pending" ? <><button type="button" onClick={() => approve(request)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" />قبول</button><button type="button" onClick={() => reject(request)} disabled={approveMutation.isPending || rejectMutation.isPending || reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><XCircle className="h-4 w-4" />رفض</button></> : request.status === "approved" ? <button type="button" onClick={() => reissueDownload(request.id)} disabled={reissueDownloadMutation.isPending} className="inline-flex items-center gap-1 rounded-lg bg-[#173247] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#214963] disabled:opacity-50" title="إصدار رابط تنزيل صالح لمدة 15 دقيقة"><Download className="h-4 w-4" />إصدار رابط PDF</button> : <span className="text-xs text-[#68747a]">تمت المراجعة</span>}<button type="button" onClick={() => openNotes(request.id)} className="inline-flex items-center gap-1 rounded-lg border border-[#d9c9b4] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#173247] transition hover:bg-[#f8f3eb]"><History className="h-4 w-4" />الملاحظات</button></div></td>
           </tr>)}
         </tbody>
       </table></div>

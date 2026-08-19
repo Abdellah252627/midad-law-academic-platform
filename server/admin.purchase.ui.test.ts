@@ -28,6 +28,18 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("setPage(1);");
   });
 
+  it("requires confirmation before changing the status of an excluded experimental order", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("confirmExperimentalStatusChange");
+    expect(source).toContain("window.confirm(`تنبيه إداري");
+    expect(source).toContain("لن يدخل في عداد Early Bird");
+    expect(source).toContain('confirmExperimentalStatusChange(request, "approved")');
+    expect(source).toContain('confirmExperimentalStatusChange(request, "rejected")');
+    expect(source).toContain("if (!confirmExperimentalStatusChange(request, \"approved\")) return;");
+    expect(source).toContain("if (!confirmExperimentalStatusChange(request, \"rejected\")) return;");
+  });
+
   it("shows internal notes controls and an admin-only change history", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 
