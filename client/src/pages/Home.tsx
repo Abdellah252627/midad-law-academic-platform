@@ -60,6 +60,18 @@ const fallbackChapters = [
   ["08", "الالتزام", "المفهوم والمصادر والآثار."],
 ];
 
+const upcomingChapters = [
+  "قانون الالتزامات والعقود",
+  "القانون الدستوري",
+  "التنظيم الإداري",
+  "القانون الجنائي العام",
+  "المدخل إلى العلوم السياسية",
+  "المدخل إلى علم الاقتصاد",
+  "القانون المدني",
+  "القانون التجاري",
+  "قانون الشغل",
+];
+
 const fallbackQuizzes: Record<string, QuizQuestion[]> = {
   "01": [{ question: "أي خاصية تعني أن القاعدة القانونية تخاطب الأشخاص بصفاتهم لا بذواتهم؟", options: ["العمومية والتجريد", "الطابع الفردي", "الرأي الشخصي", "العادة الخاصة"], correctIndex: 0, explanation: "العمومية والتجريد يجعلان القاعدة منطبقة على كل من تتوافر فيه الصفة المحددة." }, { question: "ما الوظيفة الأساسية للقانون داخل المجتمع؟", options: ["تنظيم سلوك الأفراد وتحقيق الاستقرار", "إلغاء كل الحريات", "تسجيل الآراء الشخصية", "تحديد العادات الأسرية فقط"], correctIndex: 0, explanation: "ينظم القانون العلاقات ويحقق الاستقرار والأمن داخل المجتمع." }, { question: "بماذا تتميز القاعدة القانونية عن النصيحة؟", options: ["اقترانها بجزاء تفرضه السلطة المختصة", "كونها اختيارية دائماً", "عدم قابليتها للتطبيق", "ارتباطها بشخص واحد فقط"], correctIndex: 0, explanation: "الإلزام والجزاء من أبرز ما يميز القاعدة القانونية." }],
   "02": [{ question: "ما المقصود بالجزاء القانوني؟", options: ["جزاء توقعه الجهة المختصة عند مخالفة القاعدة", "نصيحة أخلاقية فقط", "عادة اجتماعية غير ملزمة", "رأي فقهي غير مؤثر"], correctIndex: 0, explanation: "الجزاء القانوني توقعه سلطة أو جهة مختصة وفقاً للقانون." }, { question: "ماذا يعني وصف القاعدة القانونية بأنها ملزمة؟", options: ["يجب احترامها ويمكن فرضها عند المخالفة", "يجوز تجاهلها دائماً", "تخص القاضي وحده", "تطبق على واقعة واحدة فقط"], correctIndex: 0, explanation: "الإلزام يعني وجوب احترام القاعدة مع إمكان ترتيب الجزاء عند مخالفتها." }, { question: "لماذا تكون القاعدة القانونية مجردة؟", options: ["لأنها تضع نموذجاً عاماً للحالات المتشابهة", "لأنها لا تطبق أبداً", "لأنها تعبر عن رأي فردي", "لأنها لا تتضمن حكماً"], correctIndex: 0, explanation: "التجريد يجعل الحكم قابلاً للتطبيق على كل حالة تتوافر فيها شروطه." }],
@@ -464,6 +476,27 @@ export default function Home() {
             <div className="mt-12 flex flex-col justify-between gap-5 rounded-[20px] border border-[#d9d0c2] bg-[#fbf8f2] p-6 sm:flex-row sm:items-center sm:p-8">
               <div className="flex items-start gap-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e8d9c5] text-[#b9854a]"><FileText size={19} /></div><div><h3 className="font-display text-base font-extrabold text-[#172b3a]">ويكتمل المسار بقاموس ومراجعة تطبيقية</h3><p className="mt-1 font-body text-sm text-[#768087]">تعريفات مركزة وأسئلة تساعدك على تثبيت الفهم.</p></div></div>
               <a href="#purchase" className="inline-flex items-center gap-2 text-sm font-extrabold text-[#b9854a]">انتقل إلى العرض <MoveLeft size={16} /></a>
+            </div>
+          </div>
+        </section>
+
+        <section id="upcoming-chapters" className="border-y border-[#e5ded2] bg-[#fbf8f2] py-20 lg:py-24" aria-labelledby="upcoming-chapters-title">
+          <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
+            <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div>
+                <div className="section-kicker">03 / فصول قادمة</div>
+                <h2 id="upcoming-chapters-title" className="mt-4 max-w-[620px] font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">مسارات جديدة<br /><span className="text-[#b9854a]">في طريقها إليك.</span></h2>
+              </div>
+              <p className="max-w-[420px] font-body text-[15px] leading-[1.95] text-[#68747a]">يحصل المشتركون الحاليون على هذه الفصول تلقائياً عند إصدارها، دون أي تكلفة إضافية.</p>
+            </div>
+            <div className="grid border-t border-[#d9d0c2] md:grid-cols-2 lg:grid-cols-4" aria-label="الفصول القادمة">
+              {upcomingChapters.map((title, index) => (
+                <div key={title} aria-disabled="true" className="relative min-h-[150px] border-b border-[#d9d0c2] bg-[#f4efe7]/70 py-7 opacity-85 md:border-l md:px-6 lg:min-h-[174px]">
+                  <span className="font-display text-[12px] font-black tracking-[0.16em] text-[#b9854a]">{String(index + 9).padStart(2, "0")}</span>
+                  <span className="absolute left-5 top-6 rounded-full border border-[#b94b4b]/25 bg-[#f8e5e3] px-3 py-1 font-body text-[11px] font-extrabold text-[#a83d3d] md:left-auto md:right-5">قريباً</span>
+                  <h3 className="mt-8 max-w-[190px] font-display text-[17px] font-extrabold leading-[1.55] text-[#172b3a]">{title}</h3>
+                </div>
+              ))}
             </div>
           </div>
         </section>
