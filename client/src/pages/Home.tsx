@@ -430,10 +430,23 @@ export default function Home() {
                   <ArrowUpLeft size={16} />
                 </a>
               </div>
-              <div className="mt-12 flex flex-wrap items-center gap-x-7 gap-y-3 border-t border-[#d9d0c2] pt-6 text-[12px] font-bold text-[#68747a]">
-                <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> PDF مهيأ للهاتف</span>
-                <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> مراجعة تطبيقية</span>
-                <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> {productPriceMad} درهماً</span>
+              <div className="mt-12 border-t border-[#d9d0c2] pt-6">
+                <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-[12px] font-bold text-[#68747a]">
+                  <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> PDF مهيأ للهاتف</span>
+                  <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> مراجعة تطبيقية</span>
+                  <span className="inline-flex items-center gap-2"><Check size={15} className="text-[#b9854a]" /> تحديثات مجانية مدى الحياة</span>
+                </div>
+                {earlyBirdActive ? (
+                  <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#b9854a]/35 bg-[#fffaf1] px-4 py-2.5 text-[12px] font-extrabold leading-[1.7] text-[#89663b]" role="status">
+                    <Sparkles size={14} className="shrink-0 text-[#b9854a]" />
+                    <span>19 درهماً لأول 10 طلبة مقبولين فقط — تبقّت {earlyBirdSeatsRemaining} مقاعد.</span>
+                  </div>
+                ) : (
+                  <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#d9d0c2] bg-[#f4efe7] px-4 py-2.5 text-[12px] font-extrabold leading-[1.7] text-[#68747a]">
+                    <Check size={14} className="shrink-0 text-[#b9854a]" />
+                    <span>السعر الحالي {productPriceMad} درهماً — عرض Early Bird اكتمل.</span>
+                  </div>
+                )}
               </div>
             </div>
 
