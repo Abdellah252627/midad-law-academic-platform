@@ -20,6 +20,13 @@ describe("admin analytics summary", () => {
     const result = await appRouter.createCaller(adminContext).admin.analyticsSummary();
     expect(result).toEqual(summary);
     expect(result.totalRevenueMad).toBe(114);
+    expect(result.todayVisitors).toBe(12);
+    expect(result.todaySampleDownloads).toBe(8);
+    expect(result.todayPurchaseRequests).toBe(2);
+    expect(result.todayConversionRate).toBe(25);
+    expect(result.weekSampleDownloads).toBe(31);
+    expect(result.weekPurchaseRequests).toBe(7);
+    expect(result.weekConversionRate).toBe(22.6);
   });
 
   it("rejects anonymous and non-admin access", async () => {

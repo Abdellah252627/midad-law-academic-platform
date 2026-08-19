@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, users } from "../drizzle/schema";
@@ -184,21 +184,48 @@ export async function createAnalyticsEvent(input: InsertAnalyticsEvent) {
 export async function getAnalyticsSummary() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const rows = await db.select().from(analyticsEvents).orderBy(desc(analyticsEvents.createdAt));
-  const revenueRows = await db.select({ totalRevenueMad: sql<number>`coalesce(sum(${purchaseRequests.pricePaid}), 0)` }).from(purchaseRequests).where(eq(purchaseRequests.status, "approved"));
+
+  // Business metrics come from their authoritative tables, not from analytics side-effects.
+  // Day boundaries are UTC so the dashboard does not change numbers according to server locale.
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const weekStart = new Date(todayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const eventRows = await db.select({ visitorKey: analyticsEvents.visitorKey }).from(analyticsEvents).where(and(
+    eq(analyticsEvents.eventType, "page_view"),
+    gte(analyticsEvents.createdAt, todayStart),
+    lt(analyticsEvents.createdAt, tomorrowStart),
+  ));
+  const weekEventRows = await db.select({ visitorKey: analyticsEvents.visitorKey }).from(analyticsEvents).where(and(
+    eq(analyticsEvents.eventType, "page_view"),
+    gte(analyticsEvents.createdAt, weekStart),
+    lt(analyticsEvents.createdAt, tomorrowStart),
+  ));
+  const [todaySamples, todayPurchases, weekSamples, weekPurchases, revenueRows] = await Promise.all([
+    db.select({ total: count() }).from(sampleDownloadLeads).where(and(isNull(sampleDownloadLeads.deletedAt), gte(sampleDownloadLeads.createdAt, todayStart), lt(sampleDownloadLeads.createdAt, tomorrowStart))),
+    db.select({ total: count() }).from(purchaseRequests).where(and(gte(purchaseRequests.createdAt, todayStart), lt(purchaseRequests.createdAt, tomorrowStart))),
+    db.select({ total: count() }).from(sampleDownloadLeads).where(and(isNull(sampleDownloadLeads.deletedAt), gte(sampleDownloadLeads.createdAt, weekStart), lt(sampleDownloadLeads.createdAt, tomorrowStart))),
+    db.select({ total: count() }).from(purchaseRequests).where(and(gte(purchaseRequests.createdAt, weekStart), lt(purchaseRequests.createdAt, tomorrowStart))),
+    db.select({ totalRevenueMad: sql<number>`coalesce(sum(${purchaseRequests.pricePaid}), 0)` }).from(purchaseRequests).where(eq(purchaseRequests.status, "approved")),
+  ]);
+  const todayVisitors = new Set(eventRows.map(row => row.visitorKey).filter(Boolean)).size;
+  const weekVisitors = new Set(weekEventRows.map(row => row.visitorKey).filter(Boolean)).size;
+  const todaySampleDownloads = Number(todaySamples[0]?.total ?? 0);
+  const todayPurchaseRequests = Number(todayPurchases[0]?.total ?? 0);
+  const weekSampleDownloads = Number(weekSamples[0]?.total ?? 0);
+  const weekPurchaseRequests = Number(weekPurchases[0]?.total ?? 0);
   const totalRevenueMad = Number(revenueRows[0]?.totalRevenueMad ?? 0);
-  const now = Date.now();
-  const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
-  const weekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
-  const today = rows.filter((row: AnalyticsEvent) => row.createdAt >= todayStart);
-  const week = rows.filter((row: AnalyticsEvent) => row.createdAt >= weekStart);
-  const uniqueTodayVisitors = new Set(today.filter(row => row.eventType === "page_view").map(row => row.visitorKey).filter(Boolean)).size;
-  const sampleDownloadsToday = today.filter(row => row.eventType === "sample_download").length;
-  const purchaseRequestsToday = today.filter(row => row.eventType === "purchase_request").length;
-  const weekVisitors = new Set(week.filter(row => row.eventType === "page_view").map(row => row.visitorKey).filter(Boolean)).size;
-  const weekSamples = week.filter(row => row.eventType === "sample_download").length;
-  const weekPurchases = week.filter(row => row.eventType === "purchase_request").length;
-  return { totalRevenueMad, todayVisitors: uniqueTodayVisitors, todaySampleDownloads: sampleDownloadsToday, todayPurchaseRequests: purchaseRequestsToday, todayConversionRate: sampleDownloadsToday ? Number(((purchaseRequestsToday / sampleDownloadsToday) * 100).toFixed(1)) : 0, weekVisitors, weekSampleDownloads: weekSamples, weekPurchaseRequests: weekPurchases, weekConversionRate: weekSamples ? Number(((weekPurchases / weekSamples) * 100).toFixed(1)) : 0 };
+  return {
+    totalRevenueMad,
+    todayVisitors,
+    todaySampleDownloads,
+    todayPurchaseRequests,
+    todayConversionRate: todaySampleDownloads ? Number(((todayPurchaseRequests / todaySampleDownloads) * 100).toFixed(1)) : 0,
+    weekVisitors,
+    weekSampleDownloads,
+    weekPurchaseRequests,
+    weekConversionRate: weekSampleDownloads ? Number(((weekPurchaseRequests / weekSampleDownloads) * 100).toFixed(1)) : 0,
+  };
 }
 
 const DEFAULT_PRODUCT_CODE = "MIDAD-001";
