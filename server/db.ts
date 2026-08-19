@@ -233,6 +233,32 @@ const PRODUCT_TITLE_FALLBACKS: Record<string, string> = {
   "MIDAD-001": "مدخل إلى القانون والعلوم القانونية",
 };
 
+export const EARLY_BIRD_LIMIT = 10;
+export const EARLY_BIRD_PRICE_MAD = 19;
+export const PERMANENT_PRICE_MAD = 49;
+
+export async function getProductPricing(productCode: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const [productRows, approvedRows] = await Promise.all([
+    db.select({ priceMad: landingProducts.priceMad }).from(landingProducts).where(and(eq(landingProducts.productCode, productCode), isNull(landingProducts.deletedAt))).limit(1),
+    db.select({ total: count() }).from(purchaseRequests).where(and(eq(purchaseRequests.productCode, productCode), eq(purchaseRequests.status, "approved"))),
+  ]);
+  const approvedBuyers = Number(approvedRows[0]?.total ?? 0);
+  const manualPriceMad = Number(productRows[0]?.priceMad ?? 0);
+  const earlyBirdActive = approvedBuyers < EARLY_BIRD_LIMIT;
+  const priceMad = earlyBirdActive ? EARLY_BIRD_PRICE_MAD : Math.max(PERMANENT_PRICE_MAD, manualPriceMad);
+  return {
+    priceMad,
+    manualPriceMad,
+    approvedBuyers,
+    earlyBirdLimit: EARLY_BIRD_LIMIT,
+    earlyBirdPriceMad: EARLY_BIRD_PRICE_MAD,
+    earlyBirdActive,
+    earlyBirdSeatsRemaining: Math.max(EARLY_BIRD_LIMIT - approvedBuyers, 0),
+  };
+}
+
 function settingsStorageKey(productCode: string, settingKey: string) {
   return productCode === DEFAULT_PRODUCT_CODE ? settingKey : `${productCode}:${settingKey}`;
 }
@@ -499,8 +525,10 @@ export async function getPublishedLandingContent(productCode: string) {
     db.select().from(landingChapters).where(and(eq(landingChapters.productCode, productCode), isNull(landingChapters.deletedAt))).orderBy(asc(landingChapters.sortOrder)),
     db.select().from(landingFaqs).where(and(eq(landingFaqs.productCode, productCode), isNull(landingFaqs.deletedAt))).orderBy(asc(landingFaqs.sortOrder)),
   ]);
+  const product = productRows.find(row => row.isPublished === 1);
   return {
-    product: productRows.find(row => row.isPublished === 1),
+    product,
+    pricing: product ? await getProductPricing(productCode) : null,
     chapters: chapters.filter(row => row.isPublished === 1),
     faqs: faqs.filter(row => row.isPublished === 1),
   };
@@ -514,7 +542,8 @@ export async function getLandingAdminContent(productCode: string) {
     db.select().from(landingChapters).where(eq(landingChapters.productCode, productCode)).orderBy(asc(landingChapters.sortOrder)),
     db.select().from(landingFaqs).where(eq(landingFaqs.productCode, productCode)).orderBy(asc(landingFaqs.sortOrder)),
   ]);
-  return { product: products[0], chapters, faqs };
+  const product = products[0];
+  return { product, pricing: product ? await getProductPricing(productCode) : null, chapters, faqs };
 }
 
 export async function saveLandingProduct(input: InsertLandingProduct) {

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createPurchaseRequest, createAnalyticsEvent, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
+const { createPurchaseRequest, createAnalyticsEvent, getProductPricing, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile, storagePut, storageGetSignedUrl, createDownloadToken, buildDownloadUrl } = vi.hoisted(() => ({
   createPurchaseRequest: vi.fn().mockResolvedValue({ id: 42, orderNumber: "MIDAD-ABC123DEF456" }),
   createAnalyticsEvent: vi.fn().mockResolvedValue(undefined),
+  getProductPricing: vi.fn().mockResolvedValue({ priceMad: 19, approvedBuyers: 0, earlyBirdLimit: 10, earlyBirdActive: true, earlyBirdSeatsRemaining: 10 }),
   getPublishedLandingContent: vi.fn().mockResolvedValue({ product: { priceMad: 19 } }),
   getPurchaseRequestById: vi.fn(),
   approvePurchaseRequest: vi.fn(),
@@ -13,7 +14,7 @@ const { createPurchaseRequest, createAnalyticsEvent, getPublishedLandingContent,
   buildDownloadUrl: vi.fn((requestId: number, token: string) => `/api/download/${requestId}?token=${token}`),
 }));
 
-vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
+vi.mock("./db", () => ({ createPurchaseRequest, createAnalyticsEvent, getProductPricing, getPublishedLandingContent, getPurchaseRequestById, approvePurchaseRequest, getActiveProductFile }));
 vi.mock("./storage", () => ({ storagePut, storageGetSignedUrl }));
 vi.mock("./downloadTokens", () => ({
   DOWNLOAD_LINK_TTL_MINUTES: 15,
@@ -91,7 +92,7 @@ describe("purchase.createTransferRequest", () => {
     const caller = appRouter.createCaller(createPublicContext());
     await caller.purchase.createTransferRequest({ productCode: "MIDAD-001", customerName: "طالب قانون", customerEmail: "student@example.com", transactionReference: "TX-PRICE" });
     expect(createPurchaseRequest).toHaveBeenCalledWith(expect.objectContaining({ pricePaid: 19 }));
-    getPublishedLandingContent.mockResolvedValueOnce({ product: { priceMad: 39 } });
+    getProductPricing.mockResolvedValueOnce({ priceMad: 39, approvedBuyers: 10, earlyBirdLimit: 10, earlyBirdActive: false, earlyBirdSeatsRemaining: 0 });
     await caller.purchase.createTransferRequest({ productCode: "MIDAD-001", customerName: "طالب قانون", customerEmail: "student2@example.com", transactionReference: "TX-PRICE-2" });
     expect(createPurchaseRequest).toHaveBeenLastCalledWith(expect.objectContaining({ pricePaid: 39 }));
   });
