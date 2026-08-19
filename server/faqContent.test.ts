@@ -15,6 +15,8 @@ describe("FAQ content coverage", () => {
     expect(homeSource).toContain("كيف يتم تأكيد الطلب وتسليم الملف؟");
     expect(homeSource).toContain("هل يشمل المنتج استشارة قانونية؟");
     expect(homeSource).toContain("ماذا يشمل الشراء؟");
+    expect(homeSource).toContain("ماذا تعني المراجعة التطبيقية؟");
+    expect(homeSource).toContain("ماذا تعني التحديثات المجانية مدى الحياة؟");
     expect(homeSource).toContain("إجابات واضحة قبل الطلب");
   });
 
