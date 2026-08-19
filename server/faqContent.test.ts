@@ -21,6 +21,17 @@ describe("FAQ content coverage", () => {
     expect(homeSource).toContain("ماذا تعني المراجعة التطبيقية؟");
     expect(homeSource).toContain("ماذا تعني التحديثات المجانية مدى الحياة؟");
     expect(homeSource).toContain("إجابات واضحة قبل الطلب");
+    expect(homeSource).toContain("bankTransferReviewDuration");
+    expect(homeSource).toContain("answer.replace(/خلال\\s+\\d+\\s+ساعة/g");
+  });
+
+  it("keeps the admin setting contract for bank transfer review duration", () => {
+    const routerSource = readFileSync(resolve(projectRoot, "server/routers.ts"), "utf8");
+    const settingsSource = readFileSync(resolve(projectRoot, "client/src/pages/AdminSettings.tsx"), "utf8");
+    expect(routerSource).toContain("bankTransferReviewDuration");
+    expect(routerSource).toContain("duration < 1 || duration > 168");
+    expect(settingsSource).toContain("مدة مراجعة التحويل البنكي بالساعات");
+    expect(settingsSource).toContain("من 1 إلى 168 ساعة");
   });
 
   it("keeps FAQ editing guidance and visitor publishing controls in Back Office", () => {

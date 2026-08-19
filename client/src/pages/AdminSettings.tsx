@@ -9,13 +9,14 @@ const fields = [
   { key: "whatsappNumber", label: "رقم واتساب", placeholder: "0664173090", description: "يُستخدم للتواصل من زر واتساب في الصفحة العامة." },
   { key: "bankBeneficiary", label: "اسم المستفيد البنكي", placeholder: "الاسم الكامل للمستفيد", description: "يظهر للطالب ضمن تعليمات التحويل البنكي." },
   { key: "bankRib", label: "RIB", placeholder: "24 رقماً", description: "بيانات التحويل التي يراجعها الطالب قبل إرسال إثبات الدفع." },
+  { key: "bankTransferReviewDuration", label: "مدة مراجعة التحويل البنكي بالساعات", placeholder: "24", description: "المدة المتوقعة التي تظهر للطالب في سؤال الدفع داخل الأسئلة الشائعة، من 1 إلى 168 ساعة." },
   { key: "defaultPriceMad", label: "السعر الافتراضي بالدرهم", placeholder: "19", description: "قيمة احتياطية عند عدم وجود سعر منشور للمنتج." },
   { key: "quizPassingPercentage", label: "نسبة النجاح في اختبار «اختبر فهمك»", placeholder: "60", description: "نسبة مئوية من 0 إلى 100. القيمة الافتراضية 60%." },
 ] as const;
 
 type SettingKey = (typeof fields)[number]["key"];
 
-const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "quizPassingPercentage"]);
+const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransferReviewDuration", "quizPassingPercentage"]);
 
 function AdminSettingsContent() {
   const query = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
@@ -28,7 +29,7 @@ function AdminSettingsContent() {
     },
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
-  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", defaultPriceMad: "19", quizPassingPercentage: "60" });
+  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60" });
 
   useEffect(() => {
     if (!query.data) return;
@@ -50,8 +51,11 @@ function AdminSettingsContent() {
       }
       if (numericSettingKeys.has(field.key)) {
         const number = Number(value);
-        if (!Number.isInteger(number) || number < 0 || number > 100 || (field.key === "defaultPriceMad" && number === 0)) {
-          toast.error(field.key === "quizPassingPercentage" ? "أدخل نسبة صحيحة بين 0 و100" : "أدخل سعراً صحيحاً");
+        const isReviewDuration = field.key === "bankTransferReviewDuration";
+        const max = isReviewDuration ? 168 : 100;
+        const min = isReviewDuration ? 1 : 0;
+        if (!Number.isInteger(number) || number < min || number > max || (field.key === "defaultPriceMad" && number === 0)) {
+          toast.error(field.key === "quizPassingPercentage" ? "أدخل نسبة صحيحة بين 0 و100" : isReviewDuration ? "أدخل مدة صحيحة بين ساعة واحدة و168 ساعة" : "أدخل سعراً صحيحاً");
           return;
         }
       }

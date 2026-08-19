@@ -162,6 +162,8 @@ export default function Home() {
   const earlyBirdApprovedBuyers = pricing?.approvedBuyers ?? Math.max(10 - earlyBirdSeatsRemaining, 0);
   const earlyBirdProgress = Math.min(Math.max((earlyBirdApprovedBuyers / 10) * 100, 0), 100);
   const whatsappNumber = appSettings.whatsappNumber ?? "0664173090";
+  const bankTransferReviewDuration = Math.min(Math.max(Number(appSettings.bankTransferReviewDuration ?? 24) || 24, 1), 168);
+  const bankTransferReviewDurationLabel = `${bankTransferReviewDuration} ساعة`;
   const quizSuccessMessage = appSettings.quizSuccessMessage ?? "أحسنت، لقد بلغت حد النجاح. واصل القراءة والتحليل والمراجعة.";
   const quizFailureMessage = appSettings.quizFailureMessage ?? "تحتاج إلى مراجعة إضافية. أعد قراءة المحور وحلل المفاهيم ثم أعد المحاولة.";
   const upcomingChapters = (() => { try { const parsed = JSON.parse(appSettings.upcomingChapters ?? ""); return Array.isArray(parsed) && parsed.length ? parsed.map(String).filter(Boolean) : fallbackUpcomingChapters; } catch { return fallbackUpcomingChapters; } })();
@@ -174,9 +176,12 @@ export default function Home() {
   const chapterPreviews = landingQuery.data?.chapters?.length
     ? landingQuery.data.chapters.map(chapter => ({ number: chapter.chapterNumber, title: chapter.title, excerpt: chapter.excerpt, objectives: parseObjectives(chapter.learningObjectives ?? "[]"), questions: parseQuestions(chapter.questionsJson), quiz: parseQuizQuestions(chapter.questionsJson).map(question => ({ ...question, reviewConcept: question.reviewConcept ?? chapter.title })) }))
     : fallbackChapterPreviews.map(preview => ({ ...preview, quiz: (fallbackQuizzes[preview.number] ?? []).map(question => ({ ...question, reviewConcept: question.reviewConcept ?? preview.title })) }));
-  const faqs = landingQuery.data?.faqs?.length
+  const faqs = (landingQuery.data?.faqs?.length
     ? landingQuery.data.faqs.map(faq => [faq.question, faq.answer] as [string, string])
-    : fallbackFaqs;
+    : fallbackFaqs).map(([question, answer]) => {
+      const isTransferFaq = question.includes("التحويل") || question.includes("الدفع") || question.includes("مراجعة الطلب");
+      return [question, isTransferFaq ? answer.replace(/خلال\s+\d+\s+ساعة/g, `خلال ${bankTransferReviewDurationLabel}`) : answer] as [string, string];
+    });
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
