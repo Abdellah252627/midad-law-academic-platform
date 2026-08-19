@@ -52,6 +52,15 @@ describe("admin purchase details UI", () => {
     expect(source).toContain("بدون الطلبات التجريبية المستثناة");
   });
 
+  it("shows the current hidden experimental-order count beside the filter", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
+
+    expect(source).toContain("const hiddenTestOrderCount = includeTestOrders ? 0 : (requestsQuery.data?.testOrderCount ?? 0);");
+    expect(source).toContain("requestsQuery.data?.testOrderCount");
+    expect(source).toContain('aria-live="polite"');
+    expect(source).toContain("المخفي حالياً: {hiddenTestOrderCount}");
+  });
+
   it("shows internal notes controls and an admin-only change history", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/AdminPurchases.tsx"), "utf8");
 

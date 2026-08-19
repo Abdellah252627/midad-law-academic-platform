@@ -459,35 +459,38 @@ export async function getPurchaseRequests(options?: { search?: string; searchSco
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const search = options?.search?.trim().slice(0, 160);
-  const conditions = [];
-  if (options?.status) conditions.push(eq(purchaseRequests.status, options.status));
+  const baseConditions = [];
+  if (options?.status) baseConditions.push(eq(purchaseRequests.status, options.status));
+  const conditions = [...baseConditions];
   if (options?.includeTestOrders === false) conditions.push(notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]));
   if (search) {
     const escaped = search.replace(/[\\%_]/g, match => `\\${match}`);
     const pattern = `%${escaped}%`;
     const searchScope = options?.searchScope ?? "all";
-    if (searchScope === "orderNumber") {
-      conditions.push(like(purchaseRequests.orderNumber, pattern));
-    } else if (searchScope === "customer") {
-      conditions.push(or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
-    } else {
-      conditions.push(or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!);
-    }
+    const searchCondition = searchScope === "orderNumber"
+      ? like(purchaseRequests.orderNumber, pattern)
+      : searchScope === "customer"
+        ? or(like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!
+        : or(like(purchaseRequests.orderNumber, pattern), like(purchaseRequests.customerName, pattern), like(purchaseRequests.customerEmail, pattern), like(purchaseRequests.customerPhone, pattern))!;
+    baseConditions.push(searchCondition);
+    conditions.push(searchCondition);
   }
   const whereClause = conditions.length ? and(...conditions) : undefined;
+  const testOrderWhereClause = and(...baseConditions, inArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]));
   const requestedPageSize = options?.pageSize ?? 25;
   const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 25;
   const page = Math.max(options?.page ?? 1, 1);
   const offset = (page - 1) * pageSize;
-  const [requests, countRows] = await Promise.all([
+  const [requests, countRows, testOrderCountRows] = await Promise.all([
     db.select().from(purchaseRequests).where(whereClause).orderBy(desc(purchaseRequests.createdAt)).limit(pageSize).offset(offset),
     db.select({ count: count() }).from(purchaseRequests).where(whereClause),
+    db.select({ count: count() }).from(purchaseRequests).where(testOrderWhereClause),
   ]);
   const enrichedRequests = requests.map(request => ({
     ...request,
     isTestOrder: EXCLUDED_EARLY_BIRD_ORDER_NUMBERS.includes(request.orderNumber as typeof EXCLUDED_EARLY_BIRD_ORDER_NUMBERS[number]),
   }));
-  return { requests: enrichedRequests, total: Number(countRows[0]?.count ?? 0), page, pageSize };
+  return { requests: enrichedRequests, total: Number(countRows[0]?.count ?? 0), testOrderCount: Number(testOrderCountRows[0]?.count ?? 0), page, pageSize };
 }
 
 export async function getPurchaseRequestsForExport(options?: { search?: string; searchScope?: "all" | "orderNumber" | "customer"; status?: "pending" | "approved" | "rejected" }) {

@@ -78,6 +78,7 @@ function AdminPurchasesContent() {
   }
 
   const requests = requestsQuery.data?.requests ?? [];
+  const hiddenTestOrderCount = includeTestOrders ? 0 : (requestsQuery.data?.testOrderCount ?? 0);
   const confirmExperimentalStatusChange = (request: { isTestOrder: boolean; orderNumber: string }, nextStatus: "approved" | "rejected") => {
     if (!request.isTestOrder) return true;
     const nextStatusLabel = nextStatus === "approved" ? "مقبول" : "مرفوض";
@@ -180,6 +181,7 @@ function AdminPurchasesContent() {
         <button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>
         {(search || searchDraft || searchScope !== "all" || status !== "all") && <button type="button" onClick={clearSearch} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] transition hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}
         <button type="button" onClick={() => { setIncludeTestOrders(current => !current); setPage(1); }} aria-pressed={!includeTestOrders} className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition active:scale-[0.98] ${includeTestOrders ? "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100" : "border-[#173247] bg-[#173247] text-white hover:bg-[#24465e]"}`} title={includeTestOrders ? "إخفاء الطلبات التجريبية المستثناة" : "إظهار الطلبات التجريبية المستثناة"}><ShieldAlert className="h-4 w-4" aria-hidden="true" />{includeTestOrders ? "إخفاء الطلبات التجريبية" : "إظهار الطلبات التجريبية"}</button>
+        <span role="status" aria-live="polite" className="inline-flex items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800">المخفي حالياً: {hiddenTestOrderCount}</span>
       </div>
     </form>
     <div className="grid gap-4 sm:grid-cols-3">
