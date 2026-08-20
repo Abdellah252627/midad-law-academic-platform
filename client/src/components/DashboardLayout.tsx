@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users } from "lucide-react";
+import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -151,6 +151,34 @@ function DashboardLayoutContent({
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
+  const notificationUtils = trpc.useUtils();
+  const { data: notificationUnreadCount = 0 } = trpc.admin.notificationUnreadCount.useQuery(undefined, {
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const { data: notificationData, isLoading: notificationsLoading } = trpc.admin.notifications.useQuery(
+    { page: 1, pageSize: 10, read: "unread" },
+    { refetchInterval: 30_000, refetchOnWindowFocus: true },
+  );
+  const markNotificationRead = trpc.admin.markNotificationRead.useMutation({
+    onSuccess: () => {
+      void notificationUtils.admin.notificationUnreadCount.invalidate();
+      void notificationUtils.admin.notifications.invalidate();
+    },
+  });
+  const markNotificationsRead = trpc.admin.markNotificationsRead.useMutation({
+    onSuccess: () => {
+      void notificationUtils.admin.notificationUnreadCount.invalidate();
+      void notificationUtils.admin.notifications.invalidate();
+    },
+  });
+
+  const openNotification = (notification: NonNullable<typeof notificationData>["notifications"][number]) => {
+    if (!notification.isRead) {
+      markNotificationRead.mutate({ id: notification.id });
+    }
+    setLocation(notification.targetPath);
+  };
 
   useEffect(() => {
     if (isCollapsed) {
@@ -306,20 +334,75 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset className="relative z-0 min-w-0 w-full overflow-x-hidden">
-        {isMobile && (
-          <div className="relative z-40 flex h-14 items-center justify-between border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="tracking-tight text-foreground">
-                    {activeMenuItem?.label ?? "Menu"}
-                  </span>
-                </div>
-              </div>
+        <div className="relative z-40 flex h-14 items-center justify-between border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0">
+          <div className="flex min-w-0 items-center gap-2">
+            {isMobile && <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg bg-background" />}
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="truncate tracking-tight text-foreground">
+                {activeMenuItem?.label ?? "Back Office"}
+              </span>
             </div>
           </div>
-        )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`التنبيهات${notificationUnreadCount > 0 ? `، ${notificationUnreadCount} غير مقروءة` : ""}`}
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Bell className="h-5 w-5" aria-hidden="true" />
+                {notificationUnreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                    {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-2">
+              <div className="flex items-center justify-between gap-3 px-2 pb-2">
+                <div>
+                  <p className="text-sm font-semibold">التنبيهات</p>
+                  <p className="text-xs text-muted-foreground">{notificationUnreadCount} غير مقروءة</p>
+                </div>
+                {notificationData?.notifications.length ? (
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                    disabled={markNotificationsRead.isPending}
+                    onClick={() => markNotificationsRead.mutate({ ids: notificationData.notifications.map(item => item.id) })}
+                  >
+                    تحديد الكل كمقروء
+                  </button>
+                ) : null}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notificationsLoading ? (
+                  <p className="px-2 py-6 text-center text-sm text-muted-foreground">جاري تحميل التنبيهات...</p>
+                ) : notificationData?.notifications.length ? (
+                  notificationData.notifications.map(notification => (
+                    <DropdownMenuItem
+                      key={notification.id}
+                      onClick={() => openNotification(notification)}
+                      className="mb-1 cursor-pointer items-start gap-3 rounded-lg p-3 last:mb-0"
+                    >
+                      <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.priority === "critical" ? "bg-red-600" : notification.priority === "high" ? "bg-amber-500" : "bg-blue-500"}`} aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className={`truncate text-sm ${notification.isRead ? "font-normal" : "font-semibold"}`}>{notification.title}</span>
+                          {!notification.isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="غير مقروء" />}
+                        </span>
+                        <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</span>
+                        <span className="mt-1 block text-[10px] text-muted-foreground">{new Date(notification.createdAt).toLocaleString("ar-MA")}</span>
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <p className="px-2 py-6 text-center text-sm text-muted-foreground">لا توجد تنبيهات غير مقروءة حالياً.</p>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <main className="min-w-0 w-full flex-1 overflow-x-hidden p-4">{children}</main>
       </SidebarInset>
     </>
