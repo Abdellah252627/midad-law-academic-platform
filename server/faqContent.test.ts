@@ -54,6 +54,10 @@ describe("FAQ content coverage", () => {
     expect(adminSource).toContain("faq.category");
     expect(adminSource).toContain("الفئة<select");
     expect(readFileSync(resolve(projectRoot, "shared/faq.ts"), "utf8")).toContain('"purchase", "payment", "content", "support"');
+    expect(homeSource).toContain('"purchase"]');
+    expect(homeSource).toContain('"payment"]');
+    expect(homeSource).toContain('"content"]');
+    expect(homeSource).toContain('"support"]');
   });
 
   it("keeps contact FAQs covering payment, download expiry, and refunds", () => {
