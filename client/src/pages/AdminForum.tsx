@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, EyeOff, FileSearch, Filter, Loader2, MessageSquare, Search, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, EyeOff, FileSearch, Filter, Loader2, MessageSquare, RotateCcw, Search, ShieldAlert, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels = {
@@ -50,6 +50,17 @@ function isForumItemType(value: unknown): value is ForumItemType {
   return value === "all" || value === "topic" || value === "reply";
 }
 
+function hasRestorableForumFilters(storageKey: string) {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return false;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) || (!!parsed && typeof parsed === "object");
+  } catch {
+    return false;
+  }
+}
+
 function readStoredForumFilters(storageKey: string): SavedForumFilters {
   try {
     const raw = window.localStorage.getItem(storageKey);
@@ -86,15 +97,18 @@ function AdminForumContent() {
   const [search, setSearch] = useState("");
   const [levels, setLevels] = useState<ForumLevel[]>([]);
   const [levelsRestored, setLevelsRestored] = useState(false);
+  const [filtersRestoredFromSession, setFiltersRestoredFromSession] = useState(false);
   const adminIdentity = user?.openId || user?.email || (user?.id ? String(user.id) : undefined);
   const filterStorageKey = useMemo(() => getForumFilterStorageKey(adminIdentity), [adminIdentity]);
 
   useEffect(() => {
+    const restored = hasRestorableForumFilters(filterStorageKey);
     const saved = readStoredForumFilters(filterStorageKey);
     setStatus(saved.status);
     setItemType(saved.itemType);
     setSearch(saved.search);
     setLevels(saved.levels);
+    setFiltersRestoredFromSession(restored);
     setLevelsRestored(true);
   }, [filterStorageKey]);
 
@@ -150,6 +164,7 @@ function AdminForumContent() {
 
     <section className="rounded-[26px] border border-[#e3d9ca] bg-white p-5 shadow-sm sm:p-7">
       <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-center"><div><h2 className="flex items-center gap-2 text-xl font-bold text-[#173247]"><FileSearch className="h-5 w-5 text-[#b9854a]" />طابور مراجعة المحتوى</h2><p className="mt-1 text-sm text-slate-500">راجع المحتوى قبل نشره، وسجّل سبب الإجراء عند الحاجة.</p></div><span className="rounded-full bg-[#f7f1e8] px-3 py-1 text-xs font-bold text-[#8a5d32]">{items.length} عنصر</span></div>
+      {filtersRestoredFromSession ? <div role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-[#d5a15f]/40 bg-[#f7f1e8] px-4 py-3 text-sm font-bold text-[#8a5d32]"><RotateCcw className="h-4 w-4 shrink-0" />تمت استعادة الفلاتر تلقائياً من الجلسة السابقة.</div> : null}
       <div className="mb-6 grid gap-3 md:grid-cols-[1fr_180px_180px]">
         <label className="relative block"><Search className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="ابحث في العنوان أو المحتوى" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-sm outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></label>
         <label className="relative"><Filter className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" /><select value={status} onChange={event => setStatus(event.target.value as typeof status)} className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-sm outline-none focus:border-[#b9854a]"><option value="pending">قيد المراجعة</option><option value="all">كل الحالات</option><option value="published">منشور</option><option value="hidden">مخفي</option><option value="closed">مغلق</option></select></label>
