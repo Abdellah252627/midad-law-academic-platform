@@ -36,7 +36,10 @@ function AdminFollowUpsContent() {
   const updateMutation = trpc.admin.updateSupportFollowUp.useMutation({
     onSuccess: async () => {
       toast.success("تم تحديث طلب المتابعة وتسجيل العملية.");
-      await queryUtils.admin.supportFollowUps.invalidate();
+      await Promise.all([
+        queryUtils.admin.supportFollowUps.invalidate(),
+        queryUtils.admin.newSupportFollowUpCount.invalidate(),
+      ]);
       if (selectedId !== null) await detailQuery.refetch();
     },
     onError: error => toast.error(error.message || "تعذر تحديث طلب المتابعة."),

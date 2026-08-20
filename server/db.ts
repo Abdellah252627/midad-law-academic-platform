@@ -128,6 +128,13 @@ export async function getSupportFollowUps(options?: { search?: string; status?: 
   return { followUps: rows, total: Number(totalRows[0]?.total ?? 0), page, pageSize, statusCounts: Object.fromEntries(statusRows.map(row => [row.status, Number(row.total)])) };
 }
 
+export async function getNewSupportFollowUpCount() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ total: count() }).from(supportFollowUps).where(eq(supportFollowUps.status, "new"));
+  return Number(rows[0]?.total ?? 0);
+}
+
 export async function getSupportFollowUpById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

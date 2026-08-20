@@ -147,6 +147,10 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  const { data: newFollowUpsCount = 0 } = trpc.admin.newSupportFollowUpCount.useQuery(undefined, {
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (isCollapsed) {
@@ -235,7 +239,17 @@ function DashboardLayoutContent({
                       <item.icon
                         className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
                       />
-                      <span>{item.label}</span>
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                        <span className="truncate">{item.label}</span>
+                        {item.path === "/admin/follow-ups" && newFollowUpsCount > 0 && (
+                          <span
+                            aria-label={`${newFollowUpsCount} طلبات تواصل جديدة`}
+                            className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-right-1 group-data-[collapsible=icon]:-top-1"
+                          >
+                            {newFollowUpsCount > 99 ? "99+" : newFollowUpsCount}
+                          </span>
+                        )}
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
