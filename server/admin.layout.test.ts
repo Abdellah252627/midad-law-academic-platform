@@ -84,3 +84,16 @@ describe("all notifications page", () => {
     expect(router).toContain("from: z.string().date().optional()");
   });
 });
+
+
+describe("sensitive admin page privacy guards", () => {
+  it("wraps file management and audit logs with the shared admin guard", () => {
+    const files = readFileSync(resolve(process.cwd(), "client/src/pages/AdminFiles.tsx"), "utf8");
+    const auditLogs = readFileSync(resolve(process.cwd(), "client/src/pages/AdminAuditLogs.tsx"), "utf8");
+
+    expect(files).toContain('import DashboardLayout from "@/components/DashboardLayout";');
+    expect(files).toContain("return <DashboardLayout><AdminFilesContent /></DashboardLayout>");
+    expect(auditLogs).toContain('import DashboardLayout from "@/components/DashboardLayout";');
+    expect(auditLogs).toContain("return <DashboardLayout><AdminAuditLogsContent /></DashboardLayout>");
+  });
+});

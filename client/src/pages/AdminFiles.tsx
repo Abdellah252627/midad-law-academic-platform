@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ const PRODUCT_CODE = DEFAULT_PRODUCT_CODE;
 
 type FileType = "pdf" | "cover" | "sample";
 
-export default function AdminFiles() {
+function AdminFilesContent() {
   const [fileType, setFileType] = useState<FileType>("pdf");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,4 +83,8 @@ export default function AdminFiles() {
       <Card><CardHeader><CardTitle>سجل الإصدارات السابقة</CardTitle></CardHeader><CardContent>{historyFiles.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد نسخ سابقة.</p> : <div className="space-y-2">{historyFiles.map(file => <div key={file.id} className="flex items-center justify-between rounded-lg bg-muted/40 p-3 text-sm"><span>{file.fileName} · {file.fileType} · الإصدار {file.version}</span><span className="text-muted-foreground">غير نشط</span></div>)}</div>}</CardContent></Card>
     </div>
   );
+}
+
+export default function AdminFiles() {
+  return <DashboardLayout><AdminFilesContent /></DashboardLayout>;
 }

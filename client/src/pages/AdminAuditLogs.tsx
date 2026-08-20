@@ -1,4 +1,5 @@
 import { AlertCircle, ClipboardList, Loader2 } from "lucide-react";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 
@@ -7,7 +8,7 @@ function formatDate(value: Date | string | null) {
   return new Date(value).toLocaleString("ar-MA", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default function AdminAuditLogs() {
+function AdminAuditLogsContent() {
   const logsQuery = trpc.admin.auditLogs.useQuery();
   const logs = logsQuery.data ?? [];
 
@@ -45,4 +46,8 @@ export default function AdminAuditLogs() {
       </Card>
     </div>
   );
+}
+
+export default function AdminAuditLogs() {
+  return <DashboardLayout><AdminAuditLogsContent /></DashboardLayout>;
 }
