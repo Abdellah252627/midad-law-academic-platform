@@ -204,6 +204,49 @@ export const adminNotifications = mysqlTable("admin_notifications", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const forumCategories = mysqlTable("forum_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 80 }).notNull().unique(),
+  name: varchar("name", { length: 160 }).notNull(),
+  description: varchar("description", { length: 500 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const forumTopics = mysqlTable("forum_topics", {
+  id: int("id").autoincrement().primaryKey(),
+  categoryId: int("categoryId").notNull().references(() => forumCategories.id),
+  authorUserId: int("authorUserId").notNull().references(() => users.id),
+  title: varchar("title", { length: 220 }).notNull(),
+  body: text("body").notNull(),
+  status: mysqlEnum("status", ["pending", "published", "hidden", "closed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const forumReplies = mysqlTable("forum_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  topicId: int("topicId").notNull().references(() => forumTopics.id),
+  authorUserId: int("authorUserId").notNull().references(() => users.id),
+  body: text("body").notNull(),
+  status: mysqlEnum("status", ["pending", "published", "hidden"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const forumReports = mysqlTable("forum_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  reporterUserId: int("reporterUserId").notNull().references(() => users.id),
+  topicId: int("topicId").references(() => forumTopics.id),
+  replyId: int("replyId").references(() => forumReplies.id),
+  reason: varchar("reason", { length: 500 }).notNull(),
+  status: mysqlEnum("status", ["open", "reviewed", "dismissed"]).default("open").notNull(),
+  reviewedByUserId: int("reviewedByUserId"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -239,6 +282,14 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 export type AdminNotification = typeof adminNotifications.$inferSelect;
 export type InsertAdminNotification = typeof adminNotifications.$inferInsert;
+export type ForumCategory = typeof forumCategories.$inferSelect;
+export type InsertForumCategory = typeof forumCategories.$inferInsert;
+export type ForumTopic = typeof forumTopics.$inferSelect;
+export type InsertForumTopic = typeof forumTopics.$inferInsert;
+export type ForumReply = typeof forumReplies.$inferSelect;
+export type InsertForumReply = typeof forumReplies.$inferInsert;
+export type ForumReport = typeof forumReports.$inferSelect;
+export type InsertForumReport = typeof forumReports.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
 export type SupportFollowUp = typeof supportFollowUps.$inferSelect;

@@ -20,6 +20,7 @@ import AdminNotifications from "./pages/AdminNotifications";
 import NotFound from "./pages/NotFound";
 import { DigitalFilesPolicyPage, PrivacyPolicyPage, TermsPage } from "./pages/LegalPage";
 import ContactPage from "./pages/ContactPage";
+import Forum from "./pages/Forum";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
 // This shell keeps the public experience focused: one RTL landing page, one clear CTA,
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/digital-files" component={DigitalFilesPolicyPage} />
       <Route path="/contact" component={ContactPage} />
+      <Route path="/forum" component={Forum} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/account" component={AdminAccount} />

@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -915,6 +915,70 @@ export async function getAdminComplaints(options: ComplaintAdminListOptions = {}
     return result;
   }, {});
   return { complaints: rows, total: Number(totals[0]?.total ?? 0), page, pageSize, statusCounts };
+}
+
+export async function getForumCategories() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(forumCategories).where(eq(forumCategories.isActive, true)).orderBy(asc(forumCategories.sortOrder), asc(forumCategories.id));
+}
+
+export async function getPublishedForumTopics(categoryId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = categoryId ? and(eq(forumTopics.status, "published"), eq(forumTopics.categoryId, categoryId)) : eq(forumTopics.status, "published");
+  return db.select().from(forumTopics).where(conditions).orderBy(desc(forumTopics.createdAt));
+}
+
+export async function getPublishedForumReplies(topicId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(forumReplies).where(and(eq(forumReplies.topicId, topicId), eq(forumReplies.status, "published"))).orderBy(asc(forumReplies.createdAt));
+}
+
+export async function createForumTopic(input: { categoryId: number; authorUserId: number; title: string; body: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(forumTopics).values({ ...input, status: "pending" });
+  return Number(result[0].insertId);
+}
+
+export async function createForumReply(input: { topicId: number; authorUserId: number; body: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(forumReplies).values({ ...input, status: "pending" });
+  return Number(result[0].insertId);
+}
+
+export async function createForumReport(input: { reporterUserId: number; topicId?: number; replyId?: number; reason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(forumReports).values(input);
+  return Number(result[0].insertId);
+}
+
+export async function updateForumTopicStatus(id: number, status: "pending" | "published" | "hidden" | "closed") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(forumTopics).set({ status }).where(eq(forumTopics.id, id));
+}
+
+export async function updateForumReplyStatus(id: number, status: "pending" | "published" | "hidden") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(forumReplies).set({ status }).where(eq(forumReplies.id, id));
+}
+
+export async function getOpenForumReports() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(forumReports).where(eq(forumReports.status, "open")).orderBy(desc(forumReports.createdAt));
+}
+
+export async function updateForumReportStatus(id: number, status: "reviewed" | "dismissed", reviewedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(forumReports).set({ status, reviewedByUserId, reviewedAt: new Date() }).where(eq(forumReports.id, id));
 }
 
 export async function updateComplaintAdmin(input: {
