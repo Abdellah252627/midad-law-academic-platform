@@ -109,13 +109,15 @@ export async function createSupportFollowUp(input: InsertSupportFollowUp) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function getSupportFollowUps(options?: { search?: string; status?: "new" | "contacted" | "closed"; page?: number; pageSize?: number }) {
+export async function getSupportFollowUps(options?: { search?: string; status?: "new" | "contacted" | "closed"; read?: "read" | "unread"; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const conditions = [];
   const search = options?.search?.trim();
   if (search) conditions.push(or(like(supportFollowUps.phone, `%${search}%`), like(supportFollowUps.email, `%${search}%`), like(supportFollowUps.message, `%${search}%`)));
   if (options?.status) conditions.push(eq(supportFollowUps.status, options.status));
+  if (options?.read === "read") conditions.push(eq(supportFollowUps.isRead, true));
+  if (options?.read === "unread") conditions.push(eq(supportFollowUps.isRead, false));
   const requestedPageSize = options?.pageSize ?? 25;
   const pageSize = [10, 25, 50, 100].includes(requestedPageSize) ? requestedPageSize : 25;
   const page = Math.max(options?.page ?? 1, 1);
@@ -140,6 +142,14 @@ export async function markSupportFollowUpRead(id: number) {
   if (!db) throw new Error("Database is not available");
   await db.update(supportFollowUps).set({ isRead: true, readAt: new Date() }).where(eq(supportFollowUps.id, id));
   return getSupportFollowUpById(id);
+}
+
+export async function markSupportFollowUpsRead(ids: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (!ids.length) return 0;
+  const result = await db.update(supportFollowUps).set({ isRead: true, readAt: new Date() }).where(and(inArray(supportFollowUps.id, ids), eq(supportFollowUps.isRead, false)));
+  return Number(result[0].affectedRows ?? 0);
 }
 
 export async function getSupportFollowUpById(id: number) {

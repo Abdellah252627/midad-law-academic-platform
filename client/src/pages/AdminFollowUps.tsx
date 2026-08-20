@@ -10,6 +10,7 @@ const statuses = [
   { value: "closed", label: "مغلقة", className: "bg-slate-100 text-slate-700" },
 ] as const;
 type StatusValue = (typeof statuses)[number]["value"];
+type ReadFilter = "all" | "read" | "unread";
 
 function formatDate(value: Date | string) {
   return new Date(value).toLocaleString("ar-MA", { dateStyle: "medium", timeStyle: "short" });
@@ -25,11 +26,12 @@ function AdminFollowUpsContent() {
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusValue | "all">("all");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<StatusValue>("new");
   const [adminNote, setAdminNote] = useState("");
-  const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, page, pageSize: 25 }), [search, status, page]);
+  const queryInput = useMemo(() => ({ search: search || undefined, status: status === "all" ? undefined : status, read: readFilter === "all" ? undefined : readFilter, page, pageSize: 25 }), [search, status, readFilter, page]);
   const listQuery = trpc.admin.supportFollowUps.useQuery(queryInput, { enabled: isAdmin });
   const detailQuery = trpc.admin.supportFollowUp.useQuery({ id: selectedId ?? 0 }, { enabled: isAdmin && selectedId !== null });
   const queryUtils = trpc.useUtils();
@@ -43,6 +45,16 @@ function AdminFollowUpsContent() {
       if (selectedId !== null) await detailQuery.refetch();
     },
     onError: error => toast.error(error.message || "تعذر تحديد الطلب كمقروء."),
+  });
+  const markAllReadMutation = trpc.admin.markSupportFollowUpsRead.useMutation({
+    onSuccess: async result => {
+      toast.success(result.affected ? `تم تحديد ${result.affected} طلبات كمقروءة.` : "لا توجد طلبات غير مقروءة ضمن النتائج المعروضة.");
+      await Promise.all([
+        queryUtils.admin.supportFollowUps.invalidate(),
+        queryUtils.admin.newSupportFollowUpCount.invalidate(),
+      ]);
+    },
+    onError: error => toast.error(error.message || "تعذر تحديد الطلبات كمقروءة."),
   });
   const updateMutation = trpc.admin.updateSupportFollowUp.useMutation({
     onSuccess: async () => {
@@ -75,7 +87,11 @@ function AdminFollowUpsContent() {
     updateMutation.mutate({ id: selectedId, status: selectedStatus, adminNote: adminNote.trim() || null });
   };
   const markAsRead = (id: number) => markReadMutation.mutate({ id });
-  const clearFilters = () => { setSearchDraft(""); setSearch(""); setStatus("all"); setPage(1); };
+  const markVisibleAsRead = () => {
+    const unreadIds = rows.filter(row => !row.isRead).map(row => row.id);
+    if (unreadIds.length) markAllReadMutation.mutate({ ids: unreadIds });
+  };
+  const clearFilters = () => { setSearchDraft(""); setSearch(""); setStatus("all"); setReadFilter("all"); setPage(1); };
 
   return <section dir="rtl" className="mx-auto max-w-7xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-[0_20px_60px_rgba(23,50,71,0.16)] sm:p-8">
@@ -92,9 +108,11 @@ function AdminFollowUpsContent() {
 
     <form onSubmit={event => { event.preventDefault(); setSearch(searchDraft.trim().slice(0, 160)); setPage(1); }} className="grid gap-3 rounded-[22px] border border-[#e3d9ca] bg-white p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
       <div className="relative flex-1"><Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8f80]" aria-hidden="true" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="ابحث برقم الهاتف أو البريد الإلكتروني أو الرسالة" aria-label="البحث في طلبات التواصل" maxLength={160} className="w-full rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] py-3 pr-10 pl-4 text-sm text-[#173247] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></div>
-      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]"><span>الحالة</span><select value={status} onChange={event => { setStatus(event.target.value as StatusValue | "all"); setPage(1); }} aria-label="تصفية طلبات التواصل حسب الحالة" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold outline-none focus:border-[#b9854a]"><option value="all">كل الحالات</option>{statuses.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-      <div className="flex gap-2"><button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>{(search || searchDraft || status !== "all") && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}</div>
+      <label className="flex items-center gap-2 text-sm font-bold text-[#173247]"><span>الحالة</span><select value={status} onChange={event => { setStatus(event.target.value as StatusValue | "all"); setPage(1); }} aria-label="تصفية طلبات التواصل حسب الحالة" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold outline-none focus:border-[#b9854a]"><option value="all">كل الحالات</option>{statuses.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="flex items-center gap-2 text-sm font-bold text-[#173247]"><span>القراءة</span><select value={readFilter} onChange={event => { setReadFilter(event.target.value as ReadFilter); setPage(1); }} aria-label="تصفية طلبات التواصل حسب القراءة" className="rounded-xl border border-[#e3d9ca] bg-[#fcfaf6] px-3 py-3 text-sm font-bold outline-none focus:border-[#b9854a]"><option value="all">كل الطلبات</option><option value="unread">غير مقروءة</option><option value="read">مقروءة</option></select></label>
+      <div className="flex gap-2"><button type="submit" className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] active:scale-[0.98]">بحث</button>{(search || searchDraft || status !== "all" || readFilter !== "all") && <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-xl border border-[#e3d9ca] px-4 py-3 text-sm font-bold text-[#68747a] hover:bg-[#f8f3eb]"><X className="h-4 w-4" aria-hidden="true" />مسح</button>}</div>
     </form>
+
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e3d9ca] bg-white px-4 py-3 shadow-sm"><p className="text-sm text-[#68747a]">يطبّق الإجراء على الطلبات الظاهرة في الصفحة الحالية فقط.</p><button type="button" disabled={markAllReadMutation.isPending || !rows.some(row => !row.isRead)} onClick={markVisibleAsRead} className="rounded-xl bg-[#173247] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#24465e] disabled:cursor-not-allowed disabled:opacity-50">{markAllReadMutation.isPending ? "جارٍ التحديث…" : "تحديد الكل كمقروء"}</button></div>
 
     {listQuery.error && <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">تعذر تحميل طلبات التواصل.</p>}
     <div className="overflow-hidden rounded-[24px] border border-[#e3d9ca] bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-[760px] w-full text-right text-sm"><thead className="bg-[#f8f3eb] text-[#173247]"><tr><th className="px-4 py-4 font-bold">التاريخ</th><th className="px-4 py-4 font-bold">بيانات التواصل</th><th className="px-4 py-4 font-bold">الرسالة</th><th className="px-4 py-4 font-bold">الحالة</th><th className="px-4 py-4 font-bold">الإجراء</th></tr></thead><tbody>{rows.map(row => { const meta = statusMeta(row.status); return <tr key={row.id} className="border-t border-[#eee7dc] align-top"><td className="px-4 py-4 text-xs text-[#68747a]">{formatDate(row.createdAt)}</td><td className="px-4 py-4 text-xs text-[#173247]"><div className="space-y-1" dir="ltr">{row.phone && <p className="font-mono">{row.phone}</p>}{row.email && <p className="break-all text-[#68747a]">{row.email}</p>}{!row.phone && !row.email && <p>—</p>}</div></td><td className="max-w-[360px] whitespace-pre-wrap px-4 py-4 leading-6 text-[#173247]">{row.message || "—"}</td><td className="px-4 py-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-bold ${meta.className}`}>{meta.label}</span>{row.isRead ? <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">مقروء</span> : <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">غير مقروء</span>}</div></td><td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button type="button" onClick={() => openDetail(row.id)} className="rounded-xl border border-[#b9854a] px-3 py-2 text-xs font-bold text-[#89663b] hover:bg-[#fffaf1]">مراجعة</button>{!row.isRead && <button type="button" disabled={markReadMutation.isPending} onClick={() => markAsRead(row.id)} className="inline-flex items-center gap-1 rounded-xl border border-[#173247] px-3 py-2 text-xs font-bold text-[#173247] hover:bg-[#eef5f7] disabled:opacity-50"><Check className="h-3.5 w-3.5" aria-hidden="true" />تحديد كمقروء</button>}</div></td></tr>; })}</tbody></table>{!listQuery.isLoading && !rows.length && <p className="px-4 py-12 text-center text-sm text-[#68747a]">لا توجد طلبات متابعة مطابقة.</p>}</div></div>
