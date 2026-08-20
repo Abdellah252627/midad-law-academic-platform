@@ -453,6 +453,77 @@ export async function getAnalyticsSummary() {
   };
 }
 
+function toStudentKey(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function startOfUtcWeek(date: Date) {
+  const day = date.getUTCDay();
+  const daysSinceMonday = (day + 6) % 7;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - daysSinceMonday));
+}
+
+function isoWeekKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function isoMonthKey(date: Date) {
+  return date.toISOString().slice(0, 7);
+}
+
+export async function getStudentAnalytics() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+
+  const now = new Date();
+  const currentWeekStart = startOfUtcWeek(now);
+  const firstWeekStart = new Date(currentWeekStart.getTime() - 11 * 7 * 24 * 60 * 60 * 1000);
+  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const firstMonthStart = new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() - 11, 1));
+
+  const [totalRows, trendRows] = await Promise.all([
+    db.select({ email: purchaseRequests.customerEmail }).from(purchaseRequests).where(and(
+      eq(purchaseRequests.status, "approved"),
+      notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
+    )),
+    db.select({ email: purchaseRequests.customerEmail, createdAt: purchaseRequests.createdAt }).from(purchaseRequests).where(and(
+      eq(purchaseRequests.status, "approved"),
+      notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
+      gte(purchaseRequests.createdAt, firstMonthStart),
+    )),
+  ]);
+
+  const totalStudents = new Set(totalRows.map(row => toStudentKey(row.email)).filter(Boolean)).size;
+  const weeklyBuckets = new Map<string, Set<string>>();
+  const monthlyBuckets = new Map<string, Set<string>>();
+
+  for (let index = 0; index < 12; index += 1) {
+    const weekStart = new Date(firstWeekStart.getTime() + index * 7 * 24 * 60 * 60 * 1000);
+    weeklyBuckets.set(isoWeekKey(weekStart), new Set());
+    const monthStart = new Date(Date.UTC(firstMonthStart.getUTCFullYear(), firstMonthStart.getUTCMonth() + index, 1));
+    monthlyBuckets.set(isoMonthKey(monthStart), new Set());
+  }
+
+  for (const row of trendRows) {
+    const email = toStudentKey(row.email);
+    if (!email) continue;
+    const createdAt = new Date(row.createdAt);
+    const weekKey = isoWeekKey(startOfUtcWeek(createdAt));
+    const monthKey = isoMonthKey(createdAt);
+    weeklyBuckets.get(weekKey)?.add(email);
+    monthlyBuckets.get(monthKey)?.add(email);
+  }
+
+  return {
+    totalStudents,
+    approvedOrders: totalRows.length,
+    weeks: Array.from(weeklyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
+    months: Array.from(monthlyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
+    definition: "طلبة فريدون حسب البريد الإلكتروني من الطلبات المقبولة، مع استبعاد الطلبات التجريبية الأربعة.",
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 const DEFAULT_PRODUCT_CODE = "MIDAD-001";
 const PRODUCT_TITLE_FALLBACKS: Record<string, string> = {
   "MIDAD-001": "مدخل إلى القانون والعلوم القانونية",
