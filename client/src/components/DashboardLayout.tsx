@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users } from "lucide-react";
+import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users, Volume2, VolumeX } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -146,6 +146,9 @@ function DashboardLayoutContent({
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(() => localStorage.getItem("midad-notification-sound") !== "off");
+  const previousNotificationIdsRef = useRef<Set<number> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
@@ -174,6 +177,53 @@ function DashboardLayoutContent({
       void notificationUtils.admin.notifications.invalidate();
     },
   });
+
+  const playNotificationSound = () => {
+    if (!notificationSoundEnabled || typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    try {
+      const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const context = audioContextRef.current ?? new AudioContextClass();
+      audioContextRef.current = context;
+      if (context.state === "suspended") void context.resume();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(660, context.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.18);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.2);
+    } catch {
+      // يمنع فشل Audio API من التأثير على تجربة التنبيهات نفسها.
+    }
+  };
+
+  useEffect(() => {
+    const notifications = notificationData?.notifications;
+    if (!notifications) return;
+    const currentIds = new Set(notifications.filter(item => !item.isRead).map(item => item.id));
+    const previousIds = previousNotificationIdsRef.current;
+    if (previousIds && Array.from(currentIds).some(id => !previousIds.has(id))) playNotificationSound();
+    previousNotificationIdsRef.current = currentIds;
+  }, [notificationData]);
+
+  useEffect(() => () => {
+    void audioContextRef.current?.close();
+  }, []);
+
+  const toggleNotificationSound = () => {
+    setNotificationSoundEnabled(current => {
+      const next = !current;
+      localStorage.setItem("midad-notification-sound", next ? "on" : "off");
+      if (next) playNotificationSound();
+      return next;
+    });
+  };
 
   const openNotification = (notification: NonNullable<typeof notificationData>["notifications"][number]) => {
     if (!notification.isRead) {
@@ -368,6 +418,10 @@ function DashboardLayoutContent({
                     {notificationUnreadCount > 0 ? `${notificationUnreadCount} غير مقروءة` : "لا توجد تنبيهات غير مقروءة"}
                   </p>
                 </div>
+                <button type="button" onClick={toggleNotificationSound} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground" aria-label={notificationSoundEnabled ? "كتم صوت التنبيهات" : "تفعيل صوت التنبيهات"} title={notificationSoundEnabled ? "كتم صوت التنبيهات" : "تفعيل صوت التنبيهات"}>
+                  {notificationSoundEnabled ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
+                  <span className="hidden sm:inline">{notificationSoundEnabled ? "الصوت مفعّل" : "الصوت مكتوم"}</span>
+                </button>
                 {notificationData?.notifications.some(item => !item.isRead) ? (
                   <button
                     type="button"
