@@ -5,7 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
 import { FORUM_LEVELS, FORUM_SUBJECTS, getForumLevelLabel, type ForumLevel, type ForumSubject } from "@shared/forum";
-import { FORUM_CLOSED_MESSAGE, isForumOpenAt } from "@shared/forumModerationPolicy";
+import { FORUM_CLOSED_MESSAGE, getForumCountdown } from "@shared/forumModerationPolicy";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,12 @@ export default function Forum() {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
-  const forumOpen = isForumOpenAt(currentTime);
+  const forumCountdown = getForumCountdown(currentTime);
+  const forumOpen = forumCountdown.isOpen;
+  const countdownMinutes = Math.floor(forumCountdown.remainingMs / 60_000);
+  const countdownHours = Math.floor(countdownMinutes / 60);
+  const countdownRemainingMinutes = countdownMinutes % 60;
+  const countdownLabel = countdownHours > 0 ? `${countdownHours} س و${countdownRemainingMinutes} د` : `${countdownRemainingMinutes} د`;
   const [categoryId, setCategoryId] = useState<number | undefined>();
   const [subject, setSubject] = useState<ForumSubject | undefined>();
   const [level, setLevel] = useState<ForumLevel | undefined>();
@@ -82,7 +87,7 @@ export default function Forum() {
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-[#b9823b]" />قواعد المشاركة والخصوصية</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm leading-7 text-[#59636a]">هذا المنتدى مخصص للتعلم وتبادل الفهم القانوني باحترام. لا تُعد المنشورات استشارة قانونية شخصية، وتخضع المشاركات للمراجعة قبل نشرها.</p>
-            <div role="status" className={`flex items-start gap-2 rounded-xl border p-3 text-sm font-bold leading-6 ${forumOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}><Clock3 className="mt-1 h-4 w-4 shrink-0" /><span>{forumOpen ? "المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب." : FORUM_CLOSED_MESSAGE}</span></div>
+            <div role="status" className={`flex items-start gap-2 rounded-xl border p-3 text-sm font-bold leading-6 ${forumOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}><Clock3 className="mt-1 h-4 w-4 shrink-0" /><span>{forumOpen ? `المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب. يتبقى ${countdownLabel} على الإغلاق.` : `${FORUM_CLOSED_MESSAGE} يتبقى ${countdownLabel} على فتح المشاركة.`}</span></div>
             <ul className="grid gap-2 text-sm leading-6 text-[#173247] md:grid-cols-2">
               {(rules.data?.items ?? []).map((rule, index) => <li key={index} className="rounded-lg bg-[#f7f1e5] px-3 py-2">{rule}</li>)}
             </ul>

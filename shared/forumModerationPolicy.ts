@@ -22,6 +22,32 @@ export function isForumOpenAt(date = new Date()) {
 
 export const FORUM_CLOSED_MESSAGE = "المشاركة في المنتدى متاحة يومياً من الساعة 08:00 صباحاً إلى 20:00 مساءً بتوقيت المغرب. يمكنك تصفح النقاشات حالياً، وسنستقبل موضوعك أو ردك خلال ساعات المشاركة.";
 
+function getMoroccoDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: FORUM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find(part => part.type === type)?.value);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
+}
+
+export function getForumCountdown(date = new Date()) {
+  const parts = getMoroccoDateParts(date);
+  const isOpen = parts.hour >= FORUM_OPEN_HOUR && parts.hour < FORUM_CLOSE_HOUR;
+  const localNowAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  const offsetMs = date.getTime() - localNowAsUtc;
+  const targetHour = isOpen ? FORUM_CLOSE_HOUR : FORUM_OPEN_HOUR;
+  const daysToAdd = !isOpen && parts.hour >= FORUM_CLOSE_HOUR ? 1 : 0;
+  const nextTransitionAt = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + daysToAdd, targetHour) + offsetMs);
+  return { isOpen, nextTransitionAt, remainingMs: Math.max(0, nextTransitionAt.getTime() - date.getTime()) };
+}
+
 export type ExistingForumModeration = {
   violationCount: number;
   windowStartedAt: Date | null;

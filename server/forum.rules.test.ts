@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getForumCountdown } from "@shared/forumModerationPolicy";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { isForumOpenAt } from "../shared/forumModerationPolicy";
@@ -10,6 +11,16 @@ const router = readFileSync(resolve(root, "server/routers.ts"), "utf8");
 const page = readFileSync(resolve(root, "client/src/pages/Forum.tsx"), "utf8");
 
 describe("Midad Law forum participation hours", () => {
+  it("calculates the next opening and closing countdown in Morocco time", () => {
+    const beforeOpening = getForumCountdown(new Date("2026-08-21T06:30:00.000Z"));
+    expect(beforeOpening.isOpen).toBe(false);
+    expect(beforeOpening.remainingMs).toBe(30 * 60 * 1000);
+
+    const duringParticipation = getForumCountdown(new Date("2026-08-21T10:15:00.000Z"));
+    expect(duringParticipation.isOpen).toBe(true);
+    expect(duringParticipation.remainingMs).toBe(8 * 60 * 60 * 1000 + 45 * 60 * 1000);
+  });
+
   it("opens at 08:00 and closes at 20:00 in Morocco time", () => {
     expect(isForumOpenAt(new Date("2026-08-21T07:00:00.000Z"))).toBe(true);
     expect(isForumOpenAt(new Date("2026-08-21T19:00:00.000Z"))).toBe(false);
