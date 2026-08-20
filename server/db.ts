@@ -6,6 +6,7 @@ analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingPr
 import { ENV } from './_core/env';
 import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
 import { calculateForumViolation } from "../shared/forumModerationPolicy";
+import { getForumLevelFilter, type ForumLevel } from "../shared/forum";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -1177,7 +1178,10 @@ export async function getPublishedForumTopics(input?: number | PublishedForumTop
   const conditions = [eq(forumTopics.status, "published")];
   if (filters.categoryId) conditions.push(eq(forumTopics.categoryId, filters.categoryId));
   if (filters.subject) conditions.push(eq(forumTopics.subject, filters.subject));
-  if (filters.level) conditions.push(eq(forumTopics.level, filters.level));
+  if (filters.level) {
+    const levelValues = getForumLevelFilter(filters.level as ForumLevel);
+    conditions.push(or(...levelValues.map(value => eq(forumTopics.level, value)))!);
+  }
   return db.select().from(forumTopics).where(and(...conditions)).orderBy(desc(forumTopics.createdAt));
 }
 

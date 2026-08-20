@@ -16,8 +16,9 @@ describe("Midad Law forum categorization", () => {
     const forumConstants = readFileSync(join(root, "shared/forum.ts"), "utf8");
     expect(forumConstants).toContain("القانون الدستوري");
     expect(forumConstants).toContain("قانون الالتزامات والعقود");
-    expect(forumConstants).toContain("السداسي الأول");
-    expect(forumConstants).toContain("دراسات عليا");
+    expect(forumConstants).toContain('FORUM_LEVELS = ["S1", "S2", "S3", "S4", "S5", "S6"]');
+    expect(forumConstants).toContain('S1: "السداسي الأول"');
+    expect(forumConstants).toContain('S6: "السداسي السادس"');
   });
 
   it("passes subject and level filters through the public procedure", () => {
@@ -26,7 +27,8 @@ describe("Midad Law forum categorization", () => {
     expect(router).toContain("subject: FORUM_SUBJECT_SCHEMA.optional()");
     expect(router).toContain("level: FORUM_LEVEL_SCHEMA.optional()");
     expect(db).toContain("eq(forumTopics.subject, filters.subject)");
-    expect(db).toContain("eq(forumTopics.level, filters.level)");
+    expect(db).toContain("getForumLevelFilter(filters.level as ForumLevel)");
+    expect(db).toContain("eq(forumTopics.level, value)");
   });
 
   it("requires both categories when a user creates a new topic", () => {

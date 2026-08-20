@@ -4,7 +4,7 @@ import { ArrowRight, Flag, MessageCircle, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
-import { FORUM_LEVELS, FORUM_SUBJECTS, type ForumLevel, type ForumSubject } from "@shared/forum";
+import { FORUM_LEVELS, FORUM_SUBJECTS, getForumLevelLabel, type ForumLevel, type ForumSubject } from "@shared/forum";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ export default function Forum() {
           </CardContent></Card>
           <div className="space-y-4">
             <div className="flex items-center justify-between"><h2 className="text-2xl font-bold">الموضوعات المنشورة</h2><span className="text-sm text-[#59636a]">{topics.data?.length ?? 0} موضوع</span></div>
-            {(topics.data ?? []).map(topic => <Card key={topic.id} className={`border-[#e1d4bf] bg-white/80 transition-shadow hover:shadow-md ${selectedTopicId === topic.id ? "ring-2 ring-[#d6a15b]" : ""}`}><CardContent className="flex items-start gap-4 p-5"><MessageCircle className="mt-1 h-5 w-5 shrink-0 text-[#b9823b]" /><div className="min-w-0 flex-1"><h3 className="font-bold">{topic.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold"><span className="rounded-full bg-[#f7f1e5] px-2 py-1 text-[#9a6c32]">{topic.subject ?? "مادة غير مصنفة"}</span><span className="rounded-full bg-[#eef3f5] px-2 py-1 text-[#173247]">{topic.level ?? "مستوى غير محدد"}</span></div><p className="mt-2 line-clamp-2 text-sm text-[#59636a]">{topic.body}</p><Button variant="link" className="mt-2 h-auto p-0 text-[#9a6c32]" onClick={() => setSelectedTopicId(topic.id)}>فتح الموضوع <ArrowRight className="mr-1 h-4 w-4" /></Button></div></CardContent></Card>)}
+            {(topics.data ?? []).map(topic => <Card key={topic.id} className={`border-[#e1d4bf] bg-white/80 transition-shadow hover:shadow-md ${selectedTopicId === topic.id ? "ring-2 ring-[#d6a15b]" : ""}`}><CardContent className="flex items-start gap-4 p-5"><MessageCircle className="mt-1 h-5 w-5 shrink-0 text-[#b9823b]" /><div className="min-w-0 flex-1"><h3 className="font-bold">{topic.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold"><span className="rounded-full bg-[#f7f1e5] px-2 py-1 text-[#9a6c32]">{topic.subject ?? "مادة غير مصنفة"}</span><span className="rounded-full bg-[#eef3f5] px-2 py-1 text-[#173247]">{getForumLevelLabel(topic.level)}</span></div><p className="mt-2 line-clamp-2 text-sm text-[#59636a]">{topic.body}</p><Button variant="link" className="mt-2 h-auto p-0 text-[#9a6c32]" onClick={() => setSelectedTopicId(topic.id)}>فتح الموضوع <ArrowRight className="mr-1 h-4 w-4" /></Button></div></CardContent></Card>)}
             {!topics.isLoading && !topics.data?.length && <Card><CardContent className="p-8 text-center text-[#59636a]">لا توجد موضوعات منشورة بعد. كن أول من يفتح نقاشاً تعليمياً.</CardContent></Card>}
           </div>
         </section>
