@@ -35,6 +35,7 @@ const menuItems = [
   { icon: MessageSquareWarning, label: "إدارة الشكاوى", path: "/admin/complaints" },
   { icon: Headset, label: "طلبات التواصل", path: "/admin/follow-ups" },
   { icon: Bell, label: "كل التنبيهات", path: "/admin/notifications" },
+  { icon: ShieldAlert, label: "إشراف المنتدى", path: "/admin/forum" },
   { icon: Files, label: "الملفات والإصدارات", path: "/admin/files" },
   { icon: Users, label: "بيانات المهتمين", path: "/admin/leads" },
   { icon: ShieldAlert, label: "سجل التدقيق", path: "/admin/audit-logs" },

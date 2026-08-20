@@ -9,6 +9,8 @@ vi.mock("./db", async () => {
     ...actual,
     getLandingAdminContent: vi.fn(),
     getPublishedLandingContent: vi.fn(),
+    getActiveProductFile: vi.fn(),
+    getAppSettingsMap: vi.fn(),
     saveLandingProduct: vi.fn(),
     saveLandingChapter: vi.fn(),
     saveLandingFaq: vi.fn(),
@@ -82,6 +84,8 @@ describe("admin landing content procedures", () => {
     vi.clearAllMocks();
     vi.mocked(db.getLandingAdminContent).mockResolvedValue(adminContent as never);
     vi.mocked(db.getPublishedLandingContent).mockResolvedValue({ product: adminContent.product, chapters: [], faqs: adminContent.faqs } as never);
+    vi.mocked(db.getActiveProductFile).mockResolvedValue(null);
+    vi.mocked(db.getAppSettingsMap).mockResolvedValue({});
     vi.mocked(db.saveLandingProduct).mockResolvedValue(undefined);
     vi.mocked(db.saveLandingChapter).mockResolvedValue(12);
     vi.mocked(db.saveLandingFaq).mockResolvedValue(9);
