@@ -387,7 +387,9 @@ export const appRouter = router({
       return { success: true as const };
     }),
     analyticsSummary: adminProcedure.query(() => getAnalyticsSummary()),
-    studentAnalytics: adminProcedure.query(() => getStudentAnalytics()),
+    studentAnalytics: adminProcedure
+      .input(z.object({ days: z.union([z.literal(30), z.literal(90)]) }).default({ days: 30 }))
+      .query(({ input }) => getStudentAnalytics(input.days)),
     auditLogs: adminProcedure.query(() => getAuditLogs()),
   }),
   purchase: router({

@@ -5,7 +5,7 @@ import type { TrpcContext } from "./_core/context";
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
-  return { ...actual, getAnalyticsSummary: vi.fn() };
+  return { ...actual, getAnalyticsSummary: vi.fn(), getStudentAnalytics: vi.fn() };
 });
 
 const anonymousContext = { user: undefined, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
@@ -13,6 +13,7 @@ const userContext = { user: { id: 7, openId: "student-7", role: "user", name: "�
 const adminContext = { user: { id: 1, openId: "admin-1", role: "admin", name: "مدير", email: "admin@example.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 
 const summary = { totalRevenueMad: 114, todayVisitors: 12, todaySampleDownloads: 8, todayPurchaseRequests: 2, todayConversionRate: 25, weekVisitors: 64, weekSampleDownloads: 31, weekPurchaseRequests: 7, weekConversionRate: 22.6 };
+const studentAnalytics = { rangeDays: 30 as const, rangeStart: "2026-07-21T00:00:00.000Z", totalStudents: 3, approvedOrders: 3, weeks: [], months: [], definition: "طلبة فريدون", generatedAt: "2026-08-20T00:00:00.000Z" };
 
 describe("admin analytics summary", () => {
   it("returns the persisted summary for an admin", async () => {
@@ -27,6 +28,21 @@ describe("admin analytics summary", () => {
     expect(result.weekSampleDownloads).toBe(31);
     expect(result.weekPurchaseRequests).toBe(7);
     expect(result.weekConversionRate).toBe(22.6);
+  });
+
+  it("passes the selected 30-day range to the data layer", async () => {
+    vi.mocked(db.getStudentAnalytics).mockResolvedValue(studentAnalytics);
+    const result = await appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 30 });
+    expect(result.rangeDays).toBe(30);
+    expect(db.getStudentAnalytics).toHaveBeenCalledWith(30);
+  });
+
+  it("passes the selected 90-day range and rejects unsupported ranges", async () => {
+    vi.mocked(db.getStudentAnalytics).mockResolvedValue({ ...studentAnalytics, rangeDays: 90, rangeStart: "2026-05-22T00:00:00.000Z" });
+    const result = await appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 90 });
+    expect(result.rangeDays).toBe(90);
+    expect(db.getStudentAnalytics).toHaveBeenCalledWith(90);
+    await expect(appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 60 as 30 | 90 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("rejects anonymous and non-admin access", async () => {

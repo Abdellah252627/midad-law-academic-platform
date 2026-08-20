@@ -471,25 +471,29 @@ function isoMonthKey(date: Date) {
   return date.toISOString().slice(0, 7);
 }
 
-export async function getStudentAnalytics() {
+export type StudentAnalyticsRangeDays = 30 | 90;
+
+export async function getStudentAnalytics(rangeDays: StudentAnalyticsRangeDays = 30) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
 
   const now = new Date();
+  const rangeStart = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+  const firstWeekStart = startOfUtcWeek(rangeStart);
   const currentWeekStart = startOfUtcWeek(now);
-  const firstWeekStart = new Date(currentWeekStart.getTime() - 11 * 7 * 24 * 60 * 60 * 1000);
+  const firstMonthStart = new Date(Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1));
   const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const firstMonthStart = new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() - 11, 1));
 
   const [totalRows, trendRows] = await Promise.all([
     db.select({ email: purchaseRequests.customerEmail }).from(purchaseRequests).where(and(
       eq(purchaseRequests.status, "approved"),
       notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
+      gte(purchaseRequests.createdAt, rangeStart),
     )),
     db.select({ email: purchaseRequests.customerEmail, createdAt: purchaseRequests.createdAt }).from(purchaseRequests).where(and(
       eq(purchaseRequests.status, "approved"),
       notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
-      gte(purchaseRequests.createdAt, firstMonthStart),
+      gte(purchaseRequests.createdAt, rangeStart),
     )),
   ]);
 
@@ -497,10 +501,10 @@ export async function getStudentAnalytics() {
   const weeklyBuckets = new Map<string, Set<string>>();
   const monthlyBuckets = new Map<string, Set<string>>();
 
-  for (let index = 0; index < 12; index += 1) {
-    const weekStart = new Date(firstWeekStart.getTime() + index * 7 * 24 * 60 * 60 * 1000);
+  for (let weekStart = new Date(firstWeekStart); weekStart <= currentWeekStart; weekStart = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)) {
     weeklyBuckets.set(isoWeekKey(weekStart), new Set());
-    const monthStart = new Date(Date.UTC(firstMonthStart.getUTCFullYear(), firstMonthStart.getUTCMonth() + index, 1));
+  }
+  for (let monthStart = new Date(firstMonthStart); monthStart <= currentMonthStart; monthStart = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1))) {
     monthlyBuckets.set(isoMonthKey(monthStart), new Set());
   }
 
@@ -515,11 +519,13 @@ export async function getStudentAnalytics() {
   }
 
   return {
+    rangeDays,
+    rangeStart: rangeStart.toISOString(),
     totalStudents,
     approvedOrders: totalRows.length,
     weeks: Array.from(weeklyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
     months: Array.from(monthlyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
-    definition: "طلبة فريدون حسب البريد الإلكتروني من الطلبات المقبولة، مع استبعاد الطلبات التجريبية الأربعة.",
+    definition: `طلبة فريدون حسب البريد الإلكتروني من الطلبات المقبولة خلال آخر ${rangeDays} يوماً، مع استبعاد الطلبات التجريبية الأربعة.`,
     generatedAt: new Date().toISOString(),
   };
 }
