@@ -116,6 +116,42 @@ export async function createAdminNotification(input: InsertAdminNotification) {
   return { id: Number(result[0].insertId) };
 }
 
+/** Create one notification per entity/event while preserving the original order record. */
+export async function createAdminNotificationOnce(input: InsertAdminNotification) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (input.entityType && input.entityId) {
+    const existing = await db.select({ id: adminNotifications.id })
+      .from(adminNotifications)
+      .where(and(
+        eq(adminNotifications.type, input.type),
+        eq(adminNotifications.entityType, input.entityType),
+        eq(adminNotifications.entityId, input.entityId),
+      ))
+      .limit(1);
+    if (existing[0]) return { id: existing[0].id, created: false as const };
+  }
+  const result = await db.insert(adminNotifications).values(input);
+  return { id: Number(result[0].insertId), created: true as const };
+}
+
+export async function deleteDuplicatePurchaseNotifications(entityId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ id: adminNotifications.id })
+    .from(adminNotifications)
+    .where(and(
+      eq(adminNotifications.type, "purchase_request"),
+      eq(adminNotifications.entityType, "purchase_request"),
+      eq(adminNotifications.entityId, entityId),
+    ))
+    .orderBy(asc(adminNotifications.id));
+  if (rows.length <= 1) return { deleted: 0, kept: rows[0]?.id ?? null };
+  const duplicateIds = rows.slice(1).map(row => row.id);
+  await db.delete(adminNotifications).where(inArray(adminNotifications.id, duplicateIds));
+  return { deleted: duplicateIds.length, kept: rows[0].id };
+}
+
 export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
