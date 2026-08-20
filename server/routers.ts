@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FAQ_CATEGORIES } from "@shared/faq";
+import { buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
@@ -97,6 +98,11 @@ export const appRouter = router({
   support: router({
     submitFollowUp: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) }).merge(supportFollowUpFieldsSchema)).mutation(async ({ input }) => {
       const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, email: input.email || null, message: input.message || null });
+      try {
+        await createAdminNotification(buildSupportFollowUpNotification(formatSupportFollowUpReference(result.id), result.id));
+      } catch (error) {
+        console.error("[Notifications] Failed to create support follow-up notification:", error);
+      }
       return { success: true as const, id: result.id, reference: formatSupportFollowUpReference(result.id) };
     }),
   }),
@@ -392,6 +398,11 @@ export const appRouter = router({
           status: "pending",
         });
         await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });
+        try {
+          await createAdminNotification(buildPurchaseRequestNotification(result.orderNumber, result.id));
+        } catch (error) {
+          console.error("[Notifications] Failed to create purchase request notification:", error);
+        }
         return { success: true as const, requestId: result.id, orderNumber: result.orderNumber };
       }),
     requestDataCorrection: publicProcedure

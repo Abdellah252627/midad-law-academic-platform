@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as db from "./db";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
@@ -73,5 +74,24 @@ describe("admin notification procedures", () => {
     const caller = appRouter.createCaller(adminContext);
     await expect(caller.admin.notifications({ type: "unknown" as never, page: 1, pageSize: 25 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(db.getAdminNotifications).not.toHaveBeenCalled();
+  });
+
+  it("builds safe purchase and support follow-up event notifications", () => {
+    expect(buildPurchaseRequestNotification("MIDAD-00000042", 42)).toMatchObject({
+      type: "purchase_request",
+      title: "طلب شراء جديد",
+      priority: "high",
+      entityType: "purchase_request",
+      entityId: "42",
+      targetPath: "/admin/purchases",
+    });
+    expect(buildSupportFollowUpNotification("MIDAD-FU-000042", 42)).toMatchObject({
+      type: "support_follow_up",
+      title: "طلب تواصل جديد",
+      priority: "high",
+      entityType: "support_follow_up",
+      entityId: "42",
+      targetPath: "/admin/follow-ups",
+    });
   });
 });
