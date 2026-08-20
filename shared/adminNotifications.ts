@@ -3,6 +3,7 @@ export const ADMIN_NOTIFICATION_TYPES = [
   "support_follow_up",
   "complaint",
   "system",
+  "auth_login_attempt",
 ] as const;
 
 export type AdminNotificationType = (typeof ADMIN_NOTIFICATION_TYPES)[number];
@@ -60,6 +61,20 @@ export function buildComplaintNotification(ticketNumber: string, complaintId: nu
   };
 }
 
+export function buildAuthLoginNotification(input: { name: string; email: string; outcome: "success" | "rejected" | "failure"; occurredAt: string; auditId: string }): AdminNotificationPayload {
+  const definition = ADMIN_NOTIFICATION_DEFINITIONS.auth_login_attempt;
+  const outcomeLabel = input.outcome === "success" ? "ناجح" : input.outcome === "rejected" ? "مرفوض" : "فشل";
+  return {
+    type: "auth_login_attempt",
+    title: definition.label,
+    message: `محاولة تسجيل دخول ${outcomeLabel} باسم ${input.name || "غير معروف"} والبريد ${input.email || "غير متاح"} في ${input.occurredAt}.`,
+    priority: input.outcome === "success" ? "high" : "critical",
+    entityType: "auth_login_attempt",
+    entityId: input.auditId,
+    targetPath: definition.targetPath,
+  };
+}
+
 export const ADMIN_NOTIFICATION_DEFINITIONS = {
   purchase_request: {
     label: "طلب شراء جديد",
@@ -78,6 +93,11 @@ export const ADMIN_NOTIFICATION_DEFINITIONS = {
   },
   system: {
     label: "إشعار نظام",
+    priority: "high",
+    targetPath: "/admin/notifications",
+  },
+  auth_login_attempt: {
+    label: "محاولة تسجيل دخول",
     priority: "high",
     targetPath: "/admin/notifications",
   },

@@ -6,6 +6,7 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
+import { buildAuthLoginNotification } from "@shared/adminNotifications";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -74,6 +75,24 @@ export function registerOAuthRoutes(app: Express) {
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date(),
       });
+
+      try {
+        const auditId = crypto.randomUUID();
+        const occurredAt = new Date().toLocaleString("ar-MA", {
+          timeZone: "Africa/Casablanca",
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+        await db.createAdminNotification(buildAuthLoginNotification({
+          name: userInfo.name || "غير معروف",
+          email: userInfo.email || "غير متاح",
+          outcome: "success",
+          occurredAt,
+          auditId,
+        }));
+      } catch (notificationError) {
+        console.error("[OAuth] Failed to create login notification", notificationError);
+      }
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",

@@ -20,6 +20,7 @@ const notificationFields = [
   { key: "notificationSupportFollowUpEnabled", label: "طلبات التواصل", description: "تنبيه عند إرسال زائر رسالة أو رقم هاتف للمتابعة." },
   { key: "notificationComplaintEnabled", label: "الشكاوى", description: "تنبيه عند تسجيل شكوى جديدة من طالب." },
   { key: "notificationSystemEnabled", label: "إشعارات النظام", description: "إشعارات داخلية مستقبلية خاصة بالنظام." },
+  { key: "notificationAuthLoginAttemptEnabled", label: "محاولات تسجيل الدخول", description: "تنبيه عند نجاح تسجيل الدخول عبر OAuth، مع اسم المستخدم والبريد ووقت المحاولة دون تخزين رموز الجلسة." },
 ] as const;
 
 type SettingKey = (typeof fields)[number]["key"];
@@ -57,7 +58,7 @@ function AdminSettingsContent() {
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
   const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60" });
-  const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true });
+  const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true, notificationAuthLoginAttemptEnabled: true });
 
   useEffect(() => {
     if (!query.data) return;

@@ -114,6 +114,7 @@ const notificationSettingByType: Record<string, AdminNotificationSettingKey> = {
   support_follow_up: "notificationSupportFollowUpEnabled",
   complaint: "notificationComplaintEnabled",
   system: "notificationSystemEnabled",
+  auth_login_attempt: "notificationAuthLoginAttemptEnabled",
 };
 
 async function shouldCreateAdminNotification(type: InsertAdminNotification["type"]) {
@@ -204,7 +205,7 @@ export async function deleteDuplicatePurchaseNotifications(entityId: string) {
   return { deleted: duplicateIds.length, kept: rows[0].id };
 }
 
-export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system" | "auth_login_attempt"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const page = options?.page ?? 1;
@@ -511,7 +512,7 @@ export async function getAppSettingsMap(productCode = DEFAULT_PRODUCT_CODE) {
   }));
 }
 
-export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled";
+export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled" | "notificationAuthLoginAttemptEnabled";
 
 export async function isAdminNotificationEnabled(settingKey: AdminNotificationSettingKey) {
   try {
