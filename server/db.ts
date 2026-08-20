@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -107,6 +107,52 @@ export async function createSupportFollowUp(input: InsertSupportFollowUp) {
   if (!db) throw new Error("Database is not available");
   const result = await db.insert(supportFollowUps).values(input);
   return { id: Number(result[0].insertId) };
+}
+
+export async function createAdminNotification(input: InsertAdminNotification) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(adminNotifications).values(input);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint"; read?: "read" | "unread"; page?: number; pageSize?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 25;
+  const conditions = [];
+  if (options?.type) conditions.push(eq(adminNotifications.type, options.type));
+  if (options?.read === "read") conditions.push(eq(adminNotifications.isRead, true));
+  if (options?.read === "unread") conditions.push(eq(adminNotifications.isRead, false));
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const [notifications, totals] = await Promise.all([
+    db.select().from(adminNotifications).where(whereClause).orderBy(desc(adminNotifications.createdAt)).limit(pageSize).offset((page - 1) * pageSize),
+    db.select({ count: count() }).from(adminNotifications).where(whereClause),
+  ]);
+  return { notifications, total: Number(totals[0]?.count ?? 0), page, pageSize };
+}
+
+export async function getAdminNotificationUnreadCount() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ count: count() }).from(adminNotifications).where(eq(adminNotifications.isRead, false));
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function markAdminNotificationRead(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(adminNotifications).set({ isRead: true, readAt: new Date() }).where(eq(adminNotifications.id, id));
+  return { success: true as const };
+}
+
+export async function markAdminNotificationsRead(ids: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (ids.length === 0) return { updated: 0 };
+  await db.update(adminNotifications).set({ isRead: true, readAt: new Date() }).where(inArray(adminNotifications.id, ids));
+  return { updated: ids.length };
 }
 
 export async function getSupportFollowUps(options?: { search?: string; status?: "new" | "contacted" | "closed"; read?: "read" | "unread"; page?: number; pageSize?: number }) {
