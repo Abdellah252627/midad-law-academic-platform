@@ -169,6 +169,13 @@
       "when": 1787232283885,
       "tag": "0023_spooky_chamber",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1787246245545,
+      "tag": "0024_chubby_warstar",
+      "breakpoints": true
     }
   ]
 }

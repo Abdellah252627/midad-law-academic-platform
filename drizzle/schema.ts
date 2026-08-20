@@ -247,6 +247,13 @@ export const forumReports = mysqlTable("forum_reports", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const forumRuleAcceptances = mysqlTable("forum_rule_acceptances", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  rulesVersion: varchar("rulesVersion", { length: 32 }).notNull(),
+  acceptedAt: timestamp("acceptedAt").defaultNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),

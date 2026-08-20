@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1049,10 +1049,27 @@ export async function getAdminComplaints(options: ComplaintAdminListOptions = {}
   return { complaints: rows, total: Number(totals[0]?.total ?? 0), page, pageSize, statusCounts };
 }
 
+export const FORUM_RULES_VERSION = "2026-08-20";
+
 export async function getForumCategories() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(forumCategories).where(eq(forumCategories.isActive, true)).orderBy(asc(forumCategories.sortOrder), asc(forumCategories.id));
+}
+
+export async function hasAcceptedForumRules(userId: number, rulesVersion = FORUM_RULES_VERSION) {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: forumRuleAcceptances.id }).from(forumRuleAcceptances).where(and(eq(forumRuleAcceptances.userId, userId), eq(forumRuleAcceptances.rulesVersion, rulesVersion))).limit(1);
+  return rows.length > 0;
+}
+
+export async function acceptForumRules(userId: number, rulesVersion = FORUM_RULES_VERSION) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (await hasAcceptedForumRules(userId, rulesVersion)) return { created: false as const };
+  await db.insert(forumRuleAcceptances).values({ userId, rulesVersion });
+  return { created: true as const };
 }
 
 export async function getPublishedForumTopics(categoryId?: number) {
@@ -1066,6 +1083,16 @@ export async function getPublishedForumReplies(topicId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(forumReplies).where(and(eq(forumReplies.topicId, topicId), eq(forumReplies.status, "published"))).orderBy(asc(forumReplies.createdAt));
+}
+
+export async function getPublishedForumTopic(topicId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const topics = await db.select().from(forumTopics).where(and(eq(forumTopics.id, topicId), eq(forumTopics.status, "published"))).limit(1);
+  const topic = topics[0];
+  if (!topic) return undefined;
+  const replies = await getPublishedForumReplies(topicId);
+  return { topic, replies };
 }
 
 export async function createForumTopic(input: { categoryId: number; authorUserId: number; title: string; body: string }) {
