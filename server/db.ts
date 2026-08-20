@@ -114,7 +114,7 @@ export async function getSupportFollowUps(options?: { search?: string; status?: 
   if (!db) throw new Error("Database is not available");
   const conditions = [];
   const search = options?.search?.trim();
-  if (search) conditions.push(or(like(supportFollowUps.phone, `%${search}%`), like(supportFollowUps.message, `%${search}%`)));
+  if (search) conditions.push(or(like(supportFollowUps.phone, `%${search}%`), like(supportFollowUps.email, `%${search}%`), like(supportFollowUps.message, `%${search}%`)));
   if (options?.status) conditions.push(eq(supportFollowUps.status, options.status));
   const requestedPageSize = options?.pageSize ?? 25;
   const pageSize = [10, 25, 50, 100].includes(requestedPageSize) ? requestedPageSize : 25;

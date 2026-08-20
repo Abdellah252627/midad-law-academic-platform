@@ -178,6 +178,7 @@ export const supportFollowUps = mysqlTable("support_follow_ups", {
   id: int("id").autoincrement().primaryKey(),
   productCode: varchar("productCode", { length: 32 }).notNull().default("MIDAD-001"),
   phone: varchar("phone", { length: 32 }),
+  email: varchar("email", { length: 254 }),
   message: varchar("message", { length: 1000 }),
   status: mysqlEnum("status", ["new", "contacted", "closed"]).default("new").notNull(),
   adminNote: varchar("adminNote", { length: 500 }),

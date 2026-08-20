@@ -95,7 +95,7 @@ export const appRouter = router({
   }),
   support: router({
     submitFollowUp: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) }).merge(supportFollowUpFieldsSchema)).mutation(async ({ input }) => {
-      const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, message: input.message || null });
+      const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, email: input.email || null, message: input.message || null });
       return { success: true as const, id: result.id };
     }),
   }),
