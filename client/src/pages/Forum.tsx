@@ -4,6 +4,7 @@ import { ArrowRight, Flag, MessageCircle, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
+import { FORUM_LEVELS, FORUM_SUBJECTS, type ForumLevel, type ForumSubject } from "@shared/forum";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,13 +13,19 @@ import { Textarea } from "@/components/ui/textarea";
 export default function Forum() {
   const { user } = useAuth();
   const [categoryId, setCategoryId] = useState<number | undefined>();
+  const [subject, setSubject] = useState<ForumSubject | undefined>();
+  const [level, setLevel] = useState<ForumLevel | undefined>();
   const [selectedTopicId, setSelectedTopicId] = useState<number | undefined>();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [reportReason, setReportReason] = useState("");
   const categories = trpc.forum.categories.useQuery();
-  const topics = trpc.forum.topics.useQuery(categoryId ? { categoryId } : undefined);
+  const topicFilters = useMemo(() => {
+    const filters = { categoryId, subject, level };
+    return categoryId || subject || level ? filters : undefined;
+  }, [categoryId, subject, level]);
+  const topics = trpc.forum.topics.useQuery(topicFilters);
   const rules = trpc.forum.rules.useQuery();
   const acceptance = trpc.forum.acceptance.useQuery(undefined, { enabled: Boolean(user) });
   const topicInput = useMemo(() => ({ topicId: selectedTopicId ?? 0 }), [selectedTopicId]);
@@ -44,6 +51,12 @@ export default function Forum() {
     onSuccess: () => setReportReason(""),
   });
   const hasAcceptedRules = Boolean(acceptance.data);
+  const clearTopicFilters = () => {
+    setCategoryId(undefined);
+    setSubject(undefined);
+    setLevel(undefined);
+    setSelectedTopicId(undefined);
+  };
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f7f1e5] px-4 py-12 text-[#173247]">
@@ -67,13 +80,25 @@ export default function Forum() {
 
         <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
           <Card className="border-[#e1d4bf] bg-white/80"><CardHeader><CardTitle>الفئات</CardTitle></CardHeader><CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start" onClick={() => { setCategoryId(undefined); setSelectedTopicId(undefined); }}>كل النقاشات</Button>
-            {(categories.data ?? []).map(category => <Button key={category.id} variant="outline" className="w-full justify-start" onClick={() => { setCategoryId(category.id); setSelectedTopicId(undefined); }}>{category.name}</Button>)}
+            <Button variant="outline" className="w-full justify-start" onClick={clearTopicFilters}>كل النقاشات</Button>
+            {(categories.data ?? []).map(category => <Button key={category.id} variant="outline" className={`w-full justify-start ${categoryId === category.id ? "border-[#b9823b] bg-[#fffaf2]" : ""}`} onClick={() => { setCategoryId(category.id); setSelectedTopicId(undefined); }}>{category.name}</Button>)}
+            <div className="mt-5 space-y-3 rounded-2xl border border-[#e1d4bf] bg-[#fffaf2] p-4">
+              <p className="text-sm font-bold text-[#173247]">تصفية حسب المادة والمستوى</p>
+              <select aria-label="تصفية حسب المادة" value={subject ?? "all"} onChange={event => { setSubject(event.target.value === "all" ? undefined : event.target.value as ForumSubject); setSelectedTopicId(undefined); }} className="h-10 w-full rounded-lg border border-[#d8cbb8] bg-white px-3 text-sm text-[#173247] outline-none focus:ring-2 focus:ring-[#d6a15b]">
+                <option value="all">كل المواد</option>
+                {FORUM_SUBJECTS.map(item => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <select aria-label="تصفية حسب المستوى الدراسي" value={level ?? "all"} onChange={event => { setLevel(event.target.value === "all" ? undefined : event.target.value as ForumLevel); setSelectedTopicId(undefined); }} className="h-10 w-full rounded-lg border border-[#d8cbb8] bg-white px-3 text-sm text-[#173247] outline-none focus:ring-2 focus:ring-[#d6a15b]">
+                <option value="all">كل المستويات</option>
+                {FORUM_LEVELS.map(item => <option key={item} value={item}>{item}</option>)}
+              </select>
+              {(subject || level) && <Button type="button" variant="ghost" className="h-8 px-0 text-[#9a6c32]" onClick={() => { setSubject(undefined); setLevel(undefined); setSelectedTopicId(undefined); }}>مسح تصفية المادة والمستوى</Button>}
+            </div>
             <div className="mt-6 rounded-xl bg-[#f7f1e5] p-4 text-sm text-[#59636a]"><ShieldCheck className="mb-2 h-5 w-5 text-[#b9823b]" />يحظر المنتدى الإساءة والتشهير والبيانات الشخصية والمحتوى الذي يقدم استشارة فردية على أنها حكم نهائي.</div>
           </CardContent></Card>
           <div className="space-y-4">
             <div className="flex items-center justify-between"><h2 className="text-2xl font-bold">الموضوعات المنشورة</h2><span className="text-sm text-[#59636a]">{topics.data?.length ?? 0} موضوع</span></div>
-            {(topics.data ?? []).map(topic => <Card key={topic.id} className={`border-[#e1d4bf] bg-white/80 transition-shadow hover:shadow-md ${selectedTopicId === topic.id ? "ring-2 ring-[#d6a15b]" : ""}`}><CardContent className="flex items-start gap-4 p-5"><MessageCircle className="mt-1 h-5 w-5 shrink-0 text-[#b9823b]" /><div className="min-w-0 flex-1"><h3 className="font-bold">{topic.title}</h3><p className="mt-1 line-clamp-2 text-sm text-[#59636a]">{topic.body}</p><Button variant="link" className="mt-2 h-auto p-0 text-[#9a6c32]" onClick={() => setSelectedTopicId(topic.id)}>فتح الموضوع <ArrowRight className="mr-1 h-4 w-4" /></Button></div></CardContent></Card>)}
+            {(topics.data ?? []).map(topic => <Card key={topic.id} className={`border-[#e1d4bf] bg-white/80 transition-shadow hover:shadow-md ${selectedTopicId === topic.id ? "ring-2 ring-[#d6a15b]" : ""}`}><CardContent className="flex items-start gap-4 p-5"><MessageCircle className="mt-1 h-5 w-5 shrink-0 text-[#b9823b]" /><div className="min-w-0 flex-1"><h3 className="font-bold">{topic.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold"><span className="rounded-full bg-[#f7f1e5] px-2 py-1 text-[#9a6c32]">{topic.subject ?? "مادة غير مصنفة"}</span><span className="rounded-full bg-[#eef3f5] px-2 py-1 text-[#173247]">{topic.level ?? "مستوى غير محدد"}</span></div><p className="mt-2 line-clamp-2 text-sm text-[#59636a]">{topic.body}</p><Button variant="link" className="mt-2 h-auto p-0 text-[#9a6c32]" onClick={() => setSelectedTopicId(topic.id)}>فتح الموضوع <ArrowRight className="mr-1 h-4 w-4" /></Button></div></CardContent></Card>)}
             {!topics.isLoading && !topics.data?.length && <Card><CardContent className="p-8 text-center text-[#59636a]">لا توجد موضوعات منشورة بعد. كن أول من يفتح نقاشاً تعليمياً.</CardContent></Card>}
           </div>
         </section>
@@ -89,7 +114,7 @@ export default function Forum() {
         </CardContent></Card>}
 
         <Card className="border-[#e1d4bf] bg-white/90"><CardHeader><CardTitle>فتح موضوع جديد</CardTitle></CardHeader><CardContent className="space-y-4">
-          {!user ? <Button onClick={() => startLogin()}>سجّل الدخول للمشاركة</Button> : !hasAcceptedRules ? <p className="rounded-lg bg-[#f7f1e5] p-4 text-sm text-[#59636a]">وافق على قواعد المشاركة أعلاه قبل إرسال موضوع جديد.</p> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); if (!categoryId) return; createTopic.mutate({ categoryId, title, body }); }}><Input value={title} onChange={event => setTitle(event.target.value)} placeholder="عنوان النقاش" maxLength={220} /><Textarea value={body} onChange={event => setBody(event.target.value)} placeholder="اكتب طرحاً تعليمياً محترماً..." maxLength={10000} /><Button disabled={!categoryId || createTopic.isPending}>{createTopic.isPending ? "جارٍ الإرسال للمراجعة..." : "إرسال للمراجعة"}</Button></form>}
+          {!user ? <Button onClick={() => startLogin()}>سجّل الدخول للمشاركة</Button> : !hasAcceptedRules ? <p className="rounded-lg bg-[#f7f1e5] p-4 text-sm text-[#59636a]">وافق على قواعد المشاركة أعلاه قبل إرسال موضوع جديد.</p> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); if (!categoryId || !subject || !level) return; createTopic.mutate({ categoryId, subject, level, title, body }); }}><div className="grid gap-3 sm:grid-cols-2"><select aria-label="مادة الموضوع" value={subject ?? ""} onChange={event => setSubject((event.target.value || undefined) as ForumSubject | undefined)} required className="h-10 w-full rounded-lg border border-[#d8cbb8] bg-white px-3 text-sm text-[#173247] outline-none focus:ring-2 focus:ring-[#d6a15b]"><option value="" disabled>اختر المادة</option>{FORUM_SUBJECTS.map(item => <option key={item} value={item}>{item}</option>)}</select><select aria-label="مستوى الموضوع" value={level ?? ""} onChange={event => setLevel((event.target.value || undefined) as ForumLevel | undefined)} required className="h-10 w-full rounded-lg border border-[#d8cbb8] bg-white px-3 text-sm text-[#173247] outline-none focus:ring-2 focus:ring-[#d6a15b]"><option value="" disabled>اختر المستوى الدراسي</option>{FORUM_LEVELS.map(item => <option key={item} value={item}>{item}</option>)}</select></div><Input value={title} onChange={event => setTitle(event.target.value)} placeholder="عنوان النقاش" maxLength={220} /><Textarea value={body} onChange={event => setBody(event.target.value)} placeholder="اكتب طرحاً تعليمياً محترماً..." maxLength={10000} /><Button disabled={!categoryId || !subject || !level || createTopic.isPending}>{createTopic.isPending ? "جارٍ الإرسال للمراجعة..." : "إرسال للمراجعة"}</Button></form>}
         </CardContent></Card>
         <Link href="/" className="inline-block text-sm text-[#9a6c32]">العودة إلى الصفحة الرئيسية</Link>
       </div>

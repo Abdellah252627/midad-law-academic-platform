@@ -220,6 +220,9 @@ export const forumTopics = mysqlTable("forum_topics", {
   authorUserId: int("authorUserId").notNull().references(() => users.id),
   title: varchar("title", { length: 220 }).notNull(),
   body: text("body").notNull(),
+  // Nullable for backward compatibility with topics created before categorization.
+  subject: varchar("subject", { length: 120 }),
+  level: varchar("level", { length: 32 }),
   status: mysqlEnum("status", ["pending", "published", "hidden", "closed"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

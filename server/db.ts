@@ -1072,11 +1072,21 @@ export async function acceptForumRules(userId: number, rulesVersion = FORUM_RULE
   return { created: true as const };
 }
 
-export async function getPublishedForumTopics(categoryId?: number) {
+export type PublishedForumTopicFilters = {
+  categoryId?: number;
+  subject?: string;
+  level?: string;
+};
+
+export async function getPublishedForumTopics(input?: number | PublishedForumTopicFilters) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = categoryId ? and(eq(forumTopics.status, "published"), eq(forumTopics.categoryId, categoryId)) : eq(forumTopics.status, "published");
-  return db.select().from(forumTopics).where(conditions).orderBy(desc(forumTopics.createdAt));
+  const filters = typeof input === "number" ? { categoryId: input } : (input ?? {});
+  const conditions = [eq(forumTopics.status, "published")];
+  if (filters.categoryId) conditions.push(eq(forumTopics.categoryId, filters.categoryId));
+  if (filters.subject) conditions.push(eq(forumTopics.subject, filters.subject));
+  if (filters.level) conditions.push(eq(forumTopics.level, filters.level));
+  return db.select().from(forumTopics).where(and(...conditions)).orderBy(desc(forumTopics.createdAt));
 }
 
 export async function getPublishedForumReplies(topicId: number) {
@@ -1095,7 +1105,7 @@ export async function getPublishedForumTopic(topicId: number) {
   return { topic, replies };
 }
 
-export async function createForumTopic(input: { categoryId: number; authorUserId: number; title: string; body: string }) {
+export async function createForumTopic(input: { categoryId: number; authorUserId: number; title: string; body: string; subject?: string; level?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const result = await db.insert(forumTopics).values({ ...input, status: "pending" });

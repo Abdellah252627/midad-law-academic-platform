@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FAQ_CATEGORIES } from "@shared/faq";
+import { FORUM_LEVELS, FORUM_SUBJECTS } from "@shared/forum";
 import { buildComplaintNotification, buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
@@ -16,6 +17,8 @@ const PRODUCT_PDF_KEYS = { "MIDAD-001": "midad-001-law-summary_4382aff1.pdf" } a
 const SAMPLE_PDF_KEYS: Record<string, string> = { "MIDAD-001": "MIDAD-001-sample-noted_fd59ed4b.pdf" };
 const PRODUCT_CODE_SCHEMA = z.string().trim().regex(/^[A-Z0-9-]{3,32}$/, "رمز المنتج غير صالح");
 const SAMPLE_CONSENT_VERSION = "2026-08-16";
+const FORUM_SUBJECT_SCHEMA = z.enum(FORUM_SUBJECTS);
+const FORUM_LEVEL_SCHEMA = z.enum(FORUM_LEVELS);
 
 const quizQuestionsSchema = z.string().trim().min(2).max(5000).superRefine((value, ctx) => {
   try {
@@ -173,10 +176,10 @@ export const appRouter = router({
     acceptance: protectedProcedure.query(({ ctx }) => hasAcceptedForumRules(ctx.user.id)),
     acceptRules: protectedProcedure.mutation(async ({ ctx }) => ({ ...(await acceptForumRules(ctx.user.id)), version: FORUM_RULES_VERSION })),
     categories: publicProcedure.query(async () => getForumCategories()),
-    topics: publicProcedure.input(z.object({ categoryId: z.number().int().positive().optional() }).optional()).query(async ({ input }) => getPublishedForumTopics(input?.categoryId)),
+    topics: publicProcedure.input(z.object({ categoryId: z.number().int().positive().optional(), subject: FORUM_SUBJECT_SCHEMA.optional(), level: FORUM_LEVEL_SCHEMA.optional() }).optional()).query(async ({ input }) => getPublishedForumTopics(input)),
     topic: publicProcedure.input(z.object({ topicId: z.number().int().positive() })).query(async ({ input }) => getPublishedForumTopic(input.topicId)),
     replies: publicProcedure.input(z.object({ topicId: z.number().int().positive() })).query(async ({ input }) => getPublishedForumReplies(input.topicId)),
-    createTopic: protectedProcedure.input(z.object({ categoryId: z.number().int().positive(), title: z.string().trim().min(8, "العنوان قصير جداً").max(220), body: z.string().trim().min(20, "المحتوى قصير جداً").max(10000) })).mutation(async ({ input, ctx }) => { if (!(await hasAcceptedForumRules(ctx.user.id))) throw new Error("يجب الموافقة على قواعد المنتدى قبل المشاركة"); return { id: await createForumTopic({ ...input, authorUserId: ctx.user.id }), status: "pending" as const }; }),
+    createTopic: protectedProcedure.input(z.object({ categoryId: z.number().int().positive(), subject: FORUM_SUBJECT_SCHEMA, level: FORUM_LEVEL_SCHEMA, title: z.string().trim().min(8, "العنوان قصير جداً").max(220), body: z.string().trim().min(20, "المحتوى قصير جداً").max(10000) })).mutation(async ({ input, ctx }) => { if (!(await hasAcceptedForumRules(ctx.user.id))) throw new Error("يجب الموافقة على قواعد المنتدى قبل المشاركة"); return { id: await createForumTopic({ ...input, authorUserId: ctx.user.id }), status: "pending" as const }; }),
     createReply: protectedProcedure.input(z.object({ topicId: z.number().int().positive(), body: z.string().trim().min(5, "الرد قصير جداً").max(5000) })).mutation(async ({ input, ctx }) => { if (!(await hasAcceptedForumRules(ctx.user.id))) throw new Error("يجب الموافقة على قواعد المنتدى قبل المشاركة"); return { id: await createForumReply({ ...input, authorUserId: ctx.user.id }), status: "pending" as const }; }),
     report: protectedProcedure.input(z.object({ topicId: z.number().int().positive().optional(), replyId: z.number().int().positive().optional(), reason: z.string().trim().min(5).max(500) }).refine(value => Boolean(value.topicId || value.replyId), "اختر موضوعاً أو رداً للإبلاغ عنه")).mutation(async ({ input, ctx }) => ({ id: await createForumReport({ ...input, reporterUserId: ctx.user.id }), success: true as const })),
   }),
