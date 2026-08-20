@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { Loader2, Save, Settings2 } from "lucide-react";
+import { Bell, Loader2, Save, Settings2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +14,15 @@ const fields = [
   { key: "quizPassingPercentage", label: "نسبة النجاح في اختبار «اختبر فهمك»", placeholder: "60", description: "نسبة مئوية من 0 إلى 100. القيمة الافتراضية 60%." },
 ] as const;
 
+const notificationFields = [
+  { key: "notificationPurchaseRequestEnabled", label: "طلبات الشراء", description: "تنبيه عند وصول طلب شراء جديد يحتاج إلى مراجعة." },
+  { key: "notificationSupportFollowUpEnabled", label: "طلبات التواصل", description: "تنبيه عند إرسال زائر رسالة أو رقم هاتف للمتابعة." },
+  { key: "notificationComplaintEnabled", label: "الشكاوى", description: "تنبيه عند تسجيل شكوى جديدة من طالب." },
+  { key: "notificationSystemEnabled", label: "إشعارات النظام", description: "إشعارات داخلية مستقبلية خاصة بالنظام." },
+] as const;
+
 type SettingKey = (typeof fields)[number]["key"];
+type NotificationSettingKey = (typeof notificationFields)[number]["key"];
 
 const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransferReviewDuration", "quizPassingPercentage"]);
 
@@ -30,12 +38,14 @@ function AdminSettingsContent() {
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
   const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60" });
+  const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true });
 
   useEffect(() => {
     if (!query.data) return;
     const next = { ...values };
     for (const row of query.data) {
       if (row.settingKey in next) next[row.settingKey as SettingKey] = row.settingValue;
+      if (row.settingKey in notificationValues) setNotificationValues(current => ({ ...current, [row.settingKey as NotificationSettingKey]: row.settingValue !== "false" }));
     }
     setValues(next);
   }, [query.data]);
@@ -61,6 +71,9 @@ function AdminSettingsContent() {
       }
       save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: value, description: field.description });
     }
+    for (const field of notificationFields) {
+      save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: notificationValues[field.key] ? "true" : "false", description: field.description });
+    }
   };
 
   return <div dir="rtl" className="mx-auto max-w-4xl space-y-6">
@@ -74,6 +87,10 @@ function AdminSettingsContent() {
       <div className="grid gap-5 sm:grid-cols-2">
         {fields.map(field => <label key={field.key} className="space-y-2 text-sm font-bold text-[#173247]">{field.label}<input required value={values[field.key]} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} inputMode={numericSettingKeys.has(field.key) ? "numeric" : undefined} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-[#fffdf9] px-4 py-3 outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal leading-6 text-[#68747a]">{field.description}</span></label>)}
       </div>
+      <section className="space-y-4 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-5">
+        <div className="flex items-start gap-3"><Bell className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">تفضيلات التنبيهات الإدارية</h2><p className="mt-1 text-xs leading-6 text-[#68747a]">عطّل نوعاً محدداً من التنبيهات دون التأثير في الطلبات أو الشكاوى نفسها. التفضيلات إدارية ولا يمكن تعديلها من الواجهة العامة.</p></div></div>
+        <div className="grid gap-3 sm:grid-cols-2">{notificationFields.map(field => <label key={field.key} className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e3d9ca] bg-white p-4"><input type="checkbox" checked={notificationValues[field.key]} onChange={event => setNotificationValues(current => ({ ...current, [field.key]: event.target.checked }))} className="mt-1 h-4 w-4 accent-[#173247]" /><span><span className="block text-sm font-bold text-[#173247]">{field.label}</span><span className="mt-1 block text-xs leading-6 text-[#68747a]">{field.description}</span></span></label>)}</div>
+      </section>
       <button type="submit" disabled={save.isPending || !changed} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#173247] px-5 py-3 font-bold text-white transition hover:bg-[#24485f] disabled:cursor-not-allowed disabled:opacity-60"><Save className="h-4 w-4" />{save.isPending ? "جارٍ الحفظ…" : "حفظ الإعدادات"}</button>
     </form>}
   </div>;

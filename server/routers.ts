@@ -4,7 +4,7 @@ import { FAQ_CATEGORIES } from "@shared/faq";
 import { buildComplaintNotification, buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, createAdminNotificationOnce, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markAllAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, createAdminNotificationOnce, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markAllAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, isAdminNotificationEnabled, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -99,7 +99,7 @@ export const appRouter = router({
     submitFollowUp: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) }).merge(supportFollowUpFieldsSchema)).mutation(async ({ input }) => {
       const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, email: input.email || null, message: input.message || null });
       try {
-        await createAdminNotification(buildSupportFollowUpNotification(formatSupportFollowUpReference(result.id), result.id));
+        if (await isAdminNotificationEnabled("notificationSupportFollowUpEnabled")) await createAdminNotification(buildSupportFollowUpNotification(formatSupportFollowUpReference(result.id), result.id));
       } catch (error) {
         console.error("[Notifications] Failed to create support follow-up notification:", error);
       }
@@ -147,7 +147,7 @@ export const appRouter = router({
         const complaint = await createComplaint({ ...input, email: input.email.toLowerCase(), ticketNumber });
         if (complaint) {
           try {
-            await createAdminNotification(buildComplaintNotification(complaint.ticketNumber, complaint.id));
+            if (await isAdminNotificationEnabled("notificationComplaintEnabled")) await createAdminNotification(buildComplaintNotification(complaint.ticketNumber, complaint.id));
           } catch (error) {
             console.error("[Notifications] Failed to create complaint notification:", error);
           }
@@ -345,7 +345,10 @@ export const appRouter = router({
       return { success: true as const, fileId, version };
     }),
     settings: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA }).default({ productCode: DEFAULT_PRODUCT_CODE })).query(({ input }) => getAppSettings(input.productCode)),
-    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "bankTransferReviewDuration", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage", "upcomingChapters"]), settingValue: z.string().trim().min(1).max(5000), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "bankTransferReviewDuration", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage", "upcomingChapters", "notificationPurchaseRequestEnabled", "notificationSupportFollowUpEnabled", "notificationComplaintEnabled", "notificationSystemEnabled"]), settingValue: z.string().trim().min(1).max(5000), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+      if (input.settingKey.startsWith("notification")) {
+        if (input.settingValue !== "true" && input.settingValue !== "false") throw new Error("قيمة تفضيل التنبيه يجب أن تكون true أو false");
+      }
       if (input.settingKey === "quizSuccessMessage" || input.settingKey === "quizFailureMessage") {
         if (input.settingValue.length < 10) throw new Error("رسالة النتيجة يجب أن تحتوي على 10 أحرف على الأقل");
       }
@@ -407,7 +410,7 @@ export const appRouter = router({
         });
         await createAnalyticsEvent({ eventType: "purchase_request", productCode: input.productCode, visitorKey: null });
         try {
-          await createAdminNotificationOnce(buildPurchaseRequestNotification(result.orderNumber, result.id));
+          if (await isAdminNotificationEnabled("notificationPurchaseRequestEnabled")) await createAdminNotificationOnce(buildPurchaseRequestNotification(result.orderNumber, result.id));
         } catch (error) {
           console.error("[Notifications] Failed to create purchase request notification:", error);
         }

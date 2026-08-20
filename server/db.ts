@@ -109,17 +109,31 @@ export async function createSupportFollowUp(input: InsertSupportFollowUp) {
   return { id: Number(result[0].insertId) };
 }
 
+const notificationSettingByType: Record<string, AdminNotificationSettingKey> = {
+  purchase_request: "notificationPurchaseRequestEnabled",
+  support_follow_up: "notificationSupportFollowUpEnabled",
+  complaint: "notificationComplaintEnabled",
+  system: "notificationSystemEnabled",
+};
+
+async function shouldCreateAdminNotification(type: InsertAdminNotification["type"]) {
+  const settingKey = notificationSettingByType[String(type)];
+  return settingKey ? isAdminNotificationEnabled(settingKey) : true;
+}
+
 export async function createAdminNotification(input: InsertAdminNotification) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  if (!(await shouldCreateAdminNotification(input.type))) return { id: 0, created: false as const };
   const result = await db.insert(adminNotifications).values(input);
-  return { id: Number(result[0].insertId) };
+  return { id: Number(result[0].insertId), created: true as const };
 }
 
 /** Create one notification per entity/event while preserving the original order record. */
 export async function createAdminNotificationOnce(input: InsertAdminNotification) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  if (!(await shouldCreateAdminNotification(input.type))) return { id: 0, created: false as const };
   if (input.entityType && input.entityId) {
     const existing = await db.select({ id: adminNotifications.id })
       .from(adminNotifications)
@@ -457,6 +471,18 @@ export async function getAppSettingsMap(productCode = DEFAULT_PRODUCT_CODE) {
     const key = row.settingKey.includes(":") ? row.settingKey.split(":").slice(1).join(":") : row.settingKey;
     return [key, row.settingValue];
   }));
+}
+
+export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled";
+
+export async function isAdminNotificationEnabled(settingKey: AdminNotificationSettingKey) {
+  try {
+    const settings = await getAppSettingsMap();
+    return settings[settingKey] !== "false";
+  } catch (error) {
+    console.warn(`[Notifications] Could not read ${settingKey}; keeping notifications enabled:`, error);
+    return true;
+  }
 }
 
 export async function upsertAppSetting(input: { productCode?: string; settingKey: string; settingValue: string; description?: string | null; updatedByUserId: number }) {
