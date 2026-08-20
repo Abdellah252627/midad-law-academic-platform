@@ -214,6 +214,15 @@ export const forumCategories = mysqlTable("forum_categories", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const forumBlockedWords = mysqlTable("forum_blocked_words", {
+  id: int("id").autoincrement().primaryKey(),
+  term: varchar("term", { length: 120 }).notNull().unique(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdByUserId: int("createdByUserId").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const forumTopics = mysqlTable("forum_topics", {
   id: int("id").autoincrement().primaryKey(),
   categoryId: int("categoryId").notNull().references(() => forumCategories.id),

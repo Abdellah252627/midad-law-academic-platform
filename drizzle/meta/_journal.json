@@ -183,6 +183,13 @@
       "when": 1787247955104,
       "tag": "0025_confused_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1787252103075,
+      "tag": "0026_striped_groot",
+      "breakpoints": true
     }
   ]
 }

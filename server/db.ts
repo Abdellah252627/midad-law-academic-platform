@@ -1,8 +1,9 @@
 import { and, asc, count, desc, eq, gte, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -1077,6 +1078,41 @@ export type PublishedForumTopicFilters = {
   subject?: string;
   level?: string;
 };
+
+export async function getForumBlockedWords(includeInactive = true) {
+  const db = await getDb();
+  if (!db) return [];
+  const query = db.select().from(forumBlockedWords);
+  return includeInactive ? query.orderBy(asc(forumBlockedWords.term)) : query.where(eq(forumBlockedWords.isActive, true)).orderBy(asc(forumBlockedWords.term));
+}
+
+export async function createForumBlockedWord(input: { term: string; createdByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const term = normalizeForumText(input.term);
+  if (term.length < 2 || term.length > 120) throw new Error("الكلمة غير صالحة");
+  const result = await db.insert(forumBlockedWords).values({ ...input, term, isActive: true });
+  return Number(result[0].insertId);
+}
+
+export async function updateForumBlockedWord(id: number, input: { isActive: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(forumBlockedWords).set(input).where(eq(forumBlockedWords.id, id));
+  return true;
+}
+
+export async function deleteForumBlockedWord(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(forumBlockedWords).where(eq(forumBlockedWords.id, id));
+  return true;
+}
+
+export async function findActiveForumBlockedTerm(text: string) {
+  const words = await getForumBlockedWords(false);
+  return findBlockedForumTerm(text, words.map(word => word.term));
+}
 
 export async function getPublishedForumTopics(input?: number | PublishedForumTopicFilters) {
   const db = await getDb();
