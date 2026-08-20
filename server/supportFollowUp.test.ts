@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 
 describe("support follow-up validation", () => {
@@ -28,5 +30,15 @@ describe("support follow-up validation", () => {
 
   it("rejects an invalid optional email", () => {
     expect(supportFollowUpFieldsSchema.safeParse({ phone: "0612345678", email: "not-an-email" }).success).toBe(false);
+  });
+});
+
+
+describe("support follow-up success messaging", () => {
+  it("uses reassuring language that confirms receipt and explains the next contact step", async () => {
+    const homeSource = await readFile(resolve(process.cwd(), "client/src/pages/Home.tsx"), "utf8");
+    expect(homeSource).toContain("وصل طلبك بنجاح");
+    expect(homeSource).toContain("سيحرص فريق مركز الخدمات على التواصل معك");
+    expect(homeSource).toContain("شكراً لثقتك");
   });
 });
