@@ -5,7 +5,15 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
 import { FORUM_LEVELS, FORUM_SUBJECTS, getForumLevelLabel, type ForumLevel, type ForumSubject } from "@shared/forum";
+import { DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { FORUM_CLOSED_MESSAGE, getForumCountdown } from "@shared/forumModerationPolicy";
+
+const DEFAULT_FORUM_ALERTS = {
+  forumOpenAlertMessage: "فُتحت المشاركة الآن. يمكنك إنشاء موضوع أو إرسال رد.",
+  forumClosedAlertMessage: "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00.",
+  forumOpenAlertColor: "#047857",
+  forumClosedAlertColor: "#b45309",
+} as const;
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +51,13 @@ export default function Forum() {
   const [reportReason, setReportReason] = useState("");
   const [moderationWarning, setModerationWarning] = useState("");
   const categories = trpc.forum.categories.useQuery();
+  const publishedSettings = trpc.landing.published.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
+  const forumAlerts = {
+    forumOpenAlertMessage: publishedSettings.data?.settings?.forumOpenAlertMessage || DEFAULT_FORUM_ALERTS.forumOpenAlertMessage,
+    forumClosedAlertMessage: publishedSettings.data?.settings?.forumClosedAlertMessage || DEFAULT_FORUM_ALERTS.forumClosedAlertMessage,
+    forumOpenAlertColor: publishedSettings.data?.settings?.forumOpenAlertColor || DEFAULT_FORUM_ALERTS.forumOpenAlertColor,
+    forumClosedAlertColor: publishedSettings.data?.settings?.forumClosedAlertColor || DEFAULT_FORUM_ALERTS.forumClosedAlertColor,
+  };
   const topicFilters = useMemo(() => {
     const filters = { categoryId, subject, level };
     return categoryId || subject || level ? filters : undefined;
@@ -97,7 +112,7 @@ export default function Forum() {
           <CardContent className="space-y-4">
             <p className="text-sm leading-7 text-[#59636a]">هذا المنتدى مخصص للتعلم وتبادل الفهم القانوني باحترام. لا تُعد المنشورات استشارة قانونية شخصية، وتخضع المشاركات للمراجعة قبل نشرها.</p>
             <div role="status" className={`flex items-start gap-2 rounded-xl border p-3 text-sm font-bold leading-6 ${forumOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}><Clock3 className="mt-1 h-4 w-4 shrink-0" /><span>{forumOpen ? `المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب. يتبقى ${countdownLabel} على الإغلاق.` : `${FORUM_CLOSED_MESSAGE} يتبقى ${countdownLabel} على فتح المشاركة.`}</span></div>
-            {statusTransition && <div role="alert" aria-live="assertive" className={`forum-status-transition flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold ${statusTransition === "opened" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}><span aria-hidden="true" className="text-lg">{statusTransition === "opened" ? "✓" : "!"}</span><span>{statusTransition === "opened" ? "فُتحت المشاركة الآن. يمكنك إنشاء موضوع أو إرسال رد." : "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00."}</span></div>}
+            {statusTransition && <div role="alert" aria-live="assertive" className="forum-status-transition flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold" style={{ borderColor: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, color: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, backgroundColor: `${statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor}14` }}><span aria-hidden="true" className="text-lg">{statusTransition === "opened" ? "✓" : "!"}</span><span>{statusTransition === "opened" ? forumAlerts.forumOpenAlertMessage : forumAlerts.forumClosedAlertMessage}</span></div>}
             <ul className="grid gap-2 text-sm leading-6 text-[#173247] md:grid-cols-2">
               {(rules.data?.items ?? []).map((rule, index) => <li key={index} className="rounded-lg bg-[#f7f1e5] px-3 py-2">{rule}</li>)}
             </ul>

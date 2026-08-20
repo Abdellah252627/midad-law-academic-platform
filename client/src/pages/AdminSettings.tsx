@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { Bell, Loader2, Save, Settings2, TestTube2, Trash2 } from "lucide-react";
+import { Bell, Loader2, Save, Settings2, TestTube2, Trash2, Palette } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +15,13 @@ const fields = [
   { key: "quizPassingPercentage", label: "نسبة النجاح في اختبار «اختبر فهمك»", placeholder: "60", description: "نسبة مئوية من 0 إلى 100. القيمة الافتراضية 60%." },
 ] as const;
 
+const forumAlertDefaults = {
+  forumOpenAlertMessage: "فُتحت المشاركة الآن. يمكنك إنشاء موضوع أو إرسال رد.",
+  forumClosedAlertMessage: "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00.",
+  forumOpenAlertColor: "#047857",
+  forumClosedAlertColor: "#b45309",
+} as const;
+
 const notificationFields = [
   { key: "notificationPurchaseRequestEnabled", label: "طلبات الشراء", description: "تنبيه عند وصول طلب شراء جديد يحتاج إلى مراجعة." },
   { key: "notificationSupportFollowUpEnabled", label: "طلبات التواصل", description: "تنبيه عند إرسال زائر رسالة أو رقم هاتف للمتابعة." },
@@ -25,6 +32,7 @@ const notificationFields = [
 
 type SettingKey = (typeof fields)[number]["key"];
 type NotificationSettingKey = (typeof notificationFields)[number]["key"];
+type ForumAlertSettingKey = keyof typeof forumAlertDefaults;
 
 const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransferReviewDuration", "quizPassingPercentage"]);
 
@@ -59,6 +67,7 @@ function AdminSettingsContent() {
   });
   const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60" });
   const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true, notificationAuthLoginAttemptEnabled: true });
+  const [forumAlertValues, setForumAlertValues] = useState<Record<ForumAlertSettingKey, string>>(forumAlertDefaults);
 
   useEffect(() => {
     if (!query.data) return;
@@ -66,6 +75,7 @@ function AdminSettingsContent() {
     for (const row of query.data) {
       if (row.settingKey in next) next[row.settingKey as SettingKey] = row.settingValue;
       if (row.settingKey in notificationValues) setNotificationValues(current => ({ ...current, [row.settingKey as NotificationSettingKey]: row.settingValue !== "false" }));
+      if (row.settingKey in forumAlertDefaults) setForumAlertValues(current => ({ ...current, [row.settingKey as ForumAlertSettingKey]: row.settingValue }));
     }
     setValues(next);
   }, [query.data]);
@@ -94,6 +104,18 @@ function AdminSettingsContent() {
     for (const field of notificationFields) {
       save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: field.key, settingValue: notificationValues[field.key] ? "true" : "false", description: field.description });
     }
+    for (const [key, value] of Object.entries(forumAlertValues) as [ForumAlertSettingKey, string][]) {
+      const trimmed = value.trim();
+      if (key.endsWith("Message") && (trimmed.length < 10 || trimmed.length > 240)) {
+        toast.error("يجب أن يتراوح نص تنبيه المنتدى بين 10 و240 حرفاً");
+        return;
+      }
+      if (key.endsWith("Color") && !/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+        toast.error("أدخل لوناً بصيغة HEX مثل #173247");
+        return;
+      }
+      save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: key, settingValue: trimmed, description: key.includes("Open") ? "تخصيص تنبيه فتح المشاركة في المنتدى" : "تخصيص تنبيه إغلاق المشاركة في المنتدى" });
+    }
   };
 
   return <div dir="rtl" className="mx-auto max-w-4xl space-y-6">
@@ -117,6 +139,16 @@ function AdminSettingsContent() {
       <div className="grid gap-5 sm:grid-cols-2">
         {fields.map(field => <label key={field.key} className="space-y-2 text-sm font-bold text-[#173247]">{field.label}<input required value={values[field.key]} onChange={event => setValues(current => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} inputMode={numericSettingKeys.has(field.key) ? "numeric" : undefined} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-[#fffdf9] px-4 py-3 outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal leading-6 text-[#68747a]">{field.description}</span></label>)}
       </div>
+      <section className="space-y-4 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-5">
+        <div className="flex items-start gap-3"><Palette className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">تنبيهات حالة المنتدى</h2><p className="mt-1 text-xs leading-6 text-[#68747a]">خصّص النص واللون اللذين يظهران للطلاب عند فتح أو إغلاق المشاركة. لا تؤثر هذه الإعدادات في سياسة الساعات نفسها.</p></div></div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="space-y-2 text-sm font-bold text-[#173247]">نص تنبيه فتح المشاركة<textarea value={forumAlertValues.forumOpenAlertMessage} onChange={event => setForumAlertValues(current => ({ ...current, forumOpenAlertMessage: event.target.value }))} maxLength={240} className="mt-2 min-h-24 w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-normal outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal text-[#68747a]">يظهر عند انتقال المنتدى إلى الحالة المفتوحة.</span></label>
+          <label className="space-y-2 text-sm font-bold text-[#173247]">لون تنبيه فتح المشاركة<div className="mt-2 flex gap-2"><input type="color" value={forumAlertValues.forumOpenAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumOpenAlertColor: event.target.value }))} className="h-12 w-16 cursor-pointer rounded-lg border border-[#e3d9ca] bg-white p-1" /><input value={forumAlertValues.forumOpenAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumOpenAlertColor: event.target.value }))} maxLength={7} className="w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-mono font-normal uppercase outline-none focus:border-[#b9854a]" /></div><span className="block text-xs font-normal text-[#68747a]">استخدم قيمة HEX من ست خانات.</span></label>
+          <label className="space-y-2 text-sm font-bold text-[#173247]">نص تنبيه إغلاق المشاركة<textarea value={forumAlertValues.forumClosedAlertMessage} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertMessage: event.target.value }))} maxLength={240} className="mt-2 min-h-24 w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-normal outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal text-[#68747a]">يظهر عند انتقال المنتدى إلى الحالة المغلقة.</span></label>
+          <label className="space-y-2 text-sm font-bold text-[#173247]">لون تنبيه إغلاق المشاركة<div className="mt-2 flex gap-2"><input type="color" value={forumAlertValues.forumClosedAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertColor: event.target.value }))} className="h-12 w-16 cursor-pointer rounded-lg border border-[#e3d9ca] bg-white p-1" /><input value={forumAlertValues.forumClosedAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertColor: event.target.value }))} maxLength={7} className="w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-mono font-normal uppercase outline-none focus:border-[#b9854a]" /></div><span className="block text-xs font-normal text-[#68747a]">استخدم قيمة HEX من ست خانات.</span></label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumOpenAlertColor, color: forumAlertValues.forumOpenAlertColor, backgroundColor: `${forumAlertValues.forumOpenAlertColor}14` }}>معاينة الفتح: {forumAlertValues.forumOpenAlertMessage}</div><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumClosedAlertColor, color: forumAlertValues.forumClosedAlertColor, backgroundColor: `${forumAlertValues.forumClosedAlertColor}14` }}>معاينة الإغلاق: {forumAlertValues.forumClosedAlertMessage}</div></div>
+      </section>
       <section className="space-y-4 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-5">
         <div className="flex items-start gap-3"><Bell className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">تفضيلات التنبيهات الإدارية</h2><p className="mt-1 text-xs leading-6 text-[#68747a]">عطّل نوعاً محدداً من التنبيهات دون التأثير في الطلبات أو الشكاوى نفسها. التفضيلات إدارية ولا يمكن تعديلها من الواجهة العامة.</p></div></div>
         <div className="grid gap-3 sm:grid-cols-2">{notificationFields.map(field => <label key={field.key} className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e3d9ca] bg-white p-4"><input type="checkbox" checked={notificationValues[field.key]} onChange={event => setNotificationValues(current => ({ ...current, [field.key]: event.target.checked }))} className="mt-1 h-4 w-4 accent-[#173247]" /><span><span className="block text-sm font-bold text-[#173247]">{field.label}</span><span className="mt-1 block text-xs leading-6 text-[#68747a]">{field.description}</span></span></label>)}</div>

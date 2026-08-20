@@ -23,6 +23,17 @@ describe("admin notification preferences", () => {
     expect(router).toContain('isAdminNotificationEnabled("notificationComplaintEnabled")');
   });
 
+  it("protects and validates forum alert message and color settings", () => {
+    const router = read("server/routers.ts");
+    const settings = read("client/src/pages/AdminSettings.tsx");
+    expect(router).toContain("forumOpenAlertMessage");
+    expect(router).toContain("forumClosedAlertMessage");
+    expect(router).toContain("forumOpenAlertColor");
+    expect(router).toContain("forumClosedAlertColor");
+    expect(settings).toContain("/^#[0-9a-fA-F]{6}$/");
+    expect(settings).toContain("بين 10 و240 حرفاً");
+  });
+
   it("exposes RTL controls for all four notification categories", () => {
     const settings = read("client/src/pages/AdminSettings.tsx");
     expect(settings).toContain("تفضيلات التنبيهات الإدارية");
@@ -31,5 +42,16 @@ describe("admin notification preferences", () => {
     expect(settings).toContain("notificationSupportFollowUpEnabled");
     expect(settings).toContain("notificationComplaintEnabled");
     expect(settings).toContain("notificationSystemEnabled");
+  });
+
+  it("provides live previews for opening and closing forum alerts", () => {
+    const settings = read("client/src/pages/AdminSettings.tsx");
+    const forum = read("client/src/pages/Forum.tsx");
+    expect(settings).toContain("معاينة الفتح");
+    expect(settings).toContain("معاينة الإغلاق");
+    expect(forum).toContain("forumAlerts.forumOpenAlertMessage");
+    expect(forum).toContain("forumAlerts.forumClosedAlertMessage");
+    expect(forum).toContain("forumAlerts.forumOpenAlertColor");
+    expect(forum).toContain("forumAlerts.forumClosedAlertColor");
   });
 });
