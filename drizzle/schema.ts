@@ -89,6 +89,7 @@ export const landingFaqs = mysqlTable("landing_faqs", {
   productCode: varchar("productCode", { length: 32 }).notNull(),
   question: varchar("question", { length: 300 }).notNull(),
   answer: text("answer").notNull(),
+  category: varchar("category", { length: 32 }).default("support").notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   isPublished: int("isPublished").default(1).notNull(),
   deletedAt: timestamp("deletedAt"),

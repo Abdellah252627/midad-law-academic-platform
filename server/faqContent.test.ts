@@ -46,6 +46,16 @@ describe("FAQ content coverage", () => {
     expect(adminSource).toContain("دون وعود غير قابلة للضمان");
   });
 
+  it("exposes the four FAQ categories in both public and admin experiences", () => {
+    expect(homeSource).toContain("FAQ_CATEGORIES");
+    expect(homeSource).toContain("activeFaqCategory");
+    expect(homeSource).toContain("role=\"tablist\"");
+    expect(adminSource).toContain("FAQ_CATEGORY_LABELS");
+    expect(adminSource).toContain("faq.category");
+    expect(adminSource).toContain("الفئة<select");
+    expect(readFileSync(resolve(projectRoot, "shared/faq.ts"), "utf8")).toContain('"purchase", "payment", "content", "support"');
+  });
+
   it("keeps contact FAQs covering payment, download expiry, and refunds", () => {
     expect(contactSource).toContain("متى تتم مراجعة طلبي؟");
     expect(contactSource).toContain("انتهت صلاحية رابط التنزيل");

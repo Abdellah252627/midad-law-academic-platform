@@ -1,0 +1,1 @@
+ALTER TABLE `landing_faqs` ADD `category` varchar(32) DEFAULT 'support' NOT NULL;

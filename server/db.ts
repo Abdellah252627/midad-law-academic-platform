@@ -663,7 +663,7 @@ export async function saveLandingFaq(input: InsertLandingFaq) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   if (input.id) {
-    await db.update(landingFaqs).set({ productCode: input.productCode, question: input.question, answer: input.answer, sortOrder: input.sortOrder, isPublished: input.isPublished ?? 1 }).where(eq(landingFaqs.id, input.id));
+    await db.update(landingFaqs).set({ productCode: input.productCode, question: input.question, answer: input.answer, category: input.category ?? "support", sortOrder: input.sortOrder, isPublished: input.isPublished ?? 1 }).where(eq(landingFaqs.id, input.id));
     return input.id;
   }
   const result = await db.insert(landingFaqs).values(input);
