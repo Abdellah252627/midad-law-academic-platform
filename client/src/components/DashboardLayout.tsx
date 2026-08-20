@@ -26,6 +26,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { trpc } from "@/lib/trpc";
+import { ADMIN_NOTIFICATION_DEFINITIONS } from "@shared/adminNotifications";
 import { Button } from "./ui/button";
 
 const menuItems = [
@@ -157,7 +158,7 @@ function DashboardLayoutContent({
     refetchOnWindowFocus: true,
   });
   const { data: notificationData, isLoading: notificationsLoading } = trpc.admin.notifications.useQuery(
-    { page: 1, pageSize: 10, read: "unread" },
+    { page: 1, pageSize: 10 },
     { refetchInterval: 30_000, refetchOnWindowFocus: true },
   );
   const markNotificationRead = trpc.admin.markNotificationRead.useMutation({
@@ -359,19 +360,21 @@ function DashboardLayoutContent({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-2">
-              <div className="flex items-center justify-between gap-3 px-2 pb-2">
+              <div dir="rtl" className="flex items-center justify-between gap-3 px-2 pb-2">
                 <div>
-                  <p className="text-sm font-semibold">التنبيهات</p>
-                  <p className="text-xs text-muted-foreground">{notificationUnreadCount} غير مقروءة</p>
+                  <p className="text-sm font-semibold">أحدث التنبيهات</p>
+                  <p className="text-xs text-muted-foreground">
+                    {notificationUnreadCount > 0 ? `${notificationUnreadCount} غير مقروءة` : "لا توجد تنبيهات غير مقروءة"}
+                  </p>
                 </div>
-                {notificationData?.notifications.length ? (
+                {notificationData?.notifications.some(item => !item.isRead) ? (
                   <button
                     type="button"
                     className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
                     disabled={markNotificationsRead.isPending}
-                    onClick={() => markNotificationsRead.mutate({ ids: notificationData.notifications.map(item => item.id) })}
+                    onClick={() => markNotificationsRead.mutate({ ids: notificationData.notifications.filter(item => !item.isRead).map(item => item.id) })}
                   >
-                    تحديد الكل كمقروء
+                    تحديد غير المقروء كمقروء
                   </button>
                 ) : null}
               </div>
@@ -383,21 +386,26 @@ function DashboardLayoutContent({
                     <DropdownMenuItem
                       key={notification.id}
                       onClick={() => openNotification(notification)}
-                      className="mb-1 cursor-pointer items-start gap-3 rounded-lg p-3 last:mb-0"
+                      className={`mb-1 cursor-pointer items-start gap-3 rounded-xl p-3 last:mb-0 ${notification.isRead ? "" : "bg-primary/5"}`}
                     >
-                      <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.priority === "critical" ? "bg-red-600" : notification.priority === "high" ? "bg-amber-500" : "bg-blue-500"}`} aria-hidden="true" />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
+                      <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${notification.priority === "critical" ? "bg-red-600" : notification.priority === "high" ? "bg-amber-500" : "bg-blue-500"}`} aria-hidden="true" />
+                      <span dir="rtl" className="min-w-0 flex-1 text-right">
+                        <span className="flex items-center justify-between gap-2">
                           <span className={`truncate text-sm ${notification.isRead ? "font-normal" : "font-semibold"}`}>{notification.title}</span>
-                          {!notification.isRead && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="غير مقروء" />}
+                          {!notification.isRead && <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">جديد</span>}
+                        </span>
+                        <span className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span>{ADMIN_NOTIFICATION_DEFINITIONS[notification.type as keyof typeof ADMIN_NOTIFICATION_DEFINITIONS]?.label ?? "تنبيه إداري"}</span>
+                          <span aria-hidden="true">•</span>
+                          <span>{notification.priority === "critical" ? "أولوية حرجة" : "أولوية عالية"}</span>
                         </span>
                         <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</span>
-                        <span className="mt-1 block text-[10px] text-muted-foreground">{new Date(notification.createdAt).toLocaleString("ar-MA")}</span>
+                        <span className="mt-1 block text-[10px] text-muted-foreground">{new Date(notification.createdAt).toLocaleString("ar-MA", { dateStyle: "short", timeStyle: "short" })}</span>
                       </span>
                     </DropdownMenuItem>
                   ))
                 ) : (
-                  <p className="px-2 py-6 text-center text-sm text-muted-foreground">لا توجد تنبيهات غير مقروءة حالياً.</p>
+                  <p dir="rtl" className="px-2 py-6 text-center text-sm text-muted-foreground">لا توجد تنبيهات واردة حالياً.</p>
                 )}
               </div>
             </DropdownMenuContent>

@@ -46,3 +46,16 @@ describe("quiz result message controls", () => {
     expect(router).toContain('"quizSuccessMessage", "quizFailureMessage"');
   });
 });
+
+
+describe("interactive admin notification dropdown", () => {
+  it("shows latest notifications with readable state, priority, and bulk read action", () => {
+    const layout = readFileSync(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    expect(layout).toContain("أحدث التنبيهات");
+    expect(layout).toContain("notificationData?.notifications.some(item => !item.isRead)");
+    expect(layout).toContain("تحديد غير المقروء كمقروء");
+    expect(layout).toContain("أولوية حرجة");
+    expect(layout).toContain('dateStyle: "short", timeStyle: "short"');
+    expect(layout).toContain('onClick={() => openNotification(notification)}');
+  });
+});
