@@ -8,18 +8,25 @@ describe("support follow-up validation", () => {
     if (result.success) expect(result.data.phone).toBe("0612345678");
   });
 
-  it("accepts a message without requiring a phone number", () => {
-    const result = supportFollowUpFieldsSchema.safeParse({ message: "أحتاج إلى مساعدة من الفريق" });
+  it("accepts a valid phone number without an email address", () => {
+    const result = supportFollowUpFieldsSchema.safeParse({ phone: "0612345678", message: "أحتاج إلى مساعدة من الفريق" });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.phone).toBe("");
+    if (result.success) expect(result.data.email).toBe("");
   });
 
-  it("rejects an empty request and invalid phone number", () => {
-    expect(supportFollowUpFieldsSchema.safeParse({ phone: "", message: "" }).success).toBe(false);
+  it("accepts an optional valid email address", () => {
+    const result = supportFollowUpFieldsSchema.safeParse({ phone: "0612345678", email: "student@example.com" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe("student@example.com");
+  });
+
+  it("rejects a request without a phone number and invalid phone numbers", () => {
+    expect(supportFollowUpFieldsSchema.safeParse({ message: "أحتاج إلى تواصل" }).success).toBe(false);
+    expect(supportFollowUpFieldsSchema.safeParse({ phone: "", message: "أحتاج إلى تواصل" }).success).toBe(false);
     expect(supportFollowUpFieldsSchema.safeParse({ phone: "123", message: "أحتاج إلى تواصل" }).success).toBe(false);
   });
 
-  it("rejects a message shorter than five characters", () => {
-    expect(supportFollowUpFieldsSchema.safeParse({ message: "نعم" }).success).toBe(false);
+  it("rejects an invalid optional email", () => {
+    expect(supportFollowUpFieldsSchema.safeParse({ phone: "0612345678", email: "not-an-email" }).success).toBe(false);
   });
 });
