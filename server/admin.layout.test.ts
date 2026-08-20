@@ -74,10 +74,12 @@ describe("all notifications page", () => {
     expect(page).toContain("كل التنبيهات");
     expect(page).toContain("التصفية");
     expect(page).toContain("تحديد الكل كمقروء");
+    expect(page).toContain('value="system">إشعارات النظام');
     expect(page).toContain("تأكيد تحديد الكل كمقروء");
     expect(page).toContain("trpc.admin.notifications.useQuery");
     expect(page).toContain("trpc.admin.markAllNotificationsRead.useMutation");
     expect(router).toContain("markAllNotificationsRead");
+    expect(router).toContain('type: z.enum(["purchase_request", "support_follow_up", "complaint", "system"]).optional()');
     expect(router).toContain('priority: z.enum(["high", "critical"]).optional()');
     expect(router).toContain("from: z.string().date().optional()");
   });

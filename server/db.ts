@@ -116,7 +116,7 @@ export async function createAdminNotification(input: InsertAdminNotification) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const page = options?.page ?? 1;

@@ -2,6 +2,7 @@ export const ADMIN_NOTIFICATION_TYPES = [
   "purchase_request",
   "support_follow_up",
   "complaint",
+  "system",
 ] as const;
 
 export type AdminNotificationType = (typeof ADMIN_NOTIFICATION_TYPES)[number];
@@ -74,6 +75,11 @@ export const ADMIN_NOTIFICATION_DEFINITIONS = {
     label: "شكوى جديدة",
     priority: "critical",
     targetPath: "/admin/complaints",
+  },
+  system: {
+    label: "إشعار نظام",
+    priority: "high",
+    targetPath: "/admin/notifications",
   },
 } as const satisfies Record<
   AdminNotificationType,
