@@ -5,7 +5,7 @@ import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEv
 analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
-import { calculateForumViolation, FORUM_MODERATION_WINDOW_MS, FORUM_MODERATION_THRESHOLD, FORUM_MODERATION_BASE_BLOCK_MS, FORUM_MODERATION_MAX_BLOCK_MS } from "../shared/forumModerationPolicy";
+import { calculateForumViolation } from "../shared/forumModerationPolicy";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -1228,6 +1228,45 @@ export async function updateForumReplyStatus(id: number, status: "pending" | "pu
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.update(forumReplies).set({ status }).where(eq(forumReplies.id, id));
+}
+
+export type ForumModerationQueueFilters = {
+  status?: "pending" | "published" | "hidden" | "closed";
+  search?: string;
+  itemType?: "topic" | "reply";
+};
+
+export async function getForumModerationQueue(filters: ForumModerationQueueFilters = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const search = filters.search?.trim();
+  const topicConditions = [
+    filters.status ? eq(forumTopics.status, filters.status) : undefined,
+    search ? or(like(forumTopics.title, `%${search}%`), like(forumTopics.body, `%${search}%`)) : undefined,
+  ].filter(Boolean) as any[];
+  const replyConditions = [
+    filters.status && filters.status !== "closed" ? eq(forumReplies.status, filters.status) : undefined,
+    search ? like(forumReplies.body, `%${search}%`) : undefined,
+  ].filter(Boolean) as any[];
+  const items: Array<Record<string, unknown>> = [];
+  if (filters.itemType !== "reply") {
+    const topics = await db.select({
+      id: forumTopics.id, title: forumTopics.title, body: forumTopics.body, status: forumTopics.status,
+      subject: forumTopics.subject, level: forumTopics.level, createdAt: forumTopics.createdAt,
+      authorUserId: users.id, authorName: users.name, authorEmail: users.email,
+    }).from(forumTopics).innerJoin(users, eq(forumTopics.authorUserId, users.id))
+      .where(topicConditions.length ? and(...topicConditions) : undefined).orderBy(desc(forumTopics.createdAt));
+    items.push(...topics.map(item => ({ ...item, itemType: "topic" as const, topicId: item.id })));
+  }
+  if (filters.itemType !== "topic") {
+    const replies = await db.select({
+      id: forumReplies.id, body: forumReplies.body, status: forumReplies.status, createdAt: forumReplies.createdAt,
+      topicId: forumReplies.topicId, authorUserId: users.id, authorName: users.name, authorEmail: users.email,
+    }).from(forumReplies).innerJoin(users, eq(forumReplies.authorUserId, users.id))
+      .where(replyConditions.length ? and(...replyConditions) : undefined).orderBy(desc(forumReplies.createdAt));
+    items.push(...replies.map(item => ({ ...item, itemType: "reply" as const })));
+  }
+  return items.sort((a, b) => new Date(b.createdAt as Date).getTime() - new Date(a.createdAt as Date).getTime());
 }
 
 export async function getOpenForumReports() {
