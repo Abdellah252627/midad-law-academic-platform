@@ -472,29 +472,46 @@ function isoMonthKey(date: Date) {
 }
 
 export type StudentAnalyticsRangeDays = 30 | 90;
+export type StudentAnalyticsRange =
+  | { days: StudentAnalyticsRangeDays }
+  | { startDate: string; endDate: string };
 
-export async function getStudentAnalytics(rangeDays: StudentAnalyticsRangeDays = 30) {
+export async function getStudentAnalytics(range: StudentAnalyticsRange = { days: 30 }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
 
   const now = new Date();
-  const rangeStart = new Date(now.getTime() - rangeDays * 24 * 60 * 60 * 1000);
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  let rangeDays: number;
+  let rangeDescription: string;
+  if ("days" in range) {
+    rangeEnd = now;
+    rangeStart = new Date(now.getTime() - range.days * 24 * 60 * 60 * 1000);
+    rangeDays = range.days;
+    rangeDescription = `آخر ${range.days} يوماً`;
+  } else {
+    rangeStart = new Date(`${range.startDate}T00:00:00.000Z`);
+    rangeEnd = new Date(`${range.endDate}T00:00:00.000Z`);
+    rangeEnd = new Date(rangeEnd.getTime() + 24 * 60 * 60 * 1000);
+    rangeDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000));
+    rangeDescription = `من ${range.startDate} إلى ${range.endDate}`;
+  }
+  const lastIncludedMoment = new Date(rangeEnd.getTime() - 1);
   const firstWeekStart = startOfUtcWeek(rangeStart);
-  const currentWeekStart = startOfUtcWeek(now);
+  const currentWeekStart = startOfUtcWeek(lastIncludedMoment);
   const firstMonthStart = new Date(Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1));
-  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const currentMonthStart = new Date(Date.UTC(lastIncludedMoment.getUTCFullYear(), lastIncludedMoment.getUTCMonth(), 1));
+  const conditions = and(
+    eq(purchaseRequests.status, "approved"),
+    notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
+    gte(purchaseRequests.createdAt, rangeStart),
+    lt(purchaseRequests.createdAt, rangeEnd),
+  );
 
   const [totalRows, trendRows] = await Promise.all([
-    db.select({ email: purchaseRequests.customerEmail }).from(purchaseRequests).where(and(
-      eq(purchaseRequests.status, "approved"),
-      notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
-      gte(purchaseRequests.createdAt, rangeStart),
-    )),
-    db.select({ email: purchaseRequests.customerEmail, createdAt: purchaseRequests.createdAt }).from(purchaseRequests).where(and(
-      eq(purchaseRequests.status, "approved"),
-      notInArray(purchaseRequests.orderNumber, [...EXCLUDED_EARLY_BIRD_ORDER_NUMBERS]),
-      gte(purchaseRequests.createdAt, rangeStart),
-    )),
+    db.select({ email: purchaseRequests.customerEmail }).from(purchaseRequests).where(conditions),
+    db.select({ email: purchaseRequests.customerEmail, createdAt: purchaseRequests.createdAt }).from(purchaseRequests).where(conditions),
   ]);
 
   const totalStudents = new Set(totalRows.map(row => toStudentKey(row.email)).filter(Boolean)).size;
@@ -512,20 +529,19 @@ export async function getStudentAnalytics(rangeDays: StudentAnalyticsRangeDays =
     const email = toStudentKey(row.email);
     if (!email) continue;
     const createdAt = new Date(row.createdAt);
-    const weekKey = isoWeekKey(startOfUtcWeek(createdAt));
-    const monthKey = isoMonthKey(createdAt);
-    weeklyBuckets.get(weekKey)?.add(email);
-    monthlyBuckets.get(monthKey)?.add(email);
+    weeklyBuckets.get(isoWeekKey(startOfUtcWeek(createdAt)))?.add(email);
+    monthlyBuckets.get(isoMonthKey(createdAt))?.add(email);
   }
 
   return {
     rangeDays,
     rangeStart: rangeStart.toISOString(),
+    rangeEnd: rangeEnd.toISOString(),
     totalStudents,
     approvedOrders: totalRows.length,
     weeks: Array.from(weeklyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
     months: Array.from(monthlyBuckets.entries()).map(([period, students]) => ({ period, students: students.size })),
-    definition: `طلبة فريدون حسب البريد الإلكتروني من الطلبات المقبولة خلال آخر ${rangeDays} يوماً، مع استبعاد الطلبات التجريبية الأربعة.`,
+    definition: `طلبة فريدون حسب البريد الإلكتروني من الطلبات المقبولة ${rangeDescription}، مع استبعاد الطلبات التجريبية الأربعة.`,
     generatedAt: new Date().toISOString(),
   };
 }

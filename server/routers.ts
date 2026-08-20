@@ -388,8 +388,27 @@ export const appRouter = router({
     }),
     analyticsSummary: adminProcedure.query(() => getAnalyticsSummary()),
     studentAnalytics: adminProcedure
-      .input(z.object({ days: z.union([z.literal(30), z.literal(90)]) }).default({ days: 30 }))
-      .query(({ input }) => getStudentAnalytics(input.days)),
+      .input(z.object({
+        days: z.union([z.literal(30), z.literal(90)]).optional(),
+        startDate: z.string().date().optional(),
+        endDate: z.string().date().optional(),
+      }).superRefine((input, ctx) => {
+        const hasCustomStart = Boolean(input.startDate);
+        const hasCustomEnd = Boolean(input.endDate);
+        if (hasCustomStart !== hasCustomEnd) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [hasCustomStart ? "endDate" : "startDate"], message: "يجب تحديد تاريخ البداية والنهاية معاً" });
+        }
+        if (input.startDate && input.endDate && input.startDate > input.endDate) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["endDate"], message: "يجب أن يكون تاريخ النهاية بعد تاريخ البداية" });
+        }
+        if (!input.days && !input.startDate && !input.endDate) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["days"], message: "حدد نطاقاً زمنياً" });
+        }
+        if (input.days && (input.startDate || input.endDate)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["days"], message: "لا يمكن الجمع بين النطاق الثابت والمخصص" });
+        }
+      }).default({ days: 30 }))
+      .query(({ input }) => getStudentAnalytics(input.startDate && input.endDate ? { startDate: input.startDate, endDate: input.endDate } : { days: input.days ?? 30 })),
     auditLogs: adminProcedure.query(() => getAuditLogs()),
   }),
   purchase: router({

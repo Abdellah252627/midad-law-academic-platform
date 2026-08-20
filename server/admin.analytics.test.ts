@@ -34,15 +34,25 @@ describe("admin analytics summary", () => {
     vi.mocked(db.getStudentAnalytics).mockResolvedValue(studentAnalytics);
     const result = await appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 30 });
     expect(result.rangeDays).toBe(30);
-    expect(db.getStudentAnalytics).toHaveBeenCalledWith(30);
+    expect(db.getStudentAnalytics).toHaveBeenCalledWith({ days: 30 });
   });
 
   it("passes the selected 90-day range and rejects unsupported ranges", async () => {
     vi.mocked(db.getStudentAnalytics).mockResolvedValue({ ...studentAnalytics, rangeDays: 90, rangeStart: "2026-05-22T00:00:00.000Z" });
     const result = await appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 90 });
     expect(result.rangeDays).toBe(90);
-    expect(db.getStudentAnalytics).toHaveBeenCalledWith(90);
+    expect(db.getStudentAnalytics).toHaveBeenCalledWith({ days: 90 });
     await expect(appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 60 as 30 | 90 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("passes a custom date range and rejects invalid date ranges", async () => {
+    vi.mocked(db.getStudentAnalytics).mockResolvedValue({ ...studentAnalytics, rangeDays: 8, rangeStart: "2026-08-01T00:00:00.000Z", rangeEnd: "2026-08-09T00:00:00.000Z" });
+    const result = await appRouter.createCaller(adminContext).admin.studentAnalytics({ startDate: "2026-08-01", endDate: "2026-08-08" });
+    expect(result.rangeDays).toBe(8);
+    expect(db.getStudentAnalytics).toHaveBeenCalledWith({ startDate: "2026-08-01", endDate: "2026-08-08" });
+    await expect(appRouter.createCaller(adminContext).admin.studentAnalytics({ startDate: "2026-08-08" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(appRouter.createCaller(adminContext).admin.studentAnalytics({ startDate: "2026-08-08", endDate: "2026-08-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(appRouter.createCaller(adminContext).admin.studentAnalytics({ days: 30, startDate: "2026-08-01", endDate: "2026-08-08" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("rejects anonymous and non-admin access", async () => {
