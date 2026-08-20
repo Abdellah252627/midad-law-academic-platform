@@ -175,6 +175,18 @@ export async function createDemoAdminNotification() {
   return { id: Number(result[0].insertId), created: true as const };
 }
 
+/** Delete only the explicit demo notification; real notifications cannot match this predicate. */
+export async function deleteDemoAdminNotification() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.delete(adminNotifications).where(and(
+    eq(adminNotifications.type, "system"),
+    eq(adminNotifications.entityType, "demo"),
+    eq(adminNotifications.entityId, "demo-notification"),
+  ));
+  return { deleted: Number(result[0]?.affectedRows ?? 0) };
+}
+
 export async function deleteDuplicatePurchaseNotifications(entityId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

@@ -1,7 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { Bell, Loader2, Save, Settings2, TestTube2 } from "lucide-react";
+import { Bell, Loader2, Save, Settings2, TestTube2, Trash2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,6 +38,16 @@ function AdminSettingsContent() {
     },
     onError: error => toast.error(error.message || "تعذر إنشاء التنبيه التجريبي"),
   });
+  const deleteDemoNotifications = trpc.admin.deleteDemoNotifications.useMutation({
+    onSuccess: result => {
+      toast.success(result.message);
+      setDeleteDemoOpen(false);
+      void utils.admin.notifications.invalidate();
+      void utils.admin.notificationUnreadCount.invalidate();
+    },
+    onError: error => toast.error(error.message || "تعذر حذف التنبيه التجريبي"),
+  });
+  const [deleteDemoOpen, setDeleteDemoOpen] = useState(false);
   const save = trpc.admin.saveSetting.useMutation({
     onSuccess: () => {
       toast.success("تم حفظ الإعدادات");
@@ -93,9 +104,13 @@ function AdminSettingsContent() {
     <section className="rounded-[26px] border border-[#e3d9ca] bg-[#fffaf1] p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3"><TestTube2 className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">اختبار تجريبي للإشعارات</h2><p className="mt-1 max-w-2xl text-xs leading-6 text-[#68747a]">ينشئ تنبيهاً نظامياً تجريبياً واحداً للتأكد من عمل الجرس والقائمة. لا ينشئ طلباً أو شكوى ولا يدخل في عدادات التسعير أو المبيعات.</p></div></div>
-        <button type="button" onClick={() => testNotification.mutate()} disabled={testNotification.isPending} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#b9854a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#9d6d3c] disabled:cursor-not-allowed disabled:opacity-60"><TestTube2 className="h-4 w-4" />{testNotification.isPending ? "جارٍ الاختبار…" : "إنشاء تنبيه تجريبي"}</button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button type="button" onClick={() => testNotification.mutate()} disabled={testNotification.isPending || deleteDemoNotifications.isPending} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#b9854a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#9d6d3c] disabled:cursor-not-allowed disabled:opacity-60"><TestTube2 className="h-4 w-4" />{testNotification.isPending ? "جارٍ الاختبار…" : "إنشاء تنبيه تجريبي"}</button>
+          <button type="button" onClick={() => setDeleteDemoOpen(true)} disabled={testNotification.isPending || deleteDemoNotifications.isPending} className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"><Trash2 className="h-4 w-4" />تنظيف الاختبار</button>
+        </div>
       </div>
     </section>
+    <AlertDialog open={deleteDemoOpen} onOpenChange={setDeleteDemoOpen}><AlertDialogContent dir="rtl" className="border-[#e3d9ca] bg-[#fffdf9] text-right"><AlertDialogHeader><AlertDialogTitle className="font-display text-xl text-[#173247]">تأكيد تنظيف التنبيه التجريبي</AlertDialogTitle><AlertDialogDescription className="leading-7 text-[#68747a]">سيتم حذف التنبيه الموسوم كاختبار تجريبي فقط. لن تتأثر أي تنبيهات حقيقية أو طلبات شراء أو طلبات تواصل أو شكاوى.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleteDemoNotifications.isPending} className="border-[#e3d9ca]">إلغاء</AlertDialogCancel><AlertDialogAction disabled={deleteDemoNotifications.isPending} onClick={event => { event.preventDefault(); deleteDemoNotifications.mutate(); }} className="bg-red-700 hover:bg-red-800">{deleteDemoNotifications.isPending ? "جارٍ التنظيف…" : "نعم، حذف الاختبار"}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     {query.isLoading ? <div className="rounded-2xl bg-white p-10 text-center text-[#68747a]"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div> : <form onSubmit={handleSubmit} className="space-y-5 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-center gap-3 border-b border-[#eee7dc] pb-5"><Settings2 className="h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">قيم التشغيل</h2><p className="mt-1 text-xs text-[#68747a]">كل تغيير يُسجّل في سجل التدقيق.</p></div></div>
       <div className="grid gap-5 sm:grid-cols-2">
