@@ -1,7 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { FORUM_LEVELS, getForumLevelLabel, type ForumLevel } from "@shared/forum";
 import { trpc } from "@/lib/trpc";
-import { useMemo, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { CheckCircle2, EyeOff, FileSearch, Filter, Loader2, MessageSquare, Search, ShieldAlert, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -20,11 +21,48 @@ const statusClasses = {
   closed: "bg-blue-50 text-blue-800",
 } as const;
 
+const FORUM_LEVEL_STORAGE_PREFIX = "midad-admin-forum-levels:";
+
+function getForumLevelStorageKey(identity: string | undefined) {
+  return `${FORUM_LEVEL_STORAGE_PREFIX}${encodeURIComponent(identity || "unknown")}`;
+}
+
+function readStoredForumLevels(storageKey: string): ForumLevel[] {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is ForumLevel => FORUM_LEVELS.includes(value as ForumLevel));
+  } catch {
+    return [];
+  }
+}
+
 function AdminForumContent() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<"all" | keyof typeof statusLabels>("pending");
   const [itemType, setItemType] = useState<"all" | "topic" | "reply">("all");
   const [search, setSearch] = useState("");
   const [levels, setLevels] = useState<ForumLevel[]>([]);
+  const [levelsRestored, setLevelsRestored] = useState(false);
+  const adminIdentity = user?.openId || user?.email || (user?.id ? String(user.id) : undefined);
+  const levelStorageKey = useMemo(() => getForumLevelStorageKey(adminIdentity), [adminIdentity]);
+
+  useEffect(() => {
+    setLevels(readStoredForumLevels(levelStorageKey));
+    setLevelsRestored(true);
+  }, [levelStorageKey]);
+
+  useEffect(() => {
+    if (!levelsRestored) return;
+    try {
+      window.localStorage.setItem(levelStorageKey, JSON.stringify(levels));
+    } catch {
+      // التخزين المحلي قد يكون معطلاً في بعض أوضاع الخصوصية؛ لا نعطل الطابور.
+    }
+  }, [levelStorageKey, levels, levelsRestored]);
+
   const queueInput = useMemo(() => ({
     status: status === "all" ? undefined : status,
     itemType: itemType === "all" ? undefined : itemType,
@@ -34,7 +72,7 @@ function AdminForumContent() {
   const toggleLevel = (level: ForumLevel) => {
     setLevels(current => current.includes(level) ? current.filter(item => item !== level) : [...current, level]);
   };
-  const queue = trpc.admin.forumQueue.useQuery(queueInput, { refetchOnWindowFocus: true });
+  const queue = trpc.admin.forumQueue.useQuery(queueInput, { enabled: levelsRestored, refetchOnWindowFocus: true });
   const reports = trpc.admin.forumReports.useQuery(undefined, { refetchOnWindowFocus: true });
   const utils = trpc.useUtils();
   const refresh = () => { void utils.admin.forumQueue.invalidate(); void utils.admin.forumReports.invalidate(); };

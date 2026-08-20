@@ -50,4 +50,14 @@ describe("Midad Law forum categorization", () => {
     expect(db).toContain('const conditions = [eq(forumTopics.status, "published")]');
     expect(db).toContain("where(and(...conditions))");
   });
+
+  it("persists the admin level filter per identity with safe restoration", () => {
+    const adminForum = readFileSync(join(root, "client/src/pages/AdminForum.tsx"), "utf8");
+    expect(adminForum).toContain('const FORUM_LEVEL_STORAGE_PREFIX = "midad-admin-forum-levels:"');
+    expect(adminForum).toContain("encodeURIComponent(identity || \"unknown\")");
+    expect(adminForum).toContain("window.localStorage.getItem(storageKey)");
+    expect(adminForum).toContain("FORUM_LEVELS.includes(value as ForumLevel)");
+    expect(adminForum).toContain("window.localStorage.setItem(levelStorageKey, JSON.stringify(levels))");
+    expect(adminForum).toContain("enabled: levelsRestored");
+  });
 });
