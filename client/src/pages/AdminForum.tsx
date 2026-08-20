@@ -21,47 +21,92 @@ const statusClasses = {
   closed: "bg-blue-50 text-blue-800",
 } as const;
 
-const FORUM_LEVEL_STORAGE_PREFIX = "midad-admin-forum-levels:";
+const FORUM_FILTER_STORAGE_PREFIX = "midad-admin-forum-filters:";
+type ForumStatus = "all" | keyof typeof statusLabels;
+type ForumItemType = "all" | "topic" | "reply";
+type SavedForumFilters = {
+  status: ForumStatus;
+  itemType: ForumItemType;
+  search: string;
+  levels: ForumLevel[];
+};
 
-function getForumLevelStorageKey(identity: string | undefined) {
-  return `${FORUM_LEVEL_STORAGE_PREFIX}${encodeURIComponent(identity || "unknown")}`;
+const DEFAULT_SAVED_FORUM_FILTERS: SavedForumFilters = {
+  status: "pending",
+  itemType: "all",
+  search: "",
+  levels: [],
+};
+
+function getForumFilterStorageKey(identity: string | undefined) {
+  return `${FORUM_FILTER_STORAGE_PREFIX}${encodeURIComponent(identity || "unknown")}`;
 }
 
-function readStoredForumLevels(storageKey: string): ForumLevel[] {
+function isForumStatus(value: unknown): value is ForumStatus {
+  return value === "all" || value === "pending" || value === "published" || value === "hidden" || value === "closed";
+}
+
+function isForumItemType(value: unknown): value is ForumItemType {
+  return value === "all" || value === "topic" || value === "reply";
+}
+
+function readStoredForumFilters(storageKey: string): SavedForumFilters {
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return [];
+    if (!raw) return DEFAULT_SAVED_FORUM_FILTERS;
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((value): value is ForumLevel => FORUM_LEVELS.includes(value as ForumLevel));
+
+    // Backward compatibility with the previous levels-only array format.
+    if (Array.isArray(parsed)) {
+      return {
+        ...DEFAULT_SAVED_FORUM_FILTERS,
+        levels: parsed.filter((value): value is ForumLevel => FORUM_LEVELS.includes(value as ForumLevel)),
+      };
+    }
+
+    if (!parsed || typeof parsed !== "object") return DEFAULT_SAVED_FORUM_FILTERS;
+    const candidate = parsed as Partial<SavedForumFilters>;
+    return {
+      status: isForumStatus(candidate.status) ? candidate.status : DEFAULT_SAVED_FORUM_FILTERS.status,
+      itemType: isForumItemType(candidate.itemType) ? candidate.itemType : DEFAULT_SAVED_FORUM_FILTERS.itemType,
+      search: typeof candidate.search === "string" ? candidate.search.slice(0, 200) : DEFAULT_SAVED_FORUM_FILTERS.search,
+      levels: Array.isArray(candidate.levels)
+        ? candidate.levels.filter((value): value is ForumLevel => FORUM_LEVELS.includes(value as ForumLevel))
+        : DEFAULT_SAVED_FORUM_FILTERS.levels,
+    };
   } catch {
-    return [];
+    return DEFAULT_SAVED_FORUM_FILTERS;
   }
 }
 
 function AdminForumContent() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<"all" | keyof typeof statusLabels>("pending");
-  const [itemType, setItemType] = useState<"all" | "topic" | "reply">("all");
+  const [status, setStatus] = useState<ForumStatus>(DEFAULT_SAVED_FORUM_FILTERS.status);
+  const [itemType, setItemType] = useState<ForumItemType>(DEFAULT_SAVED_FORUM_FILTERS.itemType);
   const [search, setSearch] = useState("");
   const [levels, setLevels] = useState<ForumLevel[]>([]);
   const [levelsRestored, setLevelsRestored] = useState(false);
   const adminIdentity = user?.openId || user?.email || (user?.id ? String(user.id) : undefined);
-  const levelStorageKey = useMemo(() => getForumLevelStorageKey(adminIdentity), [adminIdentity]);
+  const filterStorageKey = useMemo(() => getForumFilterStorageKey(adminIdentity), [adminIdentity]);
 
   useEffect(() => {
-    setLevels(readStoredForumLevels(levelStorageKey));
+    const saved = readStoredForumFilters(filterStorageKey);
+    setStatus(saved.status);
+    setItemType(saved.itemType);
+    setSearch(saved.search);
+    setLevels(saved.levels);
     setLevelsRestored(true);
-  }, [levelStorageKey]);
+  }, [filterStorageKey]);
 
   useEffect(() => {
     if (!levelsRestored) return;
     try {
-      window.localStorage.setItem(levelStorageKey, JSON.stringify(levels));
+      const saved: SavedForumFilters = { status, itemType, search, levels };
+      window.localStorage.setItem(filterStorageKey, JSON.stringify(saved));
     } catch {
       // التخزين المحلي قد يكون معطلاً في بعض أوضاع الخصوصية؛ لا نعطل الطابور.
     }
-  }, [levelStorageKey, levels, levelsRestored]);
+  }, [filterStorageKey, itemType, levels, levelsRestored, search, status]);
 
   const queueInput = useMemo(() => ({
     status: status === "all" ? undefined : status,

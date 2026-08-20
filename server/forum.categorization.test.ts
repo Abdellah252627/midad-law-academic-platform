@@ -51,13 +51,17 @@ describe("Midad Law forum categorization", () => {
     expect(db).toContain("where(and(...conditions))");
   });
 
-  it("persists the admin level filter per identity with safe restoration", () => {
+  it("persists all admin queue filters per identity with safe restoration", () => {
     const adminForum = readFileSync(join(root, "client/src/pages/AdminForum.tsx"), "utf8");
-    expect(adminForum).toContain('const FORUM_LEVEL_STORAGE_PREFIX = "midad-admin-forum-levels:"');
+    expect(adminForum).toContain('const FORUM_FILTER_STORAGE_PREFIX = "midad-admin-forum-filters:"');
     expect(adminForum).toContain("encodeURIComponent(identity || \"unknown\")");
     expect(adminForum).toContain("window.localStorage.getItem(storageKey)");
     expect(adminForum).toContain("FORUM_LEVELS.includes(value as ForumLevel)");
-    expect(adminForum).toContain("window.localStorage.setItem(levelStorageKey, JSON.stringify(levels))");
+    expect(adminForum).toContain("isForumStatus(candidate.status)");
+    expect(adminForum).toContain("isForumItemType(candidate.itemType)");
+    expect(adminForum).toContain("typeof candidate.search === \"string\"");
+    expect(adminForum).toContain("window.localStorage.setItem(filterStorageKey, JSON.stringify(saved))");
+    expect(adminForum).toContain("Backward compatibility with the previous levels-only array format");
     expect(adminForum).toContain("enabled: levelsRestored");
   });
 });
