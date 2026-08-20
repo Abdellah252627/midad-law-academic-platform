@@ -21,3 +21,37 @@ describe("forum moderation word list", () => {
     expect(FORUM_BLOCKED_WORD_WARNING).not.toContain("احمق");
   });
 });
+
+import { calculateForumViolation, FORUM_MODERATION_BASE_BLOCK_MS, FORUM_MODERATION_THRESHOLD, FORUM_MODERATION_WINDOW_MS } from "../shared/forumModerationPolicy";
+
+describe("temporary forum moderation policy", () => {
+  const now = new Date("2026-08-20T12:00:00.000Z");
+
+  it("does not block before the third violation", () => {
+    const result = calculateForumViolation({ violationCount: 1, windowStartedAt: now, blockLevel: 0 }, new Date(now.getTime() + 1_000));
+    expect(result.violationCount).toBe(2);
+    expect(result.isBlocked).toBe(false);
+    expect(FORUM_MODERATION_THRESHOLD).toBe(3);
+  });
+
+  it("starts a temporary block at the threshold", () => {
+    const result = calculateForumViolation({ violationCount: 2, windowStartedAt: now, blockLevel: 0 }, new Date(now.getTime() + 1_000));
+    expect(result.violationCount).toBe(3);
+    expect(result.isBlocked).toBe(true);
+    expect(result.remainingMs).toBe(FORUM_MODERATION_BASE_BLOCK_MS);
+    expect(result.blockedUntil?.getTime()).toBe(new Date(now.getTime() + 1_000 + FORUM_MODERATION_BASE_BLOCK_MS).getTime());
+  });
+
+  it("resets the counter after the 24-hour window", () => {
+    const result = calculateForumViolation({ violationCount: 2, windowStartedAt: now, blockLevel: 0 }, new Date(now.getTime() + FORUM_MODERATION_WINDOW_MS + 1));
+    expect(result.violationCount).toBe(1);
+    expect(result.isBlocked).toBe(false);
+    expect(result.windowStartedAt?.getTime()).toBe(now.getTime() + FORUM_MODERATION_WINDOW_MS + 1);
+  });
+
+  it("escalates duration for repeated blocks without exceeding the maximum", () => {
+    const result = calculateForumViolation({ violationCount: 2, windowStartedAt: now, blockLevel: 1 }, new Date(now.getTime() + 2_000));
+    expect(result.blockLevel).toBe(2);
+    expect(result.remainingMs).toBe(FORUM_MODERATION_BASE_BLOCK_MS * 2);
+  });
+});

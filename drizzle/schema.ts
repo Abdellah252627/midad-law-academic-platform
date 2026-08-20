@@ -223,6 +223,18 @@ export const forumBlockedWords = mysqlTable("forum_blocked_words", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const forumUserModeration = mysqlTable("forum_user_moderation", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id),
+  violationCount: int("violationCount").default(0).notNull(),
+  windowStartedAt: timestamp("windowStartedAt"),
+  lastViolationAt: timestamp("lastViolationAt"),
+  blockedUntil: timestamp("blockedUntil"),
+  blockLevel: int("blockLevel").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const forumTopics = mysqlTable("forum_topics", {
   id: int("id").autoincrement().primaryKey(),
   categoryId: int("categoryId").notNull().references(() => forumCategories.id),
@@ -303,6 +315,8 @@ export type AdminNotification = typeof adminNotifications.$inferSelect;
 export type InsertAdminNotification = typeof adminNotifications.$inferInsert;
 export type ForumCategory = typeof forumCategories.$inferSelect;
 export type InsertForumCategory = typeof forumCategories.$inferInsert;
+export type ForumUserModeration = typeof forumUserModeration.$inferSelect;
+export type InsertForumUserModeration = typeof forumUserModeration.$inferInsert;
 export type ForumTopic = typeof forumTopics.$inferSelect;
 export type InsertForumTopic = typeof forumTopics.$inferInsert;
 export type ForumReply = typeof forumReplies.$inferSelect;
