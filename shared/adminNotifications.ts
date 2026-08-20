@@ -46,6 +46,19 @@ export function buildSupportFollowUpNotification(reference: string, followUpId: 
   };
 }
 
+export function buildComplaintNotification(ticketNumber: string, complaintId: number): AdminNotificationPayload {
+  const definition = ADMIN_NOTIFICATION_DEFINITIONS.complaint;
+  return {
+    type: "complaint",
+    title: definition.label,
+    message: `وصلت شكوى جديدة بالرقم ${ticketNumber} وتحتاج إلى مراجعة.`,
+    priority: definition.priority,
+    entityType: "complaint",
+    entityId: String(complaintId),
+    targetPath: definition.targetPath,
+  };
+}
+
 export const ADMIN_NOTIFICATION_DEFINITIONS = {
   purchase_request: {
     label: "طلب شراء جديد",

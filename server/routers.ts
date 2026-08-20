@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FAQ_CATEGORIES } from "@shared/faq";
-import { buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
+import { buildComplaintNotification, buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
@@ -145,6 +145,13 @@ export const appRouter = router({
         if (input.requestId && !request) throw new Error("رقم الطلب غير صالح");
         const ticketNumber = `MIDAD-S-${randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
         const complaint = await createComplaint({ ...input, email: input.email.toLowerCase(), ticketNumber });
+        if (complaint) {
+          try {
+            await createAdminNotification(buildComplaintNotification(complaint.ticketNumber, complaint.id));
+          } catch (error) {
+            console.error("[Notifications] Failed to create complaint notification:", error);
+          }
+        }
         return { success: true as const, ticketNumber: complaint?.ticketNumber ?? ticketNumber, status: complaint?.status ?? "new" };
       }),
     track: publicProcedure
