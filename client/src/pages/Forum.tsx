@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, Clock3, Flag, MessageCircle, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -20,6 +20,15 @@ export default function Forum() {
   }, []);
   const forumCountdown = getForumCountdown(currentTime);
   const forumOpen = forumCountdown.isOpen;
+  const previousForumOpen = useRef(forumOpen);
+  const [statusTransition, setStatusTransition] = useState<"opened" | "closed" | null>(null);
+  useEffect(() => {
+    if (previousForumOpen.current === forumOpen) return;
+    setStatusTransition(forumOpen ? "opened" : "closed");
+    previousForumOpen.current = forumOpen;
+    const timeout = window.setTimeout(() => setStatusTransition(null), 8_000);
+    return () => window.clearTimeout(timeout);
+  }, [forumOpen]);
   const countdownMinutes = Math.floor(forumCountdown.remainingMs / 60_000);
   const countdownHours = Math.floor(countdownMinutes / 60);
   const countdownRemainingMinutes = countdownMinutes % 60;
@@ -88,6 +97,7 @@ export default function Forum() {
           <CardContent className="space-y-4">
             <p className="text-sm leading-7 text-[#59636a]">هذا المنتدى مخصص للتعلم وتبادل الفهم القانوني باحترام. لا تُعد المنشورات استشارة قانونية شخصية، وتخضع المشاركات للمراجعة قبل نشرها.</p>
             <div role="status" className={`flex items-start gap-2 rounded-xl border p-3 text-sm font-bold leading-6 ${forumOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}><Clock3 className="mt-1 h-4 w-4 shrink-0" /><span>{forumOpen ? `المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب. يتبقى ${countdownLabel} على الإغلاق.` : `${FORUM_CLOSED_MESSAGE} يتبقى ${countdownLabel} على فتح المشاركة.`}</span></div>
+            {statusTransition && <div role="alert" aria-live="assertive" className={`forum-status-transition flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold ${statusTransition === "opened" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}><span aria-hidden="true" className="text-lg">{statusTransition === "opened" ? "✓" : "!"}</span><span>{statusTransition === "opened" ? "فُتحت المشاركة الآن. يمكنك إنشاء موضوع أو إرسال رد." : "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00."}</span></div>}
             <ul className="grid gap-2 text-sm leading-6 text-[#173247] md:grid-cols-2">
               {(rules.data?.items ?? []).map((rule, index) => <li key={index} className="rounded-lg bg-[#f7f1e5] px-3 py-2">{rule}</li>)}
             </ul>

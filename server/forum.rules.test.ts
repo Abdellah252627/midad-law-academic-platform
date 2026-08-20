@@ -31,6 +31,9 @@ describe("Midad Law forum participation hours", () => {
     expect(router).toContain("FORUM_CLOSED_MESSAGE");
     expect(page).toContain("المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب");
     expect(page).toContain("FORUM_CLOSED_MESSAGE");
+    expect(page).toContain("statusTransition");
+    expect(page).toContain('role="alert"');
+    expect(page).toContain("forum-status-transition");
   });
 });
 
