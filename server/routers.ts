@@ -10,7 +10,7 @@ import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { FORUM_BLOCKED_WORD_WARNING } from "../shared/forumModeration";
-import { FORUM_MODERATION_THRESHOLD } from "../shared/forumModerationPolicy";
+import { FORUM_MODERATION_THRESHOLD, getForumModerationWarning } from "../shared/forumModerationPolicy";
 import { buildPurchaseRequestsXlsx, type PurchaseExportRow } from "./xlsxExport";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, isAuthorizedAdmin, protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -178,13 +178,27 @@ export const appRouter = router({
     acceptance: protectedProcedure.query(({ ctx }) => hasAcceptedForumRules(ctx.user.id)),
     acceptRules: protectedProcedure.mutation(async ({ ctx }) => ({ ...(await acceptForumRules(ctx.user.id)), version: FORUM_RULES_VERSION })),
     categories: publicProcedure.query(async () => getForumCategories()),
+    moderationStatus: protectedProcedure.query(async ({ ctx }) => {
+      const status = await getForumModerationStatus(ctx.user.id);
+      const warning = getForumModerationWarning(status.violationCount, status.isBlocked);
+      return {
+        isBlocked: status.isBlocked,
+        remainingMinutes: Math.ceil(status.remainingMs / 60000),
+        violationCount: status.violationCount,
+        ...warning,
+      };
+    }),
     moderationCheck: protectedProcedure.input(z.object({ text: z.string().trim().min(1).max(10000) })).query(async ({ input, ctx }) => {
       const status = await getForumModerationStatus(ctx.user.id);
+      const warningState = getForumModerationWarning(status.violationCount, status.isBlocked);
       return {
         allowed: !status.isBlocked && !(await findActiveForumBlockedTerm(input.text)),
         warning: FORUM_BLOCKED_WORD_WARNING,
         isBlocked: status.isBlocked,
         remainingMinutes: Math.ceil(status.remainingMs / 60000),
+        violationCount: status.violationCount,
+        remainingAttempts: warningState.remainingAttempts,
+        nearLimitWarning: warningState.message,
       };
     }),
     topics: publicProcedure.input(z.object({ categoryId: z.number().int().positive().optional(), subject: FORUM_SUBJECT_SCHEMA.optional(), level: FORUM_LEVEL_SCHEMA.optional() }).optional()).query(async ({ input }) => getPublishedForumTopics(input)),

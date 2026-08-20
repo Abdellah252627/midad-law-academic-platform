@@ -9,6 +9,16 @@ export type ExistingForumModeration = {
   blockLevel: number;
 };
 
+export function getForumModerationWarning(violationCount: number, isBlocked = false) {
+  const remainingAttempts = Math.max(0, FORUM_MODERATION_THRESHOLD - violationCount);
+  const showWarning = !isBlocked && violationCount >= FORUM_MODERATION_THRESHOLD - 1;
+  return {
+    remainingAttempts,
+    showWarning,
+    message: showWarning ? `تنبيه: تبقت لك ${remainingAttempts === 1 ? "محاولة واحدة" : `${remainingAttempts} محاولات`} فقط قبل التقييد المؤقت. احرص على احترام قواعد المنتدى.` : null,
+  };
+}
+
 export function calculateForumViolation(existing: ExistingForumModeration | undefined, now: Date) {
   const withinWindow = Boolean(existing?.windowStartedAt && now.getTime() - existing.windowStartedAt.getTime() <= FORUM_MODERATION_WINDOW_MS);
   const violationCount = withinWindow ? (existing?.violationCount ?? 0) + 1 : 1;

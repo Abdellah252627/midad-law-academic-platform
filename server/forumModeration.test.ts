@@ -22,7 +22,7 @@ describe("forum moderation word list", () => {
   });
 });
 
-import { calculateForumViolation, FORUM_MODERATION_BASE_BLOCK_MS, FORUM_MODERATION_THRESHOLD, FORUM_MODERATION_WINDOW_MS } from "../shared/forumModerationPolicy";
+import { calculateForumViolation, FORUM_MODERATION_BASE_BLOCK_MS, FORUM_MODERATION_THRESHOLD, FORUM_MODERATION_WINDOW_MS, getForumModerationWarning } from "../shared/forumModerationPolicy";
 
 describe("temporary forum moderation policy", () => {
   const now = new Date("2026-08-20T12:00:00.000Z");
@@ -53,5 +53,19 @@ describe("temporary forum moderation policy", () => {
     const result = calculateForumViolation({ violationCount: 2, windowStartedAt: now, blockLevel: 1 }, new Date(now.getTime() + 2_000));
     expect(result.blockLevel).toBe(2);
     expect(result.remainingMs).toBe(FORUM_MODERATION_BASE_BLOCK_MS * 2);
+  });
+
+  it("shows a visible warning with one remaining attempt near the threshold", () => {
+    const result = getForumModerationWarning(FORUM_MODERATION_THRESHOLD - 1);
+    expect(result.showWarning).toBe(true);
+    expect(result.remainingAttempts).toBe(1);
+    expect(result.message).toContain("محاولة واحدة");
+    expect(result.message).not.toContain("احمق");
+  });
+
+  it("does not show the pre-block warning before the user is near the threshold or while blocked", () => {
+    expect(getForumModerationWarning(0).showWarning).toBe(false);
+    expect(getForumModerationWarning(FORUM_MODERATION_THRESHOLD, true).showWarning).toBe(false);
+    expect(getForumModerationWarning(FORUM_MODERATION_THRESHOLD, true).remainingAttempts).toBe(0);
   });
 });
