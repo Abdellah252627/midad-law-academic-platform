@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, MessageCircle, Search, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, FileWarning, Loader2, MessageCircle, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import {
@@ -136,18 +136,24 @@ export default function ContactPage() {
       </header>
 
       <div className="mx-auto max-w-[980px] px-5 py-12 lg:px-8 lg:py-20">
-        <div className="max-w-[760px]">
-          <div className="mb-4 inline-flex items-center gap-2 text-xs font-black tracking-[0.08em] text-[#b9854a]">
-            <MessageCircle size={15} aria-hidden="true" /> الدعم والشكاوى
+        <section className="relative overflow-hidden rounded-[30px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-[0_18px_55px_rgba(23,43,58,0.08)] sm:p-9">
+          <div className="pointer-events-none absolute -left-16 -top-20 h-48 w-48 rounded-full bg-[#f8eee1] blur-3xl" aria-hidden="true" />
+          <div className="relative max-w-[760px]">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#d5a15f]/35 bg-[#f8eee1] px-3 py-1.5 text-xs font-black tracking-[0.05em] text-[#8d622d]"><MessageCircle size={15} aria-hidden="true" /> مركز الدعم والشكاوى</div>
+            <h1 className="font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">تواصل معنا بثقة، وسنساعدك بخطوات واضحة</h1>
+            <p className="mt-5 max-w-[680px] text-[15px] leading-[2] text-[#68747a]">اختر المسار الأنسب لك: أرسل شكوى موثقة لمتابعة مشكلة محددة، أو افتح محادثة مباشرة عبر WhatsApp للاستفسارات السريعة.</p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              <a href="#complaint-form" className="group rounded-2xl border border-[#d9c4a6] bg-[#fffaf2] p-4 transition hover:-translate-y-0.5 hover:border-[#b9854a] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9854a]"><span className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 font-display text-base font-black text-[#172b3a]"><FileWarning size={18} className="text-[#b9854a]" aria-hidden="true" /> إرسال شكوى منظمة</span><ArrowRight size={16} className="rotate-180 text-[#b9854a] transition-transform group-hover:-translate-x-1" aria-hidden="true" /></span><span className="mt-2 block text-xs leading-[1.8] text-[#68747a]">احصل على رقم تذكرة واحتفظ به للمتابعة.</span></a>
+              <a href="#whatsapp-section" className="group rounded-2xl border border-[#b8ddc5] bg-[#f1fbf4] p-4 transition hover:-translate-y-0.5 hover:border-[#25D366] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/40"><span className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 font-display text-base font-black text-[#172b3a]"><MessageCircle size={18} className="text-[#168447]" aria-hidden="true" /> تواصل سريع عبر WhatsApp</span><ArrowRight size={16} className="rotate-180 text-[#168447] transition-transform group-hover:-translate-x-1" aria-hidden="true" /></span><span className="mt-2 block text-xs leading-[1.8] text-[#68747a]">مناسب للاستفسارات ومتابعة الطلبات والتذاكر.</span></a>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-[#e9e1d5] pt-5 text-xs font-bold text-[#68747a]"><span className="inline-flex items-center gap-2"><Clock3 size={15} className="text-[#b9854a]" aria-hidden="true" /> WhatsApp: 09:00–20:00</span><span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#b9854a]" aria-hidden="true" /> معالجة مسؤولة للبيانات</span></div>
           </div>
-          <h1 className="font-display text-4xl font-black leading-[1.25] tracking-[-0.045em] text-[#172b3a] md:text-5xl">نحن هنا لمساعدتك</h1>
-          <p className="mt-6 text-[15px] leading-[2] text-[#68747a]">إذا واجهت مشكلة في التحويل أو الوصول إلى ملفك أو لديك استفسار عن أحد الملخصات، أرسل شكوى منظمة أو تواصل معنا مباشرة عبر واتساب.</p>
-        </div>
+        </section>
 
-        <section className="mt-10 grid gap-5 lg:grid-cols-2">
-          <div className="rounded-[24px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-sm sm:p-8">
+        <section className="mt-7 grid gap-5 lg:grid-cols-2">
+          <div id="complaint-form" className="scroll-mt-6 rounded-[24px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-sm sm:p-8">
             <div className="flex items-start gap-4">
-              <div className="rounded-2xl bg-[#f8eee1] p-3 text-[#b9854a]"><MessageCircle size={24} aria-hidden="true" /></div>
+              <div className="rounded-2xl bg-[#f8eee1] p-3 text-[#b9854a]"><FileWarning size={24} aria-hidden="true" /></div>
               <div>
                 <h2 className="font-display text-2xl font-black text-[#172b3a]">إرسال شكوى</h2>
                 <p className="mt-3 text-sm leading-[2] text-[#68747a]">املأ البيانات التالية لتحصل على رقم تذكرة يمكن استخدامه في المتابعة.</p>
@@ -166,7 +172,7 @@ export default function ContactPage() {
               <label className="block text-sm font-bold text-[#344650]">وصف المشكلة<textarea required minLength={10} maxLength={5000} value={complaintForm.description} onChange={(event) => setComplaintForm({ ...complaintForm, description: event.target.value })} rows={4} placeholder="اكتب تفاصيل المشكلة بوضوح..." className="mt-2 w-full resize-y rounded-xl border border-[#ded6c9] bg-white px-4 py-3 font-normal leading-[1.8] outline-none focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></label>
               <button type="submit" disabled={submitComplaint.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#172b3a] px-6 py-3.5 text-sm font-extrabold text-[#f7f3eb] transition hover:bg-[#264354] disabled:cursor-not-allowed disabled:opacity-60">{submitComplaint.isPending && <Loader2 size={17} className="animate-spin" aria-hidden="true" />} إرسال الشكوى</button>
             </form>
-            {submittedTicket && <div className="mt-5 rounded-2xl border border-[#b8ddc5] bg-[#effaf2] p-4 text-sm leading-[1.9] text-[#176b36]"><strong>تم استلام شكواك.</strong><br />رقم التذكرة: <span dir="ltr" className="font-black">{submittedTicket}</span><br />احتفظ بهذا الرقم مع بريدك الإلكتروني لمتابعة الحالة.</div>}
+            {submittedTicket && <div className="mt-5 rounded-2xl border border-[#b8ddc5] bg-[#effaf2] p-4 text-sm leading-[1.9] text-[#176b36]" role="status" aria-live="polite"><div className="flex items-start gap-3"><CheckCircle2 size={21} className="mt-0.5 shrink-0" aria-hidden="true" /><div><strong className="font-display text-base">تم استلام شكواك بنجاح</strong><p className="mt-1">أنشأنا لك تذكرة متابعة. احتفظ بالرقم المرجعي مع بريدك الإلكتروني، وسنستخدمهما لمساعدتك بدقة أكبر.</p><p className="mt-2 rounded-xl bg-white/70 px-3 py-2">رقم التذكرة: <span dir="ltr" className="font-black">{submittedTicket}</span></p></div></div></div>}
           </div>
 
           <div className="space-y-5">
@@ -181,11 +187,11 @@ export default function ContactPage() {
               {trackingQuery.isError && <p className="mt-4 rounded-xl bg-[#fff1ee] p-3 text-sm leading-[1.8] text-[#a64332]">لم نعثر على تذكرة بهذه البيانات. تحقق من رقم التذكرة والبريد الإلكتروني.</p>}
               {trackingQuery.data && <div className="mt-5 rounded-2xl bg-[#f7f3eb] p-4 text-sm leading-[2] text-[#53616a]"><div className="flex items-center justify-between gap-3"><strong className="text-[#172b3a]">{trackingQuery.data.ticketNumber}</strong><span className="rounded-full bg-[#e6f7ec] px-3 py-1 text-xs font-bold text-[#176b36]">{statusLabels[trackingQuery.data.status] ?? trackingQuery.data.status}</span></div><p className="mt-2">نوع المشكلة: {categoryLabels[trackingQuery.data.category as keyof typeof categoryLabels] ?? trackingQuery.data.category}</p><p>تاريخ الإرسال: {new Date(trackingQuery.data.createdAt).toLocaleString("ar-MA")}</p></div>}
             </div>
-            <div className="rounded-[24px] border border-[#ded6c9] bg-[#172b3a] p-6 text-[#f7f3eb] shadow-sm sm:p-8"><div className="flex items-start gap-4"><ShieldCheck size={23} className="mt-1 shrink-0 text-[#d5a15f]" aria-hidden="true" /><div><h2 className="font-display text-xl font-black">حماية معلوماتك</h2><p className="mt-3 text-sm leading-[2] text-[#c7d0cd]">لا ترسل كلمات المرور أو رموز التحقق أو بيانات البطاقة البنكية. نستخدم بيانات التواصل لمعالجة الشكوى فقط.</p></div></div></div>
+            <div id="security-note" className="rounded-[24px] border border-[#ded6c9] bg-[#172b3a] p-6 text-[#f7f3eb] shadow-sm sm:p-8"><div className="flex items-start gap-4"><ShieldCheck size={23} className="mt-1 shrink-0 text-[#d5a15f]" aria-hidden="true" /><div><h2 className="font-display text-xl font-black">حماية معلوماتك</h2><p className="mt-3 text-sm leading-[2] text-[#c7d0cd]">لا ترسل كلمات المرور أو رموز التحقق أو بيانات البطاقة البنكية. نستخدم بيانات التواصل لمعالجة الشكوى فقط.</p></div></div></div>
           </div>
         </section>
 
-        <section className="mt-5 rounded-[24px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-sm sm:p-8"><div className="flex items-start gap-4"><div className="rounded-2xl bg-[#e6f7ec] p-3 text-[#128c43]"><MessageCircle size={24} aria-hidden="true" /></div><div><h2 className="font-display text-2xl font-black text-[#172b3a]">تواصل عبر واتساب</h2><p className="mt-3 text-sm leading-[2] text-[#68747a]">إذا تعذر استخدام النموذج، افتح محادثة مباشرة وأرسل رقم الطلب أو التذكرة عند توفره.</p></div></div><a href={whatsappLink} target="_blank" rel="noreferrer" className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 text-sm font-extrabold text-white transition hover:bg-[#1ebe5d] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/30"><MessageCircle size={19} aria-hidden="true" /> فتح محادثة واتساب</a><p className="mt-4 text-center text-xs text-[#8b9290]" dir="ltr">+212 6 64 17 30 90</p></section>
+        <section id="whatsapp-section" className="scroll-mt-6 mt-5 rounded-[24px] border border-[#b8ddc5] bg-[#f8fff9] p-6 shadow-sm sm:p-8"><div className="flex items-start gap-4"><div className="rounded-2xl bg-[#e6f7ec] p-3 text-[#128c43]"><MessageCircle size={24} aria-hidden="true" /></div><div><h2 className="font-display text-2xl font-black text-[#172b3a]">تواصل عبر واتساب</h2><p className="mt-3 text-sm leading-[2] text-[#68747a]">إذا تعذر استخدام النموذج، افتح محادثة مباشرة وأرسل رقم الطلب أو التذكرة عند توفره. يعمل مركز الخدمات يومياً من 09:00 إلى 20:00 بتوقيت المغرب.</p></div></div><a href={whatsappLink} target="_blank" rel="noreferrer" className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 text-sm font-extrabold text-white transition hover:bg-[#1ebe5d] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/30"><MessageCircle size={19} aria-hidden="true" /> فتح محادثة واتساب</a><p className="mt-4 text-center text-xs text-[#8b9290]" dir="ltr">+212 6 64 17 30 90</p></section>
 
         <section className="mt-5 rounded-[24px] border border-[#ded6c9] bg-[#fffdf9] p-6 shadow-sm sm:p-8"><h2 className="font-display text-xl font-black text-[#172b3a]">يمكننا مساعدتك في</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{topics.map((topic) => <div key={topic} className="flex items-start gap-3 rounded-2xl bg-[#f7f3eb] p-4 text-sm leading-[1.8] text-[#53616a]"><CheckCircle2 size={18} className="mt-0.5 shrink-0 text-[#b9854a]" aria-hidden="true" /><span>{topic}</span></div>)}</div></section>
 

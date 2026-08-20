@@ -33,6 +33,16 @@ describe("contact and complaints page", () => {
     expect(pageSource).toContain("هل يمكنني طلب استرداد المبلغ بعد تنزيل الملف؟");
   });
 
+  it("includes the redesigned support paths and accessible success state", () => {
+    expect(pageSource).toContain("مركز الدعم والشكاوى");
+    expect(pageSource).toContain('href="#complaint-form"');
+    expect(pageSource).toContain('href="#whatsapp-section"');
+    expect(pageSource).toContain('id="complaint-form"');
+    expect(pageSource).toContain('id="whatsapp-section"');
+    expect(pageSource).toContain('role="status"');
+    expect(pageSource).toContain("تواصل معنا بثقة، وسنساعدك بخطوات واضحة");
+  });
+
   it("includes the structured complaint form and ticket tracking", () => {
     expect(pageSource).toContain("إرسال شكوى");
     expect(pageSource).toContain("رقم التذكرة");
