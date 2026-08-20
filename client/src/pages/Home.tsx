@@ -454,6 +454,10 @@ export default function Home() {
               <p className="mt-8 max-w-[570px] font-body text-[18px] leading-[2] text-[#53616a]">
                 ملخص عربي منظم يختصر لك مدخل القانون والعلوم القانونية في وثيقة واحدة، من المفاهيم الأولى إلى المراجعة التطبيقية.
               </p>
+              <div className="mt-6 max-w-[610px] rounded-2xl border border-[#d8c6aa] bg-[#fffaf1]/80 px-5 py-4 shadow-[0_12px_30px_rgba(185,133,74,0.08)]" role="note" aria-label="رسالة ترحيبية لطلبة القانون في المغرب">
+                <p className="text-sm font-black leading-7 text-[#173247]">مرحباً بك، يا طالب القانون في المغرب.</p>
+                <p className="mt-1 text-sm leading-7 text-[#68747a]">في MIDAD نرافقك بخطوة واضحة نحو فهم المواد القانونية ومراجعتها بثقة، بما يلائم مسارك الجامعي وطموحك المهني.</p>
+              </div>
               <div className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                 <button onClick={scrollToPurchase} className="group inline-flex items-center gap-3 rounded-full bg-[#172b3a] px-7 py-4 text-sm font-extrabold text-white shadow-[0_18px_35px_rgba(23,43,58,0.22)] transition hover:-translate-y-1 hover:bg-[#b9854a] active:scale-[0.97]">
                   احصل على الملخص الآن
