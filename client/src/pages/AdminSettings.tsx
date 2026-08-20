@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { Bell, Loader2, Save, Settings2 } from "lucide-react";
+import { Bell, Loader2, Save, Settings2, TestTube2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +29,14 @@ const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransfer
 function AdminSettingsContent() {
   const query = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
   const utils = trpc.useUtils();
+  const testNotification = trpc.admin.testNotification.useMutation({
+    onSuccess: result => {
+      toast.success(result.message);
+      void utils.admin.notifications.invalidate();
+      void utils.admin.notificationUnreadCount.invalidate();
+    },
+    onError: error => toast.error(error.message || "تعذر إنشاء التنبيه التجريبي"),
+  });
   const save = trpc.admin.saveSetting.useMutation({
     onSuccess: () => {
       toast.success("تم حفظ الإعدادات");
@@ -82,6 +90,12 @@ function AdminSettingsContent() {
       <h1 className="mt-2 font-display text-3xl font-bold">الإعدادات العامة</h1>
       <p className="mt-2 max-w-2xl text-sm leading-7 text-white/70">غيّر بيانات التواصل والتحويل والسعر من قاعدة البيانات بدلاً من تعديل الكود. لا تُعرض هذه القيم إلا ضمن السياقات العامة المقصودة.</p>
     </header>
+    <section className="rounded-[26px] border border-[#e3d9ca] bg-[#fffaf1] p-6 shadow-sm sm:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3"><TestTube2 className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">اختبار تجريبي للإشعارات</h2><p className="mt-1 max-w-2xl text-xs leading-6 text-[#68747a]">ينشئ تنبيهاً نظامياً تجريبياً واحداً للتأكد من عمل الجرس والقائمة. لا ينشئ طلباً أو شكوى ولا يدخل في عدادات التسعير أو المبيعات.</p></div></div>
+        <button type="button" onClick={() => testNotification.mutate()} disabled={testNotification.isPending} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#b9854a] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#9d6d3c] disabled:cursor-not-allowed disabled:opacity-60"><TestTube2 className="h-4 w-4" />{testNotification.isPending ? "جارٍ الاختبار…" : "إنشاء تنبيه تجريبي"}</button>
+      </div>
+    </section>
     {query.isLoading ? <div className="rounded-2xl bg-white p-10 text-center text-[#68747a]"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div> : <form onSubmit={handleSubmit} className="space-y-5 rounded-[26px] border border-[#e3d9ca] bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-center gap-3 border-b border-[#eee7dc] pb-5"><Settings2 className="h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">قيم التشغيل</h2><p className="mt-1 text-xs text-[#68747a]">كل تغيير يُسجّل في سجل التدقيق.</p></div></div>
       <div className="grid gap-5 sm:grid-cols-2">

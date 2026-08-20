@@ -149,6 +149,32 @@ export async function createAdminNotificationOnce(input: InsertAdminNotification
   return { id: Number(result[0].insertId), created: true as const };
 }
 
+/** Create a single explicit admin-only demo notification without touching business entities. */
+export async function createDemoAdminNotification() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const entityId = "demo-notification";
+  const existing = await db.select({ id: adminNotifications.id })
+    .from(adminNotifications)
+    .where(and(
+      eq(adminNotifications.type, "system"),
+      eq(adminNotifications.entityType, "demo"),
+      eq(adminNotifications.entityId, entityId),
+    ))
+    .limit(1);
+  if (existing[0]) return { id: existing[0].id, created: false as const };
+  const result = await db.insert(adminNotifications).values({
+    type: "system",
+    title: "اختبار تجريبي للتنبيهات",
+    message: "هذا تنبيه تجريبي للتأكد من عمل الجرس والقائمة. لا يرتبط بطلب أو شكوى حقيقية.",
+    priority: "high",
+    entityType: "demo",
+    entityId,
+    targetPath: "/admin/notifications",
+  });
+  return { id: Number(result[0].insertId), created: true as const };
+}
+
 export async function deleteDuplicatePurchaseNotifications(entityId: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
