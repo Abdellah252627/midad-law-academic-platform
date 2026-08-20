@@ -2,6 +2,25 @@ export const FORUM_MODERATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const FORUM_MODERATION_THRESHOLD = 3;
 export const FORUM_MODERATION_BASE_BLOCK_MS = 30 * 60 * 1000;
 export const FORUM_MODERATION_MAX_BLOCK_MS = 24 * 60 * 60 * 1000;
+export const FORUM_TIME_ZONE = "Africa/Casablanca";
+export const FORUM_OPEN_HOUR = 8;
+export const FORUM_CLOSE_HOUR = 20;
+
+export function getMoroccoHour(date: Date) {
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: FORUM_TIME_ZONE,
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date).find(part => part.type === "hour")?.value;
+  return hour ? Number(hour) : NaN;
+}
+
+export function isForumOpenAt(date = new Date()) {
+  const hour = getMoroccoHour(date);
+  return Number.isFinite(hour) && hour >= FORUM_OPEN_HOUR && hour < FORUM_CLOSE_HOUR;
+}
+
+export const FORUM_CLOSED_MESSAGE = "المشاركة في المنتدى متاحة يومياً من الساعة 08:00 صباحاً إلى 20:00 مساءً بتوقيت المغرب. يمكنك تصفح النقاشات حالياً، وسنستقبل موضوعك أو ردك خلال ساعات المشاركة.";
 
 export type ExistingForumModeration = {
   violationCount: number;

@@ -1,12 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { isForumOpenAt } from "../shared/forumModerationPolicy";
 
 const root = resolve(import.meta.dirname, "..");
 const schema = readFileSync(resolve(root, "drizzle/schema.ts"), "utf8");
 const db = readFileSync(resolve(root, "server/db.ts"), "utf8");
 const router = readFileSync(resolve(root, "server/routers.ts"), "utf8");
 const page = readFileSync(resolve(root, "client/src/pages/Forum.tsx"), "utf8");
+
+describe("Midad Law forum participation hours", () => {
+  it("opens at 08:00 and closes at 20:00 in Morocco time", () => {
+    expect(isForumOpenAt(new Date("2026-08-21T07:00:00.000Z"))).toBe(true);
+    expect(isForumOpenAt(new Date("2026-08-21T19:00:00.000Z"))).toBe(false);
+  });
+
+  it("keeps the server and interface aligned with the hours policy", () => {
+    expect(router).toContain("isForumOpenAt()");
+    expect(router).toContain("FORUM_CLOSED_MESSAGE");
+    expect(page).toContain("المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب");
+    expect(page).toContain("FORUM_CLOSED_MESSAGE");
+  });
+});
 
 describe("Midad Law forum rules acceptance", () => {
   it("persists acceptance by user and rules version", () => {
