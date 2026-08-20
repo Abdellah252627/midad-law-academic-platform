@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
+import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
 import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, getAdminComplaints, updateComplaintAdmin, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
@@ -96,7 +96,7 @@ export const appRouter = router({
   support: router({
     submitFollowUp: publicProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE) }).merge(supportFollowUpFieldsSchema)).mutation(async ({ input }) => {
       const result = await createSupportFollowUp({ productCode: input.productCode, phone: input.phone || null, email: input.email || null, message: input.message || null });
-      return { success: true as const, id: result.id };
+      return { success: true as const, id: result.id, reference: formatSupportFollowUpReference(result.id) };
     }),
   }),
   sample: router({

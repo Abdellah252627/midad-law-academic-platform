@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
+import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 
 describe("support follow-up validation", () => {
+  it("formats a stable reference from the saved follow-up id", () => {
+    expect(formatSupportFollowUpReference(42)).toBe("MIDAD-FU-000042");
+    expect(formatSupportFollowUpReference(7)).toBe("MIDAD-FU-000007");
+  });
+
   it("accepts a Moroccan phone number with a message", () => {
     const result = supportFollowUpFieldsSchema.safeParse({ phone: "06 12-34-56-78", message: "أرغب في معرفة موعد التواصل" });
     expect(result.success).toBe(true);
@@ -40,5 +45,7 @@ describe("support follow-up success messaging", () => {
     expect(homeSource).toContain("وصل طلبك بنجاح");
     expect(homeSource).toContain("سيحرص فريق مركز الخدمات على التواصل معك");
     expect(homeSource).toContain("شكراً لثقتك");
+    expect(homeSource).toContain("رقمك المرجعي:");
+    expect(homeSource).toContain("followUpReference");
   });
 });

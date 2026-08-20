@@ -9,3 +9,7 @@ export const supportFollowUpFieldsSchema = z.object({
 });
 
 export type SupportFollowUpFields = z.infer<typeof supportFollowUpFieldsSchema>;
+
+export function formatSupportFollowUpReference(id: number) {
+  return `MIDAD-FU-${String(id).padStart(6, "0")}`;
+}
