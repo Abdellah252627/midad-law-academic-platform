@@ -190,6 +190,20 @@ export const supportFollowUps = mysqlTable("support_follow_ups", {
   contactedAt: timestamp("contactedAt"),
 });
 
+export const adminNotifications = mysqlTable("admin_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  type: varchar("type", { length: 40 }).notNull(),
+  title: varchar("title", { length: 180 }).notNull(),
+  message: varchar("message", { length: 500 }).notNull(),
+  priority: mysqlEnum("priority", ["high", "critical"]).default("high").notNull(),
+  entityType: varchar("entityType", { length: 80 }),
+  entityId: varchar("entityId", { length: 80 }),
+  targetPath: varchar("targetPath", { length: 255 }).notNull(),
+  isRead: boolean("isRead").default(false).notNull(),
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actorUserId: int("actorUserId").notNull(),
@@ -223,6 +237,8 @@ export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
+export type AdminNotification = typeof adminNotifications.$inferSelect;
+export type InsertAdminNotification = typeof adminNotifications.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
 export type SupportFollowUp = typeof supportFollowUps.$inferSelect;
