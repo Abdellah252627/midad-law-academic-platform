@@ -131,8 +131,15 @@ export async function getSupportFollowUps(options?: { search?: string; status?: 
 export async function getNewSupportFollowUpCount() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const rows = await db.select({ total: count() }).from(supportFollowUps).where(eq(supportFollowUps.status, "new"));
+  const rows = await db.select({ total: count() }).from(supportFollowUps).where(and(eq(supportFollowUps.status, "new"), eq(supportFollowUps.isRead, false)));
   return Number(rows[0]?.total ?? 0);
+}
+
+export async function markSupportFollowUpRead(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(supportFollowUps).set({ isRead: true, readAt: new Date() }).where(eq(supportFollowUps.id, id));
+  return getSupportFollowUpById(id);
 }
 
 export async function getSupportFollowUpById(id: number) {
