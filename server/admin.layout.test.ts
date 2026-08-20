@@ -73,9 +73,11 @@ describe("all notifications page", () => {
     expect(layout).toContain('setLocation("/admin/notifications")');
     expect(page).toContain("كل التنبيهات");
     expect(page).toContain("التصفية");
-    expect(page).toContain("تحديد الظاهر كمقروء");
+    expect(page).toContain("تحديد الكل كمقروء");
+    expect(page).toContain("تأكيد تحديد الكل كمقروء");
     expect(page).toContain("trpc.admin.notifications.useQuery");
-    expect(page).toContain("trpc.admin.markNotificationsRead.useMutation");
+    expect(page).toContain("trpc.admin.markAllNotificationsRead.useMutation");
+    expect(router).toContain("markAllNotificationsRead");
     expect(router).toContain('priority: z.enum(["high", "critical"]).optional()');
     expect(router).toContain("from: z.string().date().optional()");
   });

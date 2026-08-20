@@ -172,6 +172,15 @@ export async function markAdminNotificationsRead(ids: number[]) {
   return { updated: ids.length };
 }
 
+export async function markAllAdminNotificationsRead() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const unreadRows = await db.select({ id: adminNotifications.id }).from(adminNotifications).where(eq(adminNotifications.isRead, false));
+  if (unreadRows.length === 0) return { updated: 0 };
+  await db.update(adminNotifications).set({ isRead: true, readAt: new Date() }).where(eq(adminNotifications.isRead, false));
+  return { updated: unreadRows.length };
+}
+
 export async function getSupportFollowUps(options?: { search?: string; status?: "new" | "contacted" | "closed"; read?: "read" | "unread"; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
