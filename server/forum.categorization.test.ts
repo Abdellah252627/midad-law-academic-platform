@@ -21,14 +21,22 @@ describe("Midad Law forum categorization", () => {
     expect(forumConstants).toContain('S6: "السداسي السادس"');
   });
 
-  it("passes subject and level filters through the public procedure", () => {
+  it("passes subject and multi-level filters through the moderation procedure", () => {
     const router = readFileSync(join(root, "server/routers.ts"), "utf8");
     const db = readFileSync(join(root, "server/db.ts"), "utf8");
     expect(router).toContain("subject: FORUM_SUBJECT_SCHEMA.optional()");
-    expect(router).toContain("level: FORUM_LEVEL_SCHEMA.optional()");
-    expect(db).toContain("eq(forumTopics.subject, filters.subject)");
-    expect(db).toContain("getForumLevelFilter(filters.level as ForumLevel)");
-    expect(db).toContain("eq(forumTopics.level, value)");
+    expect(router).toContain("level: z.array(FORUM_LEVEL_SCHEMA)");
+    expect(db).toContain("getForumLevelFilter(level as ForumLevel)");
+    expect(db).toContain("inArray(forumTopics.level, levelValues)");
+    expect(db).toContain("innerJoin(forumTopics, eq(forumReplies.topicId, forumTopics.id))");
+  });
+
+  it("keeps the legacy Arabic values in the multi-level SQL filter", () => {
+    const db = readFileSync(join(root, "server/db.ts"), "utf8");
+    const forumConstants = readFileSync(join(root, "shared/forum.ts"), "utf8");
+    expect(db).toContain("const levelValues = (filters.level ?? []).flatMap");
+    expect(db).toContain("getForumLevelFilter(level as ForumLevel)");
+    expect(forumConstants).toContain("return [level, LEGACY_FORUM_LEVEL_ALIASES[level]]");
   });
 
   it("requires both categories when a user creates a new topic", () => {

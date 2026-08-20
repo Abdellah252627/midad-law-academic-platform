@@ -1238,19 +1238,23 @@ export type ForumModerationQueueFilters = {
   status?: "pending" | "published" | "hidden" | "closed";
   search?: string;
   itemType?: "topic" | "reply";
+  level?: string[];
 };
 
 export async function getForumModerationQueue(filters: ForumModerationQueueFilters = {}) {
   const db = await getDb();
   if (!db) return [];
   const search = filters.search?.trim();
+  const levelValues = (filters.level ?? []).flatMap(level => getForumLevelFilter(level as ForumLevel));
   const topicConditions = [
     filters.status ? eq(forumTopics.status, filters.status) : undefined,
     search ? or(like(forumTopics.title, `%${search}%`), like(forumTopics.body, `%${search}%`)) : undefined,
+    levelValues.length ? inArray(forumTopics.level, levelValues) : undefined,
   ].filter(Boolean) as any[];
   const replyConditions = [
     filters.status && filters.status !== "closed" ? eq(forumReplies.status, filters.status) : undefined,
     search ? like(forumReplies.body, `%${search}%`) : undefined,
+    levelValues.length ? inArray(forumTopics.level, levelValues) : undefined,
   ].filter(Boolean) as any[];
   const items: Array<Record<string, unknown>> = [];
   if (filters.itemType !== "reply") {
@@ -1266,7 +1270,7 @@ export async function getForumModerationQueue(filters: ForumModerationQueueFilte
     const replies = await db.select({
       id: forumReplies.id, body: forumReplies.body, status: forumReplies.status, createdAt: forumReplies.createdAt,
       topicId: forumReplies.topicId, authorUserId: users.id, authorName: users.name, authorEmail: users.email,
-    }).from(forumReplies).innerJoin(users, eq(forumReplies.authorUserId, users.id))
+    }).from(forumReplies).innerJoin(users, eq(forumReplies.authorUserId, users.id)).innerJoin(forumTopics, eq(forumReplies.topicId, forumTopics.id))
       .where(replyConditions.length ? and(...replyConditions) : undefined).orderBy(desc(forumReplies.createdAt));
     items.push(...replies.map(item => ({ ...item, itemType: "reply" as const })));
   }
