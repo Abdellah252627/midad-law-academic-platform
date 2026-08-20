@@ -64,7 +64,7 @@ export const ADMIN_NOTIFICATION_DEFINITIONS = {
   purchase_request: {
     label: "طلب شراء جديد",
     priority: "high",
-    targetPath: "/admin/orders",
+    targetPath: "/admin/purchases",
   },
   support_follow_up: {
     label: "طلب تواصل جديد",

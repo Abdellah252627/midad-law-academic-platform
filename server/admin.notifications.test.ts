@@ -94,4 +94,11 @@ describe("admin notification procedures", () => {
       targetPath: "/admin/follow-ups",
     });
   });
+
+  it("maps notification categories to valid Back Office destinations", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    const result = await caller.admin.notifications({ page: 1, pageSize: 25 });
+    expect(result.notifications[0]?.targetPath).toBe("/admin/follow-ups");
+    expect(["/admin/purchases", "/admin/follow-ups", "/admin/complaints", "/admin/notifications"]).toContain(result.notifications[0]?.targetPath);
+  });
 });
