@@ -291,7 +291,7 @@ export const appRouter = router({
       return { success: true as const, complaint: updated };
     }),
     newSupportFollowUpCount: adminProcedure.query(async () => getNewSupportFollowUpCount()),
-    notifications: adminProcedure.input(z.object({ type: z.enum(["purchase_request", "support_follow_up", "complaint"]).optional(), read: z.enum(["read", "unread"]).optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => getAdminNotifications(input ?? undefined)),
+    notifications: adminProcedure.input(z.object({ type: z.enum(["purchase_request", "support_follow_up", "complaint"]).optional(), read: z.enum(["read", "unread"]).optional(), priority: z.enum(["high", "critical"]).optional(), search: z.string().trim().max(160).optional(), from: z.string().date().optional(), to: z.string().date().optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => getAdminNotifications(input ?? undefined)),
     notificationUnreadCount: adminProcedure.query(async () => getAdminNotificationUnreadCount()),
     markNotificationRead: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => markAdminNotificationRead(input.id)),
     markNotificationsRead: adminProcedure.input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(100) })).mutation(async ({ input }) => markAdminNotificationsRead(Array.from(new Set(input.ids)))),

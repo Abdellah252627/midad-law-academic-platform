@@ -34,6 +34,7 @@ const menuItems = [
   { icon: ReceiptText, label: "طلبات الشراء والدفع", path: "/admin/purchases" },
   { icon: MessageSquareWarning, label: "إدارة الشكاوى", path: "/admin/complaints" },
   { icon: Headset, label: "طلبات التواصل", path: "/admin/follow-ups" },
+  { icon: Bell, label: "كل التنبيهات", path: "/admin/notifications" },
   { icon: Files, label: "الملفات والإصدارات", path: "/admin/files" },
   { icon: Users, label: "بيانات المهتمين", path: "/admin/leads" },
   { icon: ShieldAlert, label: "سجل التدقيق", path: "/admin/audit-logs" },
@@ -408,6 +409,9 @@ function DashboardLayoutContent({
                   <p dir="rtl" className="px-2 py-6 text-center text-sm text-muted-foreground">لا توجد تنبيهات واردة حالياً.</p>
                 )}
               </div>
+              <DropdownMenuItem onClick={() => setLocation("/admin/notifications")} className="mt-2 cursor-pointer justify-center rounded-xl border border-border/70 text-sm font-semibold">
+                عرض كل التنبيهات
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -116,7 +116,7 @@ export async function createAdminNotification(input: InsertAdminNotification) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint"; read?: "read" | "unread"; page?: number; pageSize?: number }) {
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const page = options?.page ?? 1;
@@ -125,6 +125,23 @@ export async function getAdminNotifications(options?: { type?: "purchase_request
   if (options?.type) conditions.push(eq(adminNotifications.type, options.type));
   if (options?.read === "read") conditions.push(eq(adminNotifications.isRead, true));
   if (options?.read === "unread") conditions.push(eq(adminNotifications.isRead, false));
+  if (options?.priority) conditions.push(eq(adminNotifications.priority, options.priority));
+  const search = options?.search?.trim();
+  if (search) {
+    const term = `%${search.slice(0, 160)}%`;
+    conditions.push(or(like(adminNotifications.title, term), like(adminNotifications.message, term), like(adminNotifications.entityId, term)));
+  }
+  if (options?.from) {
+    const fromDate = new Date(`${options.from}T00:00:00.000Z`);
+    if (!Number.isNaN(fromDate.getTime())) conditions.push(gte(adminNotifications.createdAt, fromDate));
+  }
+  if (options?.to) {
+    const toDate = new Date(`${options.to}T00:00:00.000Z`);
+    if (!Number.isNaN(toDate.getTime())) {
+      toDate.setUTCDate(toDate.getUTCDate() + 1);
+      conditions.push(lt(adminNotifications.createdAt, toDate));
+    }
+  }
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const [notifications, totals] = await Promise.all([
     db.select().from(adminNotifications).where(whereClause).orderBy(desc(adminNotifications.createdAt)).limit(pageSize).offset((page - 1) * pageSize),

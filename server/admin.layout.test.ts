@@ -59,3 +59,24 @@ describe("interactive admin notification dropdown", () => {
     expect(layout).toContain('onClick={() => openNotification(notification)}');
   });
 });
+
+
+describe("all notifications page", () => {
+  it("registers a protected admin page with search, filters, pagination, and bulk read", () => {
+    const app = readFileSync(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const page = readFileSync(resolve(process.cwd(), "client/src/pages/AdminNotifications.tsx"), "utf8");
+    const layout = readFileSync(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const router = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+
+    expect(app).toContain('path="/admin/notifications" component={AdminNotifications}');
+    expect(layout).toContain('path: "/admin/notifications"');
+    expect(layout).toContain('setLocation("/admin/notifications")');
+    expect(page).toContain("كل التنبيهات");
+    expect(page).toContain("التصفية");
+    expect(page).toContain("تحديد الظاهر كمقروء");
+    expect(page).toContain("trpc.admin.notifications.useQuery");
+    expect(page).toContain("trpc.admin.markNotificationsRead.useMutation");
+    expect(router).toContain('priority: z.enum(["high", "critical"]).optional()');
+    expect(router).toContain("from: z.string().date().optional()");
+  });
+});
