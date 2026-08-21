@@ -204,6 +204,13 @@
       "when": 1787275259752,
       "tag": "0028_silent_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1787302612137,
+      "tag": "0029_talented_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

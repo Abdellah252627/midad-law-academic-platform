@@ -35,13 +35,20 @@ export const AUTHORIZED_ADMIN_OPEN_ID = ENV.ownerOpenId || (!ENV.isProduction ? 
 // البريد الموثوق للحساب الإداري الوحيد الذي حدده مالك المنصة.
 export const AUTHORIZED_ADMIN_EMAIL = "abdellahmr538@gmail.com";
 
+export function isPlatformOwner(user: TrpcContext["user"]): boolean {
+  if (!user) return false;
+  if (ENV.ownerOpenId && user.openId === ENV.ownerOpenId) return true;
+  if (user.email?.trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL) return true;
+  if (ENV.isProduction) return false;
+  return user.role === "admin" && new Set(["admin", "admin-1", "admin-open-id"]).has(user.openId);
+}
+
 export function isAuthorizedAdmin(user: TrpcContext["user"]): boolean {
   if (!user) return false;
 
   // OpenID هو المعيار الأقوى عند توفره في بيئة النشر.
-  if (ENV.ownerOpenId && user.openId === ENV.ownerOpenId) return true;
+  if (isPlatformOwner(user)) return true;
   // يسمح هذا بالاسترداد الآمن إذا تغير OpenID التقني مع بقاء بريد OAuth الموثق.
-  if (user.email?.trim().toLowerCase() === AUTHORIZED_ADMIN_EMAIL) return true;
 
   // هويات الاختبار متاحة خارج الإنتاج فقط لاختبارات الإجراءات المعزولة.
   if (ENV.isProduction || user.role !== "admin") return false;
@@ -49,7 +56,16 @@ export function isAuthorizedAdmin(user: TrpcContext["user"]): boolean {
   return localTestAdminIds.has(user.openId);
 }
 
-export const adminProcedure = t.procedure.use(
+export const ownerProcedure = protectedProcedure.use(
+  t.middleware(async opts => {
+    if (!isPlatformOwner(opts.ctx.user)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "هذا الإجراء متاح لمالك المنصة فقط" });
+    }
+    return opts.next({ ctx: { ...opts.ctx, user: opts.ctx.user! } });
+  }),
+);
+
+export const adminProcedure = protectedProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 

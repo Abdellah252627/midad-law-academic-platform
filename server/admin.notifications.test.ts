@@ -66,7 +66,7 @@ describe("admin notification procedures", () => {
   });
 
   it("rejects anonymous and non-admin notification access", async () => {
-    await expect(appRouter.createCaller(anonymousContext).admin.notificationUnreadCount()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(appRouter.createCaller(anonymousContext).admin.notificationUnreadCount()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(appRouter.createCaller(userContext).admin.notifications({ page: 1, pageSize: 25 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 

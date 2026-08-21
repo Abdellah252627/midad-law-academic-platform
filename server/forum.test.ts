@@ -21,8 +21,8 @@ describe("Midad Law forum safeguards", () => {
     expect(router).toContain("createReply: protectedProcedure");
     expect(router).toContain("getPublishedForumTopics");
     expect(router).toContain("getPublishedForumReplies");
-    expect(router).toContain("moderateTopic: adminProcedure");
-    expect(router).toContain("reviewForumReport: adminProcedure");
+    expect(router).toContain("moderateTopic: forumModeratorProcedure");
+    expect(router).toContain("reviewForumReport: forumModeratorProcedure");
   });
 
   it("documents privacy and moderation boundaries", () => {

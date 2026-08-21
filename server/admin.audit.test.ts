@@ -22,7 +22,7 @@ describe("admin audit logs", () => {
   });
 
   it("rejects anonymous and non-admin access", async () => {
-    await expect(appRouter.createCaller(anonymousContext).admin.auditLogs()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(appRouter.createCaller(anonymousContext).admin.auditLogs()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(appRouter.createCaller(userContext).admin.auditLogs()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -86,7 +86,7 @@ describe("admin forum violation monitoring", () => {
 
   it("rejects non-admin and anonymous access", async () => {
     await expect(appRouter.createCaller(userContext).admin.forumViolationMonitoring({})).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(appRouter.createCaller(anonymousContext).admin.resetForumViolationCounter({ userId: 7 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(appRouter.createCaller(anonymousContext).admin.resetForumViolationCounter({ userId: 7 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("rejects invalid user identifiers before touching the database", async () => {

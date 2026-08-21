@@ -224,7 +224,7 @@ describe("admin landing content procedures", () => {
   it("rejects anonymous and non-admin content management", async () => {
     const anonymousCaller = appRouter.createCaller(anonymousContext);
     const userCaller = appRouter.createCaller(userContext);
-    await expect(anonymousCaller.admin.landingContent({ productCode: "MIDAD-001" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(anonymousCaller.admin.landingContent({ productCode: "MIDAD-001" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(userCaller.admin.landingContent({ productCode: "MIDAD-001" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(userCaller.admin.saveProduct({
       productCode: "MIDAD-001",

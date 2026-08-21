@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, gt, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, forumViolationEvents,
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, forumViolationEvents, forumModerators,
 analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
@@ -1438,4 +1438,66 @@ export async function updateComplaintAdmin(input: {
     responseUpdatedAt: responseChanged ? new Date() : current.responseUpdatedAt,
   }).where(eq(complaints.id, input.id));
   return getComplaintById(input.id);
+}
+
+
+export async function getForumModerators(includeRevoked = false) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const query = db
+    .select({
+      id: forumModerators.id,
+      userId: forumModerators.userId,
+      userName: users.name,
+      userEmail: users.email,
+      status: forumModerators.status,
+      grantedByUserId: forumModerators.grantedByUserId,
+      grantedAt: forumModerators.grantedAt,
+      revokedAt: forumModerators.revokedAt,
+      revokedByUserId: forumModerators.revokedByUserId,
+      updatedAt: forumModerators.updatedAt,
+    })
+    .from(forumModerators)
+    .innerJoin(users, eq(forumModerators.userId, users.id));
+
+  return includeRevoked
+    ? query.orderBy(desc(forumModerators.updatedAt))
+    : query.where(eq(forumModerators.status, "active")).orderBy(desc(forumModerators.grantedAt));
+}
+
+export async function grantForumModerator(userId: number, grantedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  if (userId === grantedByUserId) throw new Error("Owner is already authorized");
+
+  const existing = await db.select().from(forumModerators).where(eq(forumModerators.userId, userId)).limit(1);
+  if (existing[0]) {
+    await db.update(forumModerators).set({
+      status: "active",
+      grantedByUserId,
+      grantedAt: new Date(),
+      revokedAt: null,
+      revokedByUserId: null,
+    }).where(eq(forumModerators.id, existing[0].id));
+    return { ...existing[0], status: "active" as const, grantedByUserId, grantedAt: new Date(), revokedAt: null, revokedByUserId: null };
+  }
+
+  const inserted = await db.insert(forumModerators).values({ userId, grantedByUserId, status: "active" });
+  return { id: Number(inserted[0].insertId), userId, grantedByUserId, status: "active" as const };
+}
+
+export async function revokeForumModerator(userId: number, revokedByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const revokedAt = new Date();
+  await db.update(forumModerators).set({ status: "revoked", revokedAt, revokedByUserId }).where(and(eq(forumModerators.userId, userId), eq(forumModerators.status, "active")));
+  return { userId, status: "revoked" as const, revokedAt, revokedByUserId };
+}
+
+export async function isActiveForumModerator(userId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: forumModerators.id }).from(forumModerators).where(and(eq(forumModerators.userId, userId), eq(forumModerators.status, "active"))).limit(1);
+  return rows.length > 0;
 }

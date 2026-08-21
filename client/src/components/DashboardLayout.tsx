@@ -60,17 +60,17 @@ export default function DashboardLayout({
   });
   const { loading, user } = useAuth();
   const {
-    data: isAuthorizedAdmin,
-    isLoading: adminCheckLoading,
-    isError: adminCheckError,
-    refetch: refetchAdminCheck,
-  } = trpc.auth.isAdmin.useQuery();
+    data: access,
+    isLoading: accessCheckLoading,
+    isError: accessCheckError,
+    refetch: refetchAccess,
+  } = trpc.auth.access.useQuery();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading || adminCheckLoading) {
+  if (loading || accessCheckLoading) {
     return <DashboardLayoutSkeleton />
   }
 
@@ -101,20 +101,20 @@ export default function DashboardLayout({
     );
   }
 
-  if (adminCheckError) {
+  if (accessCheckError) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4">
         <div className="max-w-md rounded-[28px] border border-amber-200 bg-white p-8 text-center shadow-sm">
           <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-amber-700" aria-hidden="true" />
           <h1 className="text-2xl font-bold text-[#173247]">تعذر التحقق من الصلاحية</h1>
           <p className="mt-3 text-sm leading-7 text-[#68747a]">تعذر الاتصال بخدمة التحقق مؤقتاً، ولم يتم اعتبار الحساب غير مصرح.</p>
-          <Button onClick={() => refetchAdminCheck()} className="mt-5 bg-[#173247] text-white hover:bg-[#24465e]">إعادة المحاولة</Button>
+          <Button onClick={() => refetchAccess()} className="mt-5 bg-[#173247] text-white hover:bg-[#24465e]">إعادة المحاولة</Button>
         </div>
       </div>
     );
   }
 
-  if (!isAuthorizedAdmin) {
+  if (!access?.isAdmin && !access?.isForumModerator) {
     return <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4"><div className="max-w-md rounded-[28px] border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه اللوحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></div>;
   }
 
@@ -127,7 +127,7 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
+      <DashboardLayoutContent setSidebarWidth={setSidebarWidth} forumModeratorOnly={access?.isForumModerator === true && access.isAdmin !== true}>
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -137,11 +137,13 @@ export default function DashboardLayout({
 type DashboardLayoutContentProps = {
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
+  forumModeratorOnly: boolean;
 };
 
 function DashboardLayoutContent({
   children,
   setSidebarWidth,
+  forumModeratorOnly,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
@@ -152,20 +154,23 @@ function DashboardLayoutContent({
   const previousNotificationIdsRef = useRef<Set<number> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const visibleMenuItems = forumModeratorOnly ? menuItems.filter(item => item.path === "/admin/forum" || item.path === "/admin/forum/violations") : menuItems;
+  const activeMenuItem = visibleMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
   const { data: newFollowUpsCount = 0 } = trpc.admin.newSupportFollowUpCount.useQuery(undefined, {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
+    enabled: !forumModeratorOnly,
   });
   const notificationUtils = trpc.useUtils();
   const { data: notificationUnreadCount = 0 } = trpc.admin.notificationUnreadCount.useQuery(undefined, {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
+    enabled: !forumModeratorOnly,
   });
   const { data: notificationData, isLoading: notificationsLoading } = trpc.admin.notifications.useQuery(
     { page: 1, pageSize: 10 },
-    { refetchInterval: 30_000, refetchOnWindowFocus: true },
+    { refetchInterval: 30_000, refetchOnWindowFocus: true, enabled: !forumModeratorOnly },
   );
   const markNotificationRead = trpc.admin.markNotificationRead.useMutation({
     onSuccess: () => {
@@ -308,7 +313,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
+              {visibleMenuItems.map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
