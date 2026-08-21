@@ -362,7 +362,7 @@ export const appRouter = router({
       return { success: true as const, complaint: updated };
     }),
     newSupportFollowUpCount: adminProcedure.query(async () => getNewSupportFollowUpCount()),
-    notifications: adminProcedure.input(z.object({ type: z.enum(["purchase_request", "support_follow_up", "complaint", "system", "auth_login_attempt"]).optional(), read: z.enum(["read", "unread"]).optional(), priority: z.enum(["high", "critical"]).optional(), search: z.string().trim().max(160).optional(), from: z.string().date().optional(), to: z.string().date().optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => getAdminNotifications(input ?? undefined)),
+    notifications: adminProcedure.input(z.object({ type: z.enum(["purchase_request", "support_follow_up", "complaint", "system", "auth_login_attempt", "forum_violation_threshold"]).optional(), read: z.enum(["read", "unread"]).optional(), priority: z.enum(["high", "critical"]).optional(), search: z.string().trim().max(160).optional(), from: z.string().date().optional(), to: z.string().date().optional(), page: z.number().int().min(1).default(1), pageSize: z.number().int().refine(value => [10, 25, 50, 100].includes(value), "حجم الصفحة غير مدعوم").default(25) }).optional()).query(async ({ input }) => getAdminNotifications(input ?? undefined)),
     notificationUnreadCount: adminProcedure.query(async () => getAdminNotificationUnreadCount()),
     markNotificationRead: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => markAdminNotificationRead(input.id)),
     markNotificationsRead: adminProcedure.input(z.object({ ids: z.array(z.number().int().positive()).min(1).max(100) })).mutation(async ({ input }) => markAdminNotificationsRead(Array.from(new Set(input.ids)))),
@@ -416,9 +416,13 @@ export const appRouter = router({
       return { success: true as const, fileId, version };
     }),
     settings: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA }).default({ productCode: DEFAULT_PRODUCT_CODE })).query(({ input }) => getAppSettings(input.productCode)),
-    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "bankTransferReviewDuration", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage", "upcomingChapters", "notificationPurchaseRequestEnabled", "notificationSupportFollowUpEnabled", "notificationComplaintEnabled", "notificationSystemEnabled", "notificationAuthLoginAttemptEnabled", "forumOpenAlertMessage", "forumClosedAlertMessage", "forumOpenAlertColor", "forumClosedAlertColor", "forumOpenAlertIcon", "forumClosedAlertIcon", "forumOpenAlertDurationSeconds", "forumClosedAlertDurationSeconds"]), settingValue: z.string().trim().min(1).max(5000), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
+    saveSetting: adminProcedure.input(z.object({ productCode: PRODUCT_CODE_SCHEMA.default(DEFAULT_PRODUCT_CODE), settingKey: z.enum(["whatsappNumber", "bankBeneficiary", "bankRib", "bankTransferReviewDuration", "defaultPriceMad", "quizPassingPercentage", "quizSuccessMessage", "quizFailureMessage", "upcomingChapters", "notificationPurchaseRequestEnabled", "notificationSupportFollowUpEnabled", "notificationComplaintEnabled", "notificationSystemEnabled", "notificationAuthLoginAttemptEnabled", "notificationForumViolationThresholdEnabled", "forumViolationAlertThreshold", "forumOpenAlertMessage", "forumClosedAlertMessage", "forumOpenAlertColor", "forumClosedAlertColor", "forumOpenAlertIcon", "forumClosedAlertIcon", "forumOpenAlertDurationSeconds", "forumClosedAlertDurationSeconds"]), settingValue: z.string().trim().min(1).max(5000), description: z.string().trim().max(300).optional() })).mutation(async ({ input, ctx }) => {
       if (input.settingKey.startsWith("notification")) {
         if (input.settingValue !== "true" && input.settingValue !== "false") throw new Error("قيمة تفضيل التنبيه يجب أن تكون true أو false");
+      }
+      if (input.settingKey === "forumViolationAlertThreshold") {
+        const threshold = Number(input.settingValue);
+        if (!Number.isInteger(threshold) || threshold < 1 || threshold > 100) throw new Error("عتبة المخالفات يجب أن تكون رقماً صحيحاً بين 1 و100");
       }
       if (input.settingKey === "quizSuccessMessage" || input.settingKey === "quizFailureMessage") {
         if (input.settingValue.length < 10) throw new Error("رسالة النتيجة يجب أن تحتوي على 10 أحرف على الأقل");

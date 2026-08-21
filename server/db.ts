@@ -119,6 +119,7 @@ const notificationSettingByType: Record<string, AdminNotificationSettingKey> = {
   complaint: "notificationComplaintEnabled",
   system: "notificationSystemEnabled",
   auth_login_attempt: "notificationAuthLoginAttemptEnabled",
+  forum_violation_threshold: "notificationForumViolationThresholdEnabled",
 };
 
 async function shouldCreateAdminNotification(type: InsertAdminNotification["type"]) {
@@ -209,7 +210,7 @@ export async function deleteDuplicatePurchaseNotifications(entityId: string) {
   return { deleted: duplicateIds.length, kept: rows[0].id };
 }
 
-export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system" | "auth_login_attempt"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system" | "auth_login_attempt" | "forum_violation_threshold"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const page = options?.page ?? 1;
@@ -609,7 +610,7 @@ export async function getAppSettingsMap(productCode = DEFAULT_PRODUCT_CODE) {
   }));
 }
 
-export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled" | "notificationAuthLoginAttemptEnabled";
+export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled" | "notificationAuthLoginAttemptEnabled" | "notificationForumViolationThresholdEnabled";
 
 export async function isAdminNotificationEnabled(settingKey: AdminNotificationSettingKey) {
   try {
@@ -1173,7 +1174,26 @@ export async function recordForumModerationViolation(userId: number, now = new D
     redactedExcerpt: buildRedactedExcerpt(options.text, options.matchedTerm),
     createdAt: now,
   });
-  return { ...values, isBlocked: decision.isBlocked, remainingMs: decision.remainingMs };
+
+  const settings = await getAppSettingsMap();
+  const configuredThreshold = Number(settings.forumViolationAlertThreshold ?? "3");
+  const threshold = Number.isInteger(configuredThreshold) && configuredThreshold >= 1 && configuredThreshold <= 100 ? configuredThreshold : 3;
+  const previousCount = current?.violationCount ?? 0;
+  if (previousCount < threshold && decision.violationCount >= threshold && settings.notificationForumViolationThresholdEnabled !== "false") {
+    const userRows = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+    const user = userRows[0];
+    const windowKey = decision.windowStartedAt?.getTime() ?? now.getTime();
+    await createAdminNotificationOnce({
+      type: "forum_violation_threshold",
+      title: "بلوغ عتبة مخالفات في المنتدى",
+      message: `بلغ المستخدم ${user?.name || user?.email || `#${userId}`} حد ${threshold} مخالفات ضمن النافذة الحالية ويحتاج إلى مراجعة.`,
+      priority: decision.isBlocked ? "critical" : "high",
+      entityType: "forum_user_moderation",
+      entityId: `${userId}:${windowKey}:${threshold}`,
+      targetPath: "/admin/forum/violations",
+    });
+  }
+  return { ...values, isBlocked: decision.isBlocked, remainingMs: decision.remainingMs, alertThreshold: threshold };
 }
 
 export async function getForumViolationMonitoring(input: { search?: string; includeResolved?: boolean } = {}) {

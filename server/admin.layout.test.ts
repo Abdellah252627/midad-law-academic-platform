@@ -79,7 +79,7 @@ describe("all notifications page", () => {
     expect(page).toContain("trpc.admin.notifications.useQuery");
     expect(page).toContain("trpc.admin.markAllNotificationsRead.useMutation");
     expect(router).toContain("markAllNotificationsRead");
-    expect(router).toContain('type: z.enum(["purchase_request", "support_follow_up", "complaint", "system", "auth_login_attempt"]).optional()');
+    expect(router).toContain('type: z.enum(["purchase_request", "support_follow_up", "complaint", "system", "auth_login_attempt", "forum_violation_threshold"]).optional()');
     expect(router).toContain('priority: z.enum(["high", "critical"]).optional()');
     expect(router).toContain("from: z.string().date().optional()");
   });

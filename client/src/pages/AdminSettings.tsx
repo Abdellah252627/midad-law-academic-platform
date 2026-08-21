@@ -13,6 +13,7 @@ const fields = [
   { key: "bankTransferReviewDuration", label: "مدة مراجعة التحويل البنكي بالساعات", placeholder: "24", description: "المدة المتوقعة التي تظهر للطالب في سؤال الدفع داخل الأسئلة الشائعة، من 1 إلى 168 ساعة." },
   { key: "defaultPriceMad", label: "السعر الافتراضي بالدرهم", placeholder: "19", description: "قيمة احتياطية عند عدم وجود سعر منشور للمنتج." },
   { key: "quizPassingPercentage", label: "نسبة النجاح في اختبار «اختبر فهمك»", placeholder: "60", description: "نسبة مئوية من 0 إلى 100. القيمة الافتراضية 60%." },
+  { key: "forumViolationAlertThreshold", label: "عتبة تنبيه مخالفات المنتدى", placeholder: "3", description: "ينشأ تنبيه إداري عند بلوغ المستخدم هذا العدد من المخالفات ضمن نافذة المخالفات الحالية، من 1 إلى 100." },
 ] as const;
 
 const forumAlertDefaults = {
@@ -32,13 +33,14 @@ const notificationFields = [
   { key: "notificationComplaintEnabled", label: "الشكاوى", description: "تنبيه عند تسجيل شكوى جديدة من طالب." },
   { key: "notificationSystemEnabled", label: "إشعارات النظام", description: "إشعارات داخلية مستقبلية خاصة بالنظام." },
   { key: "notificationAuthLoginAttemptEnabled", label: "محاولات تسجيل الدخول", description: "تنبيه عند نجاح تسجيل الدخول عبر OAuth، مع اسم المستخدم والبريد ووقت المحاولة دون تخزين رموز الجلسة." },
+  { key: "notificationForumViolationThresholdEnabled", label: "بلوغ عتبة مخالفات المنتدى", description: "تنبيه عند وصول المستخدم إلى عتبة المخالفات المحددة، مع رابط مباشر إلى لوحة مراقبة المخالفين." },
 ] as const;
 
 type SettingKey = (typeof fields)[number]["key"];
 type NotificationSettingKey = (typeof notificationFields)[number]["key"];
 type ForumAlertSettingKey = keyof typeof forumAlertDefaults;
 
-const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransferReviewDuration", "quizPassingPercentage"]);
+const numericSettingKeys = new Set<SettingKey>(["defaultPriceMad", "bankTransferReviewDuration", "quizPassingPercentage", "forumViolationAlertThreshold"]);
 
 function AdminSettingsContent() {
   const query = trpc.admin.settings.useQuery({ productCode: DEFAULT_PRODUCT_CODE });
@@ -69,8 +71,8 @@ function AdminSettingsContent() {
     },
     onError: error => toast.error(error.message || "تعذر حفظ الإعداد"),
   });
-  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60" });
-  const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true, notificationAuthLoginAttemptEnabled: true });
+  const [values, setValues] = useState<Record<SettingKey, string>>({ whatsappNumber: "", bankBeneficiary: "", bankRib: "", bankTransferReviewDuration: "24", defaultPriceMad: "19", quizPassingPercentage: "60", forumViolationAlertThreshold: "3" });
+  const [notificationValues, setNotificationValues] = useState<Record<NotificationSettingKey, boolean>>({ notificationPurchaseRequestEnabled: true, notificationSupportFollowUpEnabled: true, notificationComplaintEnabled: true, notificationSystemEnabled: true, notificationAuthLoginAttemptEnabled: true, notificationForumViolationThresholdEnabled: true });
   const [forumAlertValues, setForumAlertValues] = useState<Record<ForumAlertSettingKey, string>>(forumAlertDefaults);
   const [livePreview, setLivePreview] = useState<"open" | "closed" | null>(null);
   const [previewKey, setPreviewKey] = useState(0);
@@ -111,10 +113,11 @@ function AdminSettingsContent() {
       if (numericSettingKeys.has(field.key)) {
         const number = Number(value);
         const isReviewDuration = field.key === "bankTransferReviewDuration";
+        const isViolationThreshold = field.key === "forumViolationAlertThreshold";
         const max = isReviewDuration ? 168 : 100;
-        const min = isReviewDuration ? 1 : 0;
+        const min = isReviewDuration || isViolationThreshold ? 1 : 0;
         if (!Number.isInteger(number) || number < min || number > max || (field.key === "defaultPriceMad" && number === 0)) {
-          toast.error(field.key === "quizPassingPercentage" ? "أدخل نسبة صحيحة بين 0 و100" : isReviewDuration ? "أدخل مدة صحيحة بين ساعة واحدة و168 ساعة" : "أدخل سعراً صحيحاً");
+          toast.error(field.key === "quizPassingPercentage" ? "أدخل نسبة صحيحة بين 0 و100" : isReviewDuration ? "أدخل مدة صحيحة بين ساعة واحدة و168 ساعة" : isViolationThreshold ? "أدخل عتبة صحيحة بين 1 و100" : "أدخل سعراً صحيحاً");
           return;
         }
       }
