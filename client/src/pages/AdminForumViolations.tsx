@@ -13,6 +13,7 @@ function ViolationsContent() {
   const [includeResolved, setIncludeResolved] = useState(false);
   const queryInput = useMemo(() => ({ search: search.trim() || undefined, includeResolved }), [search, includeResolved]);
   const monitoring = trpc.admin.forumViolationMonitoring.useQuery(queryInput);
+  const weeklyReport = trpc.admin.forumWeeklyViolationReport.useQuery();
   const utils = trpc.useUtils();
   const reset = trpc.admin.resetForumViolationCounter.useMutation({ onSuccess: () => { toast.success("تم تصفير عداد المخالفات"); void utils.admin.forumViolationMonitoring.invalidate(); }, onError: error => toast.error(error.message) });
   const lift = trpc.admin.clearForumModerationBlock.useMutation({ onSuccess: () => { toast.success("تم رفع الحظر وإعادة حالة المستخدم"); void utils.admin.forumViolationMonitoring.invalidate(); void utils.admin.forumModerationBlocks.invalidate(); }, onError: error => toast.error(error.message) });
@@ -22,6 +23,17 @@ function ViolationsContent() {
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-sm sm:p-8">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="text-xs font-bold tracking-[0.18em] text-[#d5a15f]">MIDAD LAW / TRUST & SAFETY</p><h1 className="mt-2 font-display text-3xl font-bold">مراقبة مخالفات المنتدى</h1><p className="mt-2 max-w-3xl text-sm leading-7 text-white/75">لوحة داخلية لمراجعة المستخدمين الذين سجلت عليهم محاولات مخالفة. يعرض النظام أقل قدر لازم من السياق، ويخفي النص المسيء الكامل احتراماً للخصوصية.</p></div><ShieldCheck className="hidden h-14 w-14 text-[#d5a15f] sm:block" /></div>
     </header>
+    <section aria-labelledby="weekly-violations-report" className="rounded-[26px] border border-[#e3d9ca] bg-white p-5 shadow-sm sm:p-7">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="text-xs font-bold tracking-[0.16em] text-[#b9854a]">WEEKLY TRUST REPORT</p><h2 id="weekly-violations-report" className="mt-1 text-xl font-black text-[#173247]">التقرير الأسبوعي للمخالفات</h2><p className="mt-1 text-sm text-slate-500">ملخص آخر 7 أيام مقارنةً بالسبعة أيام السابقة، دون عرض المحتوى المسيء.</p></div>
+        <span className="inline-flex w-fit rounded-full bg-[#fff7ec] px-3 py-1 text-xs font-bold text-[#8b5e2f]">تحديث تلقائي عند فتح الصفحة</span>
+      </div>
+      {weeklyReport.isLoading ? <div className="mt-6 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />جاري إعداد التقرير...</div> : <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <article className="rounded-2xl bg-[#f7f3ed] p-4"><p className="text-sm text-slate-500">إجمالي المخالفات</p><p className="mt-2 text-3xl font-black text-[#173247]">{weeklyReport.data?.current.violations ?? 0}</p><p className={`mt-2 text-xs font-bold ${(weeklyReport.data?.change.violations ?? 0) > 0 ? "text-red-700" : "text-emerald-700"}`}>{(weeklyReport.data?.change.violations ?? 0) > 0 ? "زيادة" : "انخفاض أو استقرار"} {Math.abs(weeklyReport.data?.change.violations ?? 0)} مقارنةً بالأسبوع السابق</p></article>
+        <article className="rounded-2xl bg-red-50/70 p-4"><p className="text-sm text-red-700">الحسابات المتكررة</p><p className="mt-2 text-3xl font-black text-red-900">{weeklyReport.data?.current.repeatAccounts ?? 0}</p><p className="mt-2 text-xs font-bold text-red-700">حساب سجّل مخالفتين أو أكثر خلال الفترة</p></article>
+        <article className="rounded-2xl bg-[#eef5f6] p-4"><p className="text-sm text-slate-500">الحسابات المتأثرة</p><p className="mt-2 text-3xl font-black text-[#173247]">{weeklyReport.data?.current.accounts ?? 0}</p><p className="mt-2 text-xs font-bold text-slate-500">مقابل {weeklyReport.data?.previous.accounts ?? 0} في الأسبوع السابق</p></article>
+      </div>}
+    </section>
     <section className="grid gap-3 sm:grid-cols-3">
       <article className="rounded-2xl border border-[#e3d9ca] bg-white p-5"><p className="text-sm text-slate-500">المستخدمون المراقبون</p><p className="mt-2 text-3xl font-black text-[#173247]">{data?.total ?? 0}</p></article>
       <article className="rounded-2xl border border-red-100 bg-red-50/50 p-5"><p className="text-sm text-red-700">حظر مؤقت نشط</p><p className="mt-2 text-3xl font-black text-red-800">{data?.activeBans ?? 0}</p></article>

@@ -1213,6 +1213,35 @@ export async function getForumViolationMonitoring(input: { search?: string; incl
   return { offenders, total: offenders.length, activeBans: offenders.filter(row => row.moderation.blockedUntil && row.moderation.blockedUntil > now).length, totalEvents: offenders.reduce((sum, row) => sum + row.events.length, 0) };
 }
 
+export async function getForumWeeklyViolationReport(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { current: { violations: 0, repeatAccounts: 0, accounts: 0 }, previous: { violations: 0, repeatAccounts: 0, accounts: 0 }, change: { violations: 0, repeatAccounts: 0 }, period: { currentStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), currentEnd: now, previousStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), previousEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } };
+  const currentEnd = now;
+  const currentStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const previousEnd = currentStart;
+  const previousStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const rows = await db.select({ userId: forumViolationEvents.userId, createdAt: forumViolationEvents.createdAt })
+    .from(forumViolationEvents)
+    .where(gte(forumViolationEvents.createdAt, previousStart));
+  const summarize = (start: Date, end: Date) => {
+    const counts = new Map<number, number>();
+    for (const row of rows) {
+      if (row.createdAt < start || row.createdAt >= end) continue;
+      counts.set(row.userId, (counts.get(row.userId) ?? 0) + 1);
+    }
+    const violations = Array.from(counts.values()).reduce((sum, value) => sum + value, 0);
+    return { violations, repeatAccounts: Array.from(counts.values()).filter(value => value >= 2).length, accounts: counts.size };
+  };
+  const current = summarize(currentStart, currentEnd);
+  const previous = summarize(previousStart, previousEnd);
+  return {
+    current,
+    previous,
+    change: { violations: current.violations - previous.violations, repeatAccounts: current.repeatAccounts - previous.repeatAccounts },
+    period: { currentStart, currentEnd, previousStart, previousEnd },
+  };
+}
+
 export async function resetForumViolationCounter(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

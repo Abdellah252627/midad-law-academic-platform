@@ -8,6 +8,7 @@ vi.mock("./db", async () => {
   return {
     ...actual,
     getForumViolationMonitoring: vi.fn(),
+    getForumWeeklyViolationReport: vi.fn(),
     clearForumModerationBlock: vi.fn(),
     resetForumViolationCounter: vi.fn(),
     createAuditLog: vi.fn(),
@@ -33,6 +34,7 @@ describe("admin forum violation monitoring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(db.getForumViolationMonitoring).mockResolvedValue(sampleResult as never);
+    vi.mocked(db.getForumWeeklyViolationReport).mockResolvedValue({ current: { violations: 5, repeatAccounts: 2, accounts: 3 }, previous: { violations: 3, repeatAccounts: 1, accounts: 2 }, change: { violations: 2, repeatAccounts: 1 }, period: { currentStart: new Date(), currentEnd: new Date(), previousStart: new Date(), previousEnd: new Date() } });
     vi.mocked(db.clearForumModerationBlock).mockResolvedValue(true);
     vi.mocked(db.resetForumViolationCounter).mockResolvedValue(true);
     vi.mocked(db.createAuditLog).mockResolvedValue(undefined as never);
@@ -43,6 +45,18 @@ describe("admin forum violation monitoring", () => {
     expect(result.total).toBe(1);
     expect(result.offenders[0]?.events[0]?.redactedExcerpt).toContain("محتوى محجوب");
     expect(db.getForumViolationMonitoring).toHaveBeenCalledWith({ search: "طالب", includeResolved: false });
+  });
+
+  it("returns weekly violation totals and repeat-account comparison to admins", async () => {
+    const result = await appRouter.createCaller(adminContext).admin.forumWeeklyViolationReport();
+    expect(result.current.violations).toBe(5);
+    expect(result.current.repeatAccounts).toBe(2);
+    expect(result.change.violations).toBe(2);
+    expect(db.getForumWeeklyViolationReport).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects weekly reports for non-admin users", async () => {
+    await expect(appRouter.createCaller(userContext).admin.forumWeeklyViolationReport()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("resets counters and lifts bans with an audit trail", async () => {
