@@ -235,6 +235,16 @@ export const forumUserModeration = mysqlTable("forum_user_moderation", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const forumViolationEvents = mysqlTable("forum_violation_events", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  sourceType: mysqlEnum("sourceType", ["topic", "reply"]).notNull(),
+  sourceId: int("sourceId"),
+  category: varchar("category", { length: 40 }).notNull().default("blocked_word"),
+  redactedExcerpt: varchar("redactedExcerpt", { length: 220 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const forumTopics = mysqlTable("forum_topics", {
   id: int("id").autoincrement().primaryKey(),
   categoryId: int("categoryId").notNull().references(() => forumCategories.id),

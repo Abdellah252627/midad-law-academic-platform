@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, gt, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, 
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, forumViolationEvents,
 analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
@@ -1135,7 +1135,21 @@ export async function getForumModerationStatus(userId: number, now = new Date())
   return { isBlocked: remainingMs > 0, blockedUntil, remainingMs, violationCount: record?.violationCount ?? 0, blockLevel: record?.blockLevel ?? 0 };
 }
 
-export async function recordForumModerationViolation(userId: number, now = new Date()) {
+type ForumViolationEventOptions = {
+  sourceType?: "topic" | "reply";
+  sourceId?: number;
+  text?: string;
+  matchedTerm?: string;
+};
+
+function buildRedactedExcerpt(text?: string, matchedTerm?: string) {
+  if (!text) return null;
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const redacted = matchedTerm ? normalized.split(matchedTerm).join("[محتوى محجوب]") : "[محتوى مخالف محجوب]";
+  return redacted.slice(0, 220);
+}
+
+export async function recordForumModerationViolation(userId: number, now = new Date(), options: ForumViolationEventOptions = {}) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const rows = await db.select().from(forumUserModeration).where(eq(forumUserModeration.userId, userId)).limit(1);
@@ -1151,7 +1165,39 @@ export async function recordForumModerationViolation(userId: number, now = new D
   };
   if (current) await db.update(forumUserModeration).set(values).where(eq(forumUserModeration.userId, userId));
   else await db.insert(forumUserModeration).values(values);
+  await db.insert(forumViolationEvents).values({
+    userId,
+    sourceType: options.sourceType ?? "topic",
+    sourceId: options.sourceId,
+    category: "blocked_word",
+    redactedExcerpt: buildRedactedExcerpt(options.text, options.matchedTerm),
+    createdAt: now,
+  });
   return { ...values, isBlocked: decision.isBlocked, remainingMs: decision.remainingMs };
+}
+
+export async function getForumViolationMonitoring(input: { search?: string; includeResolved?: boolean } = {}) {
+  const db = await getDb();
+  if (!db) return { offenders: [], total: 0, activeBans: 0, totalEvents: 0 };
+  const now = new Date();
+  const conditions = input.includeResolved ? [] : [or(gt(forumUserModeration.violationCount, 0), gt(forumUserModeration.blockedUntil, now))!];
+  if (input.search) conditions.push(or(like(users.name, `%${input.search}%`), like(users.email, `%${input.search}%`))!);
+  const rows = await db.select({ moderation: forumUserModeration, user: { id: users.id, name: users.name, email: users.email } })
+    .from(forumUserModeration).innerJoin(users, eq(forumUserModeration.userId, users.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(forumUserModeration.lastViolationAt), desc(forumUserModeration.updatedAt));
+  const events = await db.select().from(forumViolationEvents).orderBy(desc(forumViolationEvents.createdAt));
+  const grouped = new Map<number, typeof events>();
+  for (const event of events) grouped.set(event.userId, [...(grouped.get(event.userId) ?? []), event]);
+  const offenders = rows.map(row => ({ ...row, events: (grouped.get(row.user.id) ?? []).slice(0, 20) }));
+  return { offenders, total: offenders.length, activeBans: offenders.filter(row => row.moderation.blockedUntil && row.moderation.blockedUntil > now).length, totalEvents: offenders.reduce((sum, row) => sum + row.events.length, 0) };
+}
+
+export async function resetForumViolationCounter(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(forumUserModeration).set({ violationCount: 0, windowStartedAt: null, lastViolationAt: null }).where(eq(forumUserModeration.userId, userId));
+  return true;
 }
 
 export async function getActiveForumModerations(now = new Date()) {
