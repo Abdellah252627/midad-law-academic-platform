@@ -10,6 +10,9 @@ vi.mock("./db", async () => {
     getForumViolationMonitoring: vi.fn(),
     getForumWeeklyViolationReport: vi.fn(),
     getForumParticipantClassification: vi.fn(),
+    getForumModerators: vi.fn(),
+    grantForumModerator: vi.fn(),
+    revokeForumModerator: vi.fn(),
     clearForumModerationBlock: vi.fn(),
     resetForumViolationCounter: vi.fn(),
     createAuditLog: vi.fn(),
@@ -17,6 +20,7 @@ vi.mock("./db", async () => {
 });
 
 const adminContext = { user: { id: 1, openId: "admin-1", role: "admin", name: "مدير", email: "admin@example.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
+const ownerContext = { user: { id: 1, openId: "admin-1", role: "admin", name: "المالك", email: "abdellahmr538@gmail.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 const userContext = { user: { id: 7, openId: "student-7", role: "user", name: "طالب", email: "student@example.com" }, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 const anonymousContext = { user: undefined, req: { protocol: "https", headers: {} }, res: {} } as TrpcContext;
 
@@ -37,6 +41,9 @@ describe("admin forum violation monitoring", () => {
     vi.mocked(db.getForumViolationMonitoring).mockResolvedValue(sampleResult as never);
     vi.mocked(db.getForumWeeklyViolationReport).mockResolvedValue({ current: { violations: 5, repeatAccounts: 2, accounts: 3 }, previous: { violations: 3, repeatAccounts: 1, accounts: 2 }, change: { violations: 2, repeatAccounts: 1 }, period: { currentStart: new Date(), currentEnd: new Date(), previousStart: new Date(), previousEnd: new Date() } });
     vi.mocked(db.getForumParticipantClassification).mockResolvedValue({ participants: [{ user: { id: 7, name: "طالب مخالف", email: "offender@example.com" }, status: "offender", violationEvents: 2, violationCount: 2, blockedUntil: null, lastViolationAt: new Date() }, { user: { id: 8, name: "طالب ملتزم", email: "safe@example.com" }, status: "non_offender", violationEvents: 0, violationCount: 0, blockedUntil: null, lastViolationAt: null }], total: 2, offenders: 1, nonOffenders: 1 });
+    vi.mocked(db.getForumModerators).mockResolvedValue([]);
+    vi.mocked(db.grantForumModerator).mockResolvedValue({ id: 10, userId: 8, status: "active", grantedByUserId: 1, grantedAt: new Date(), revokedAt: null, revokedByUserId: null, updatedAt: new Date() } as never);
+    vi.mocked(db.revokeForumModerator).mockResolvedValue({ id: 10, userId: 8, status: "revoked", grantedByUserId: 1, grantedAt: new Date(), revokedAt: new Date(), revokedByUserId: 1, updatedAt: new Date() } as never);
     vi.mocked(db.clearForumModerationBlock).mockResolvedValue(true);
     vi.mocked(db.resetForumViolationCounter).mockResolvedValue(true);
     vi.mocked(db.createAuditLog).mockResolvedValue(undefined as never);
@@ -87,6 +94,24 @@ describe("admin forum violation monitoring", () => {
   it("rejects non-admin and anonymous access", async () => {
     await expect(appRouter.createCaller(userContext).admin.forumViolationMonitoring({})).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(appRouter.createCaller(anonymousContext).admin.resetForumViolationCounter({ userId: 7 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("allows only the platform owner to grant and revoke moderator powers and records audit events", async () => {
+    const caller = appRouter.createCaller(ownerContext);
+    await caller.admin.grantForumModerator({ userId: 8, reason: "مراجعة المنتدى" });
+    await caller.admin.revokeForumModerator({ userId: 8, reason: "انتهاء التفويض" });
+    expect(db.grantForumModerator).toHaveBeenCalledWith(8, 1);
+    expect(db.revokeForumModerator).toHaveBeenCalledWith(8, 1);
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "forum.moderator.grant", entityId: "8", actorUserId: 1 }));
+    expect(db.createAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "forum.moderator.revoke", entityId: "8", actorUserId: 1 }));
+  });
+
+  it("blocks delegated users from granting or revoking moderator powers", async () => {
+    const caller = appRouter.createCaller(userContext);
+    await expect(caller.admin.grantForumModerator({ userId: 8 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.revokeForumModerator({ userId: 8 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(db.grantForumModerator).not.toHaveBeenCalled();
+    expect(db.revokeForumModerator).not.toHaveBeenCalled();
   });
 
   it("rejects invalid user identifiers before touching the database", async () => {
