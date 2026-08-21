@@ -20,6 +20,10 @@ const forumAlertDefaults = {
   forumClosedAlertMessage: "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00.",
   forumOpenAlertColor: "#047857",
   forumClosedAlertColor: "#b45309",
+  forumOpenAlertIcon: "check",
+  forumClosedAlertIcon: "lock",
+  forumOpenAlertDurationSeconds: "8",
+  forumClosedAlertDurationSeconds: "8",
 } as const;
 
 const notificationFields = [
@@ -114,6 +118,17 @@ function AdminSettingsContent() {
         toast.error("أدخل لوناً بصيغة HEX مثل #173247");
         return;
       }
+      if (key.endsWith("Icon") && !["check", "lock", "info", "clock", "megaphone"].includes(trimmed)) {
+        toast.error("اختر أيقونة مدعومة للتنبيه");
+        return;
+      }
+      if (key.endsWith("DurationSeconds")) {
+        const duration = Number(trimmed);
+        if (!Number.isInteger(duration) || duration < 1 || duration > 60) {
+          toast.error("يجب أن تكون مدة التنبيه بين ثانية واحدة و60 ثانية");
+          return;
+        }
+      }
       save.mutate({ productCode: DEFAULT_PRODUCT_CODE, settingKey: key, settingValue: trimmed, description: key.includes("Open") ? "تخصيص تنبيه فتح المشاركة في المنتدى" : "تخصيص تنبيه إغلاق المشاركة في المنتدى" });
     }
   };
@@ -147,7 +162,7 @@ function AdminSettingsContent() {
           <label className="space-y-2 text-sm font-bold text-[#173247]">نص تنبيه إغلاق المشاركة<textarea value={forumAlertValues.forumClosedAlertMessage} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertMessage: event.target.value }))} maxLength={240} className="mt-2 min-h-24 w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-normal outline-none focus:border-[#b9854a]" /><span className="block text-xs font-normal text-[#68747a]">يظهر عند انتقال المنتدى إلى الحالة المغلقة.</span></label>
           <label className="space-y-2 text-sm font-bold text-[#173247]">لون تنبيه إغلاق المشاركة<div className="mt-2 flex gap-2"><input type="color" value={forumAlertValues.forumClosedAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertColor: event.target.value }))} className="h-12 w-16 cursor-pointer rounded-lg border border-[#e3d9ca] bg-white p-1" /><input value={forumAlertValues.forumClosedAlertColor} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertColor: event.target.value }))} maxLength={7} className="w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-mono font-normal uppercase outline-none focus:border-[#b9854a]" /></div><span className="block text-xs font-normal text-[#68747a]">استخدم قيمة HEX من ست خانات.</span></label>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumOpenAlertColor, color: forumAlertValues.forumOpenAlertColor, backgroundColor: `${forumAlertValues.forumOpenAlertColor}14` }}>معاينة الفتح: {forumAlertValues.forumOpenAlertMessage}</div><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumClosedAlertColor, color: forumAlertValues.forumClosedAlertColor, backgroundColor: `${forumAlertValues.forumClosedAlertColor}14` }}>معاينة الإغلاق: {forumAlertValues.forumClosedAlertMessage}</div></div>
+        <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-3"><label className="block text-sm font-bold text-[#173247]">أيقونة تنبيه الفتح<select value={forumAlertValues.forumOpenAlertIcon} onChange={event => setForumAlertValues(current => ({ ...current, forumOpenAlertIcon: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 font-normal"><option value="check">علامة تحقق</option><option value="megaphone">مكبر صوت</option><option value="info">معلومات</option><option value="clock">ساعة</option><option value="lock">قفل</option></select></label><label className="block text-sm font-bold text-[#173247]">مدة ظهور تنبيه الفتح (ثانية)<input type="number" min="1" max="60" value={forumAlertValues.forumOpenAlertDurationSeconds} onChange={event => setForumAlertValues(current => ({ ...current, forumOpenAlertDurationSeconds: event.target.value }))} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-normal" /></label></div><div className="space-y-3"><label className="block text-sm font-bold text-[#173247]">أيقونة تنبيه الإغلاق<select value={forumAlertValues.forumClosedAlertIcon} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertIcon: event.target.value }))} className="mt-2 h-11 w-full rounded-xl border border-[#e3d9ca] bg-white px-3 font-normal"><option value="lock">قفل</option><option value="megaphone">مكبر صوت</option><option value="info">معلومات</option><option value="clock">ساعة</option><option value="check">علامة تحقق</option></select></label><label className="block text-sm font-bold text-[#173247]">مدة ظهور تنبيه الإغلاق (ثانية)<input type="number" min="1" max="60" value={forumAlertValues.forumClosedAlertDurationSeconds} onChange={event => setForumAlertValues(current => ({ ...current, forumClosedAlertDurationSeconds: event.target.value }))} className="mt-2 w-full rounded-xl border border-[#e3d9ca] bg-white px-4 py-3 font-normal" /></label></div></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumOpenAlertColor, color: forumAlertValues.forumOpenAlertColor, backgroundColor: `${forumAlertValues.forumOpenAlertColor}14` }}>معاينة الفتح: {forumAlertValues.forumOpenAlertIcon === "check" ? "✓" : forumAlertValues.forumOpenAlertIcon === "lock" ? "🔒" : forumAlertValues.forumOpenAlertIcon === "clock" ? "◷" : forumAlertValues.forumOpenAlertIcon === "megaphone" ? "📣" : "ⓘ"} {forumAlertValues.forumOpenAlertMessage}<span className="block mt-1 text-xs font-normal">يظهر {forumAlertValues.forumOpenAlertDurationSeconds} ثوانٍ</span></div><div className="rounded-xl border p-4 text-sm font-bold" style={{ borderColor: forumAlertValues.forumClosedAlertColor, color: forumAlertValues.forumClosedAlertColor, backgroundColor: `${forumAlertValues.forumClosedAlertColor}14` }}>معاينة الإغلاق: {forumAlertValues.forumClosedAlertIcon === "check" ? "✓" : forumAlertValues.forumClosedAlertIcon === "lock" ? "🔒" : forumAlertValues.forumClosedAlertIcon === "clock" ? "◷" : forumAlertValues.forumClosedAlertIcon === "megaphone" ? "📣" : "ⓘ"} {forumAlertValues.forumClosedAlertMessage}<span className="block mt-1 text-xs font-normal">يظهر {forumAlertValues.forumClosedAlertDurationSeconds} ثوانٍ</span></div></div>
       </section>
       <section className="space-y-4 rounded-2xl border border-[#eee7dc] bg-[#fffdf9] p-5">
         <div className="flex items-start gap-3"><Bell className="mt-1 h-5 w-5 text-[#b9854a]" /><div><h2 className="font-display text-xl font-bold text-[#173247]">تفضيلات التنبيهات الإدارية</h2><p className="mt-1 text-xs leading-6 text-[#68747a]">عطّل نوعاً محدداً من التنبيهات دون التأثير في الطلبات أو الشكاوى نفسها. التفضيلات إدارية ولا يمكن تعديلها من الواجهة العامة.</p></div></div>

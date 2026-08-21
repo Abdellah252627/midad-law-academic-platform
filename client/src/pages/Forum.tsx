@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Clock3, Flag, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, Flag, Info, LockKeyhole, Megaphone, MessageCircle, ShieldCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -13,9 +13,22 @@ const DEFAULT_FORUM_ALERTS = {
   forumClosedAlertMessage: "أُغلقت المشاركة الآن. يمكنك متابعة القراءة، وتعود المشاركة عند الساعة 08:00.",
   forumOpenAlertColor: "#047857",
   forumClosedAlertColor: "#b45309",
+  forumOpenAlertIcon: "check",
+  forumClosedAlertIcon: "lock",
+  forumOpenAlertDurationSeconds: "8",
+  forumClosedAlertDurationSeconds: "8",
 } as const;
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+function ForumAlertIcon({ name }: { name: string }) {
+  const props = { className: "h-5 w-5 shrink-0", "aria-hidden": true as const };
+  if (name === "lock") return <LockKeyhole {...props} />;
+  if (name === "info") return <Info {...props} />;
+  if (name === "clock") return <Clock3 {...props} />;
+  if (name === "megaphone") return <Megaphone {...props} />;
+  return <CheckCircle2 {...props} />;
+}
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -34,7 +47,7 @@ export default function Forum() {
     if (previousForumOpen.current === forumOpen) return;
     setStatusTransition(forumOpen ? "opened" : "closed");
     previousForumOpen.current = forumOpen;
-    const timeout = window.setTimeout(() => setStatusTransition(null), 8_000);
+    const timeout = window.setTimeout(() => setStatusTransition(null), Number(forumAlerts[forumOpen ? "forumOpenAlertDurationSeconds" : "forumClosedAlertDurationSeconds"]) * 1000 || 8_000);
     return () => window.clearTimeout(timeout);
   }, [forumOpen]);
   const countdownMinutes = Math.floor(forumCountdown.remainingMs / 60_000);
@@ -57,6 +70,10 @@ export default function Forum() {
     forumClosedAlertMessage: publishedSettings.data?.settings?.forumClosedAlertMessage || DEFAULT_FORUM_ALERTS.forumClosedAlertMessage,
     forumOpenAlertColor: publishedSettings.data?.settings?.forumOpenAlertColor || DEFAULT_FORUM_ALERTS.forumOpenAlertColor,
     forumClosedAlertColor: publishedSettings.data?.settings?.forumClosedAlertColor || DEFAULT_FORUM_ALERTS.forumClosedAlertColor,
+    forumOpenAlertIcon: publishedSettings.data?.settings?.forumOpenAlertIcon || DEFAULT_FORUM_ALERTS.forumOpenAlertIcon,
+    forumClosedAlertIcon: publishedSettings.data?.settings?.forumClosedAlertIcon || DEFAULT_FORUM_ALERTS.forumClosedAlertIcon,
+    forumOpenAlertDurationSeconds: publishedSettings.data?.settings?.forumOpenAlertDurationSeconds || DEFAULT_FORUM_ALERTS.forumOpenAlertDurationSeconds,
+    forumClosedAlertDurationSeconds: publishedSettings.data?.settings?.forumClosedAlertDurationSeconds || DEFAULT_FORUM_ALERTS.forumClosedAlertDurationSeconds,
   };
   const topicFilters = useMemo(() => {
     const filters = { categoryId, subject, level };
@@ -112,7 +129,7 @@ export default function Forum() {
           <CardContent className="space-y-4">
             <p className="text-sm leading-7 text-[#59636a]">هذا المنتدى مخصص للتعلم وتبادل الفهم القانوني باحترام. لا تُعد المنشورات استشارة قانونية شخصية، وتخضع المشاركات للمراجعة قبل نشرها.</p>
             <div role="status" className={`flex items-start gap-2 rounded-xl border p-3 text-sm font-bold leading-6 ${forumOpen ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}><Clock3 className="mt-1 h-4 w-4 shrink-0" /><span>{forumOpen ? `المشاركة متاحة الآن من 08:00 إلى 20:00 بتوقيت المغرب. يتبقى ${countdownLabel} على الإغلاق.` : `${FORUM_CLOSED_MESSAGE} يتبقى ${countdownLabel} على فتح المشاركة.`}</span></div>
-            {statusTransition && <div role="alert" aria-live="assertive" className="forum-status-transition flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold" style={{ borderColor: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, color: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, backgroundColor: `${statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor}14` }}><span aria-hidden="true" className="text-lg">{statusTransition === "opened" ? "✓" : "!"}</span><span>{statusTransition === "opened" ? forumAlerts.forumOpenAlertMessage : forumAlerts.forumClosedAlertMessage}</span></div>}
+            {statusTransition && <div role="alert" aria-live="assertive" className="forum-status-transition flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold" style={{ borderColor: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, color: statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor, backgroundColor: `${statusTransition === "opened" ? forumAlerts.forumOpenAlertColor : forumAlerts.forumClosedAlertColor}14` }}><ForumAlertIcon name={statusTransition === "opened" ? forumAlerts.forumOpenAlertIcon : forumAlerts.forumClosedAlertIcon} /><span>{statusTransition === "opened" ? forumAlerts.forumOpenAlertMessage : forumAlerts.forumClosedAlertMessage}</span></div>}
             <ul className="grid gap-2 text-sm leading-6 text-[#173247] md:grid-cols-2">
               {(rules.data?.items ?? []).map((rule, index) => <li key={index} className="rounded-lg bg-[#f7f1e5] px-3 py-2">{rule}</li>)}
             </ul>

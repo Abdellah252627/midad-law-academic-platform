@@ -30,8 +30,14 @@ describe("admin notification preferences", () => {
     expect(router).toContain("forumClosedAlertMessage");
     expect(router).toContain("forumOpenAlertColor");
     expect(router).toContain("forumClosedAlertColor");
+    expect(router).toContain("forumOpenAlertIcon");
+    expect(router).toContain("forumClosedAlertIcon");
+    expect(router).toContain("forumOpenAlertDuration");
+    expect(router).toContain("forumClosedAlertDuration");
     expect(settings).toContain("/^#[0-9a-fA-F]{6}$/");
     expect(settings).toContain("بين 10 و240 حرفاً");
+    expect(settings).toContain("مدة ظهور تنبيه الفتح");
+    expect(settings).toContain("أيقونة تنبيه الفتح");
   });
 
   it("exposes RTL controls for all four notification categories", () => {
@@ -53,5 +59,9 @@ describe("admin notification preferences", () => {
     expect(forum).toContain("forumAlerts.forumClosedAlertMessage");
     expect(forum).toContain("forumAlerts.forumOpenAlertColor");
     expect(forum).toContain("forumAlerts.forumClosedAlertColor");
+    expect(forum).toContain("forumAlerts.forumOpenAlertIcon");
+    expect(forum).toContain("forumAlerts.forumClosedAlertIcon");
+    expect(forum).toContain("forumOpenAlertDurationSeconds");
+    expect(forum).toContain("forumClosedAlertDurationSeconds");
   });
 });
