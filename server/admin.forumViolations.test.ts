@@ -9,6 +9,7 @@ vi.mock("./db", async () => {
     ...actual,
     getForumViolationMonitoring: vi.fn(),
     getForumWeeklyViolationReport: vi.fn(),
+    getForumParticipantClassification: vi.fn(),
     clearForumModerationBlock: vi.fn(),
     resetForumViolationCounter: vi.fn(),
     createAuditLog: vi.fn(),
@@ -35,6 +36,7 @@ describe("admin forum violation monitoring", () => {
     vi.clearAllMocks();
     vi.mocked(db.getForumViolationMonitoring).mockResolvedValue(sampleResult as never);
     vi.mocked(db.getForumWeeklyViolationReport).mockResolvedValue({ current: { violations: 5, repeatAccounts: 2, accounts: 3 }, previous: { violations: 3, repeatAccounts: 1, accounts: 2 }, change: { violations: 2, repeatAccounts: 1 }, period: { currentStart: new Date(), currentEnd: new Date(), previousStart: new Date(), previousEnd: new Date() } });
+    vi.mocked(db.getForumParticipantClassification).mockResolvedValue({ participants: [{ user: { id: 7, name: "طالب مخالف", email: "offender@example.com" }, status: "offender", violationEvents: 2, violationCount: 2, blockedUntil: null, lastViolationAt: new Date() }, { user: { id: 8, name: "طالب ملتزم", email: "safe@example.com" }, status: "non_offender", violationEvents: 0, violationCount: 0, blockedUntil: null, lastViolationAt: null }], total: 2, offenders: 1, nonOffenders: 1 });
     vi.mocked(db.clearForumModerationBlock).mockResolvedValue(true);
     vi.mocked(db.resetForumViolationCounter).mockResolvedValue(true);
     vi.mocked(db.createAuditLog).mockResolvedValue(undefined as never);
@@ -45,6 +47,20 @@ describe("admin forum violation monitoring", () => {
     expect(result.total).toBe(1);
     expect(result.offenders[0]?.events[0]?.redactedExcerpt).toContain("محتوى محجوب");
     expect(db.getForumViolationMonitoring).toHaveBeenCalledWith({ search: "طالب", includeResolved: false });
+  });
+
+  it("classifies forum participants into offenders and non-offenders", async () => {
+    const result = await appRouter.createCaller(adminContext).admin.forumParticipantClassification({ search: "طالب" });
+    expect(result.total).toBe(2);
+    expect(result.offenders).toBe(1);
+    expect(result.nonOffenders).toBe(1);
+    expect(result.participants.find(item => item.status === "offender")?.user.name).toBe("طالب مخالف");
+    expect(result.participants.find(item => item.status === "non_offender")?.user.name).toBe("طالب ملتزم");
+    expect(db.getForumParticipantClassification).toHaveBeenCalledWith({ search: "طالب" });
+  });
+
+  it("rejects participant classification for non-admin users", async () => {
+    await expect(appRouter.createCaller(userContext).admin.forumParticipantClassification({})).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("returns weekly violation totals and repeat-account comparison to admins", async () => {

@@ -1213,6 +1213,40 @@ export async function getForumViolationMonitoring(input: { search?: string; incl
   return { offenders, total: offenders.length, activeBans: offenders.filter(row => row.moderation.blockedUntil && row.moderation.blockedUntil > now).length, totalEvents: offenders.reduce((sum, row) => sum + row.events.length, 0) };
 }
 
+export async function getForumParticipantClassification(input: { search?: string } = {}) {
+  const db = await getDb();
+  if (!db) return { participants: [], total: 0, offenders: 0, nonOffenders: 0 };
+
+  const [topicAuthors, replyAuthors] = await Promise.all([
+    db.select({ userId: forumTopics.authorUserId }).from(forumTopics),
+    db.select({ userId: forumReplies.authorUserId }).from(forumReplies),
+  ]);
+  const participantIds = Array.from(new Set([...topicAuthors, ...replyAuthors].map(row => row.userId)));
+  if (participantIds.length === 0) return { participants: [], total: 0, offenders: 0, nonOffenders: 0 };
+
+  const search = input.search?.trim();
+  const userConditions = [inArray(users.id, participantIds)];
+  if (search) userConditions.push(or(like(users.name, `%${search}%`), like(users.email, `%${search}%`))!);
+  const [participantRows, moderationRows, eventCounts] = await Promise.all([
+    db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(...userConditions)),
+    db.select().from(forumUserModeration).where(inArray(forumUserModeration.userId, participantIds)),
+    db.select({ userId: forumViolationEvents.userId, total: count() }).from(forumViolationEvents).where(inArray(forumViolationEvents.userId, participantIds)).groupBy(forumViolationEvents.userId),
+  ]);
+
+  const moderationByUser = new Map(moderationRows.map(row => [row.userId, row]));
+  const eventsByUser = new Map(eventCounts.map(row => [row.userId, Number(row.total)]));
+  const participants = participantRows
+    .map(user => {
+      const moderation = moderationByUser.get(user.id);
+      const violationEvents = eventsByUser.get(user.id) ?? 0;
+      const isOffender = violationEvents > 0 || (moderation?.violationCount ?? 0) > 0 || Boolean(moderation?.blockedUntil && moderation.blockedUntil > new Date());
+      return { user, status: isOffender ? "offender" as const : "non_offender" as const, violationEvents, violationCount: moderation?.violationCount ?? 0, blockedUntil: moderation?.blockedUntil ?? null, lastViolationAt: moderation?.lastViolationAt ?? null };
+    })
+    .sort((a, b) => (a.status === b.status ? (a.user.name ?? a.user.email ?? "").localeCompare(b.user.name ?? b.user.email ?? "", "ar") : a.status === "offender" ? -1 : 1));
+
+  return { participants, total: participants.length, offenders: participants.filter(item => item.status === "offender").length, nonOffenders: participants.filter(item => item.status === "non_offender").length };
+}
+
 export async function getForumWeeklyViolationReport(now = new Date()) {
   const db = await getDb();
   if (!db) return { current: { violations: 0, repeatAccounts: 0, accounts: 0 }, previous: { violations: 0, repeatAccounts: 0, accounts: 0 }, change: { violations: 0, repeatAccounts: 0 }, period: { currentStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), currentEnd: now, previousStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), previousEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } };

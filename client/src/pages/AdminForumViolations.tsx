@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { AlertTriangle, Ban, CheckCircle2, Clock3, EyeOff, Loader2, RotateCcw, Search, ShieldCheck, UserRound } from "lucide-react";
+import { AlertTriangle, Ban, CheckCircle2, Clock3, EyeOff, Loader2, RotateCcw, Search, ShieldCheck, UserCheck, UserRound, UserX } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,10 +14,12 @@ function ViolationsContent() {
   const queryInput = useMemo(() => ({ search: search.trim() || undefined, includeResolved }), [search, includeResolved]);
   const monitoring = trpc.admin.forumViolationMonitoring.useQuery(queryInput);
   const weeklyReport = trpc.admin.forumWeeklyViolationReport.useQuery();
+  const participantClassification = trpc.admin.forumParticipantClassification.useQuery({ search: search.trim() || undefined });
   const utils = trpc.useUtils();
   const reset = trpc.admin.resetForumViolationCounter.useMutation({ onSuccess: () => { toast.success("تم تصفير عداد المخالفات"); void utils.admin.forumViolationMonitoring.invalidate(); }, onError: error => toast.error(error.message) });
   const lift = trpc.admin.clearForumModerationBlock.useMutation({ onSuccess: () => { toast.success("تم رفع الحظر وإعادة حالة المستخدم"); void utils.admin.forumViolationMonitoring.invalidate(); void utils.admin.forumModerationBlocks.invalidate(); }, onError: error => toast.error(error.message) });
   const data = monitoring.data;
+  const participants = participantClassification.data?.participants ?? [];
 
   return <div dir="rtl" className="mx-auto max-w-6xl space-y-6">
     <header className="rounded-[28px] bg-[#173247] p-6 text-white shadow-sm sm:p-8">
@@ -38,6 +40,10 @@ function ViolationsContent() {
       <article className="rounded-2xl border border-[#e3d9ca] bg-white p-5"><p className="text-sm text-slate-500">المستخدمون المراقبون</p><p className="mt-2 text-3xl font-black text-[#173247]">{data?.total ?? 0}</p></article>
       <article className="rounded-2xl border border-red-100 bg-red-50/50 p-5"><p className="text-sm text-red-700">حظر مؤقت نشط</p><p className="mt-2 text-3xl font-black text-red-800">{data?.activeBans ?? 0}</p></article>
       <article className="rounded-2xl border border-[#e3d9ca] bg-white p-5"><p className="text-sm text-slate-500">وقائع معروضة</p><p className="mt-2 text-3xl font-black text-[#173247]">{data?.totalEvents ?? 0}</p></article>
+    </section>
+    <section aria-labelledby="forum-participants" className="rounded-[26px] border border-[#e3d9ca] bg-white p-5 shadow-sm sm:p-7">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold tracking-[0.16em] text-[#b9854a]">FORUM PARTICIPANTS</p><h2 id="forum-participants" className="mt-1 text-xl font-black text-[#173247]">أسماء مستخدمي المنتدى</h2><p className="mt-1 text-sm text-slate-500">يشمل جميع من أنشأ موضوعاً أو كتب رداً، ويُصنّف وفق سجل المخالفات الفعلي.</p></div><div className="flex flex-wrap gap-2 text-xs font-bold"><span className="rounded-full bg-red-50 px-3 py-1 text-red-700">مخالفون: {participantClassification.data?.offenders ?? 0}</span><span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">غير مخالفين: {participantClassification.data?.nonOffenders ?? 0}</span></div></div>
+      {participantClassification.isLoading ? <div className="mt-6 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />جاري تصنيف مستخدمي المنتدى...</div> : participants.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-[#fffdf9] p-8 text-center"><UserRound className="mx-auto h-8 w-8 text-slate-400" /><p className="mt-3 font-bold text-[#173247]">لا يوجد مستخدمون مطابقون</p><p className="mt-1 text-sm text-slate-500">سيظهر المستخدم بعد إنشاء موضوع أو كتابة رد في المنتدى.</p></div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{participants.map(item => <article key={item.user.id} className={`rounded-2xl border p-4 ${item.status === "offender" ? "border-red-100 bg-red-50/40" : "border-emerald-100 bg-emerald-50/40"}`}><div className="flex items-start gap-3"><div className={`rounded-xl p-2.5 text-white ${item.status === "offender" ? "bg-red-700" : "bg-emerald-700"}`}>{item.status === "offender" ? <UserX className="h-5 w-5" /> : <UserCheck className="h-5 w-5" />}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="truncate font-bold text-[#173247]">{item.user.name || "مستخدم المنتدى"}</p><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${item.status === "offender" ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>{item.status === "offender" ? "مخالف" : "غير مخالف"}</span></div><p className="mt-1 truncate text-xs text-slate-500">{item.user.email || "بريد غير متاح"}</p>{item.status === "offender" ? <p className="mt-3 text-xs font-bold text-red-700">{item.violationEvents} واقعة · {item.violationCount} ضمن النافذة</p> : <p className="mt-3 text-xs font-bold text-emerald-700">لا توجد مخالفات مسجلة</p>}</div></div></article>)}</div>}
     </section>
     <section className="rounded-[26px] border border-[#e3d9ca] bg-white p-5 shadow-sm sm:p-7">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="relative flex-1"><Search className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="ابحث بالاسم أو البريد الإلكتروني" aria-label="البحث في المخالفين" className="min-h-11 w-full rounded-xl border border-slate-200 pr-10 pl-4 text-sm outline-none transition focus:border-[#b9854a] focus:ring-2 focus:ring-[#b9854a]/20" /></div><label className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#fff7ec] px-4 text-sm font-bold text-[#173247]"><input type="checkbox" checked={includeResolved} onChange={event => setIncludeResolved(event.target.checked)} />إظهار الحالات المصَفّرة</label></div>
