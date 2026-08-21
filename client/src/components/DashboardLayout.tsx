@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, History, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users, Volume2, VolumeX } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -40,6 +40,7 @@ const menuItems = [
   { icon: Files, label: "الملفات والإصدارات", path: "/admin/files" },
   { icon: Users, label: "بيانات المهتمين", path: "/admin/leads" },
   { icon: ShieldAlert, label: "سجل التدقيق", path: "/admin/audit-logs" },
+  { icon: History, label: "سجل تغييرات المشرفين", path: "/admin/forum/moderator-audit", ownerOnly: true },
   { icon: BarChart3, label: "الإحصائيات", path: "/admin/analytics" },
   { icon: Settings2, label: "الإعدادات العامة", path: "/admin/settings" },
 ];
@@ -127,7 +128,7 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth} forumModeratorOnly={access?.isForumModerator === true && access.isAdmin !== true}>
+      <DashboardLayoutContent setSidebarWidth={setSidebarWidth} forumModeratorOnly={access?.isForumModerator === true && access.isAdmin !== true} isOwner={access?.isOwner === true}>
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -138,12 +139,14 @@ type DashboardLayoutContentProps = {
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
   forumModeratorOnly: boolean;
+  isOwner: boolean;
 };
 
 function DashboardLayoutContent({
   children,
   setSidebarWidth,
   forumModeratorOnly,
+  isOwner,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
@@ -154,7 +157,11 @@ function DashboardLayoutContent({
   const previousNotificationIdsRef = useRef<Set<number> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const visibleMenuItems = forumModeratorOnly ? menuItems.filter(item => item.path === "/admin/forum" || item.path === "/admin/forum/violations") : menuItems;
+  const visibleMenuItems = menuItems.filter(item => {
+    if (item.ownerOnly && !isOwner) return false;
+    if (forumModeratorOnly) return item.path === "/admin/forum" || item.path === "/admin/forum/violations";
+    return true;
+  });
   const activeMenuItem = visibleMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
   const { data: newFollowUpsCount = 0 } = trpc.admin.newSupportFollowUpCount.useQuery(undefined, {

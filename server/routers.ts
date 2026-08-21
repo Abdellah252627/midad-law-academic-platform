@@ -5,7 +5,7 @@ import { FORUM_LEVELS, FORUM_SUBJECTS } from "@shared/forum";
 import { buildComplaintNotification, buildPurchaseRequestNotification, buildSupportFollowUpNotification } from "@shared/adminNotifications";
 import { formatSupportFollowUpReference, supportFollowUpFieldsSchema } from "../shared/supportFollowUp";
 import { COOKIE_NAME, DEFAULT_PRODUCT_CODE } from "@shared/const";
-import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, createAdminNotificationOnce, createDemoAdminNotification, deleteDemoAdminNotification, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markAllAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, isAdminNotificationEnabled, getStudentAnalytics, getAdminComplaints, updateComplaintAdmin, getForumCategories, getForumModerationQueue, getPublishedForumTopics, getPublishedForumTopic, getPublishedForumReplies, createForumTopic, createForumReply, createForumReport, hasAcceptedForumRules, acceptForumRules, FORUM_RULES_VERSION, updateForumTopicStatus, updateForumReplyStatus, getOpenForumReports, updateForumReportStatus, getForumBlockedWords, createForumBlockedWord, updateForumBlockedWord, deleteForumBlockedWord, findActiveForumBlockedTerm, getForumModerationStatus, recordForumModerationViolation, getActiveForumModerations, clearForumModerationBlock, getForumViolationMonitoring, getForumParticipantClassification, getForumWeeklyViolationReport, resetForumViolationCounter, getForumModerators, grantForumModerator, revokeForumModerator, isActiveForumModerator, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
+import { approvePurchaseRequest, createAuditLog, createProductFile, createPurchaseRequest, createPurchaseRequestCorrection, createSampleDownloadLead, deleteLandingChapter, deleteLandingFaq, createAnalyticsEvent, getActiveProductFile, getAnalyticsSummary, getAuditLogs, getLandingAdminContent, getProductFiles, getProductFileById, getProductPricing, getPublishedLandingContent, getLatestPurchaseRequestCorrection, getPendingPurchaseRequestCorrection, getPurchaseRequestById, getPurchaseRequestCorrections, getPurchaseRequestNotes, createPurchaseRequestNote, updatePurchaseRequestNote, deletePurchaseRequestNote, getPurchaseRequests, getPurchaseRequestsForExport, createComplaint, getComplaintById, getComplaintAuditEvents, getComplaintByTicketAndEmail, findPurchaseRequestByOrderNumber, getSampleDownloadLeadCount, getSampleDownloadLeads, getSampleDownloadLeadsByIds, createSupportFollowUp, getSupportFollowUps, getNewSupportFollowUpCount, createAdminNotification, createAdminNotificationOnce, createDemoAdminNotification, deleteDemoAdminNotification, getAdminNotifications, getAdminNotificationUnreadCount, markAdminNotificationRead, markAdminNotificationsRead, markAllAdminNotificationsRead, markSupportFollowUpRead, markSupportFollowUpsRead, getSupportFollowUpById, updateSupportFollowUp, getAppSettings, getAppSettingsMap, isAdminNotificationEnabled, getStudentAnalytics, getAdminComplaints, updateComplaintAdmin, getForumCategories, getForumModerationQueue, getPublishedForumTopics, getPublishedForumTopic, getPublishedForumReplies, createForumTopic, createForumReply, createForumReport, hasAcceptedForumRules, acceptForumRules, FORUM_RULES_VERSION, updateForumTopicStatus, updateForumReplyStatus, getOpenForumReports, updateForumReportStatus, getForumBlockedWords, createForumBlockedWord, updateForumBlockedWord, deleteForumBlockedWord, findActiveForumBlockedTerm, getForumModerationStatus, recordForumModerationViolation, getActiveForumModerations, clearForumModerationBlock, getForumViolationMonitoring, getForumParticipantClassification, getForumWeeklyViolationReport, resetForumViolationCounter, getForumModerators, grantForumModerator, revokeForumModerator, isActiveForumModerator, getForumModeratorAuditLogs, rejectPurchaseRequest, restoreLandingChapter, reviewPurchaseRequestCorrection, restoreLandingFaq, saveLandingChapter, saveLandingFaq, saveLandingProduct, upsertAppSetting } from "./db";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { buildDownloadUrl, createDownloadToken, DOWNLOAD_LINK_TTL_MINUTES } from "./downloadTokens";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -502,6 +502,27 @@ export const appRouter = router({
       }).default({ days: 30 }))
       .query(({ input }) => getStudentAnalytics(input.startDate && input.endDate ? { startDate: input.startDate, endDate: input.endDate } : { days: input.days ?? 30 })),
     auditLogs: adminProcedure.query(() => getAuditLogs()),
+    forumModeratorAuditLogs: ownerProcedure
+      .input(z.object({
+        action: z.enum(["all", "grant", "revoke"]).default("all"),
+        search: z.string().trim().max(160).default(""),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        page: z.number().int().min(1).max(10_000).default(1),
+        pageSize: z.number().int().min(10).max(100).default(25),
+      }).superRefine((input, ctx) => {
+        if (input.from && input.to && input.from > input.to) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["to"], message: "يجب أن يسبق تاريخ البداية تاريخ النهاية" });
+        }
+      }))
+      .query(({ input }) => getForumModeratorAuditLogs({
+        action: input.action === "grant" ? "forum.moderator.grant" : input.action === "revoke" ? "forum.moderator.revoke" : undefined,
+        search: input.search,
+        from: input.from,
+        to: input.to,
+        page: input.page,
+        pageSize: input.pageSize,
+      })),
   }),
   purchase: router({
     createTransferRequest: publicProcedure

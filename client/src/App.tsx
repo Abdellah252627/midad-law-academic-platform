@@ -20,6 +20,7 @@ import AdminNotifications from "./pages/AdminNotifications";
 import AdminForum from "./pages/AdminForum";
 import AdminForumBlockedWords from "./pages/AdminForumBlockedWords";
 import AdminForumViolations from "./pages/AdminForumViolations";
+import AdminForumModeratorAudit from "./pages/AdminForumModeratorAudit";
 import NotFound from "./pages/NotFound";
 import { DigitalFilesPolicyPage, PrivacyPolicyPage, TermsPage } from "./pages/LegalPage";
 import ContactPage from "./pages/ContactPage";
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/admin/forum" component={AdminForum} />
       <Route path="/admin/forum/blocked-words" component={AdminForumBlockedWords} />
       <Route path="/admin/forum/violations" component={AdminForumViolations} />
+      <Route path="/admin/forum/moderator-audit" component={AdminForumModeratorAudit} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -638,6 +638,71 @@ export async function createAuditLog(input: InsertAuditLog) {
   await db.insert(auditLogs).values(input);
 }
 
+export type ForumModeratorAuditAction = "forum.moderator.grant" | "forum.moderator.revoke";
+
+export async function getForumModeratorAuditLogs(options?: {
+  action?: ForumModeratorAuditAction;
+  search?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const page = Math.max(1, Math.floor(options?.page ?? 1));
+  const pageSize = Math.min(100, Math.max(10, Math.floor(options?.pageSize ?? 25)));
+  const conditions = [
+    or(eq(auditLogs.action, "forum.moderator.grant"), eq(auditLogs.action, "forum.moderator.revoke")),
+  ];
+  if (options?.action) conditions.push(eq(auditLogs.action, options.action));
+  const search = options?.search?.trim().slice(0, 160);
+  if (search) {
+    const term = `%${search}%`;
+    conditions.push(or(
+      like(auditLogs.entityId, term),
+      like(users.name, term),
+      like(users.email, term),
+      like(users.openId, term),
+    ));
+  }
+  if (options?.from) {
+    const date = new Date(`${options.from}T00:00:00.000Z`);
+    if (!Number.isNaN(date.getTime())) conditions.push(gte(auditLogs.createdAt, date));
+  }
+  if (options?.to) {
+    const date = new Date(`${options.to}T00:00:00.000Z`);
+    if (!Number.isNaN(date.getTime())) {
+      date.setUTCDate(date.getUTCDate() + 1);
+      conditions.push(lt(auditLogs.createdAt, date));
+    }
+  }
+  const whereClause = and(...conditions);
+  const [rows, totals] = await Promise.all([
+    db.select({
+      id: auditLogs.id,
+      actorUserId: auditLogs.actorUserId,
+      actorName: users.name,
+      actorEmail: users.email,
+      action: auditLogs.action,
+      entityType: auditLogs.entityType,
+      entityId: auditLogs.entityId,
+      metadataJson: auditLogs.metadataJson,
+      createdAt: auditLogs.createdAt,
+    }).from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.actorUserId))
+      .where(whereClause)
+      .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db.select({ total: count() }).from(auditLogs)
+      .leftJoin(users, eq(users.id, auditLogs.actorUserId))
+      .where(whereClause),
+  ]);
+  const total = Number(totals[0]?.total ?? 0);
+  return { rows, total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
+}
+
 export async function getAuditLogs(limit = 100) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
