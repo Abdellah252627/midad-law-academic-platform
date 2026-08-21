@@ -1141,6 +1141,8 @@ type ForumViolationEventOptions = {
   sourceId?: number;
   text?: string;
   matchedTerm?: string;
+  category?: "blocked_word" | "phone" | "email" | "social_media";
+  redactedExcerpt?: string;
 };
 
 function buildRedactedExcerpt(text?: string, matchedTerm?: string) {
@@ -1170,8 +1172,8 @@ export async function recordForumModerationViolation(userId: number, now = new D
     userId,
     sourceType: options.sourceType ?? "topic",
     sourceId: options.sourceId,
-    category: "blocked_word",
-    redactedExcerpt: buildRedactedExcerpt(options.text, options.matchedTerm),
+    category: options.category ?? "blocked_word",
+    redactedExcerpt: options.redactedExcerpt ?? buildRedactedExcerpt(options.text, options.matchedTerm),
     createdAt: now,
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FORUM_BLOCKED_WORD_WARNING, findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
+import { FORUM_BLOCKED_WORD_WARNING, FORUM_SENSITIVE_DATA_WARNING, findBlockedForumTerm, findSensitiveForumData, normalizeForumText, redactSensitiveForumData } from "../shared/forumModeration";
 
 describe("forum moderation word list", () => {
   it("normalizes Arabic variants and diacritics consistently", () => {
@@ -19,6 +19,24 @@ describe("forum moderation word list", () => {
   it("returns the neutral warning used by the UI and server", () => {
     expect(FORUM_BLOCKED_WORD_WARNING).toContain("قواعد المنتدى");
     expect(FORUM_BLOCKED_WORD_WARNING).not.toContain("احمق");
+  });
+  it("detects email, Moroccan phone, and social links without exposing their values", () => {
+    expect(findSensitiveForumData("تواصلوا عبر student@example.com")?.category).toBe("email");
+    expect(findSensitiveForumData("الرقم 06 12 34 56 78")?.category).toBe("phone");
+    expect(findSensitiveForumData("الرابط https://instagram.com/student_1")?.category).toBe("social_media");
+    const redacted = redactSensitiveForumData("راسلني على student@example.com أو 06 12 34 56 78");
+    expect(redacted).not.toContain("@example.com");
+    expect(redacted).not.toContain("06 12 34 56 78");
+  });
+
+  it("does not flag ordinary academic numbers or neutral social words", () => {
+    expect(findSensitiveForumData("الفصل 12 يتناول المادة 34")).toBeNull();
+    expect(findSensitiveForumData("ناقشنا دور التواصل الاجتماعي في القانون")).toBeNull();
+  });
+
+  it("uses a privacy-safe neutral warning", () => {
+    expect(FORUM_SENSITIVE_DATA_WARNING).toContain("خصوصيتك");
+    expect(FORUM_SENSITIVE_DATA_WARNING).not.toContain("@example.com");
   });
 });
 
