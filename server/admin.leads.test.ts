@@ -84,8 +84,8 @@ describe("admin leads protection and CSV", () => {
 
   it("rejects anonymous access to leads and CSV procedures", async () => {
     const caller = appRouter.createCaller(anonymousContext);
-    await expect(caller.admin.sampleLeads()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.admin.sampleLeadsCsv()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.admin.sampleLeads()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.sampleLeadsCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("rejects authenticated non-admin access", async () => {

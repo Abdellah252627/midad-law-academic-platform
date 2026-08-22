@@ -56,7 +56,7 @@ describe("admin analytics summary", () => {
   });
 
   it("rejects anonymous and non-admin access", async () => {
-    await expect(appRouter.createCaller(anonymousContext).admin.analyticsSummary()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(appRouter.createCaller(anonymousContext).admin.analyticsSummary()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(appRouter.createCaller(userContext).admin.analyticsSummary()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, History, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, BarChart3, ExternalLink, FileCog, Files, Headset, LogOut, MessageSquareWarning, PanelLeft, ReceiptText, Settings2, ShieldAlert, UserRound, Users, Volume2, VolumeX } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -40,7 +40,6 @@ const menuItems = [
   { icon: Files, label: "الملفات والإصدارات", path: "/admin/files" },
   { icon: Users, label: "بيانات المهتمين", path: "/admin/leads" },
   { icon: ShieldAlert, label: "سجل التدقيق", path: "/admin/audit-logs" },
-  { icon: History, label: "سجل تغييرات المشرفين", path: "/admin/forum/moderator-audit", ownerOnly: true },
   { icon: BarChart3, label: "الإحصائيات", path: "/admin/analytics" },
   { icon: Settings2, label: "الإعدادات العامة", path: "/admin/settings" },
 ];
@@ -61,17 +60,17 @@ export default function DashboardLayout({
   });
   const { loading, user } = useAuth();
   const {
-    data: access,
-    isLoading: accessCheckLoading,
-    isError: accessCheckError,
-    refetch: refetchAccess,
-  } = trpc.auth.access.useQuery();
+    data: isAuthorizedAdmin,
+    isLoading: adminCheckLoading,
+    isError: adminCheckError,
+    refetch: refetchAdminCheck,
+  } = trpc.auth.isAdmin.useQuery();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading || accessCheckLoading) {
+  if (loading || adminCheckLoading) {
     return <DashboardLayoutSkeleton />
   }
 
@@ -102,20 +101,20 @@ export default function DashboardLayout({
     );
   }
 
-  if (accessCheckError) {
+  if (adminCheckError) {
     return (
       <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4">
         <div className="max-w-md rounded-[28px] border border-amber-200 bg-white p-8 text-center shadow-sm">
           <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-amber-700" aria-hidden="true" />
           <h1 className="text-2xl font-bold text-[#173247]">تعذر التحقق من الصلاحية</h1>
           <p className="mt-3 text-sm leading-7 text-[#68747a]">تعذر الاتصال بخدمة التحقق مؤقتاً، ولم يتم اعتبار الحساب غير مصرح.</p>
-          <Button onClick={() => refetchAccess()} className="mt-5 bg-[#173247] text-white hover:bg-[#24465e]">إعادة المحاولة</Button>
+          <Button onClick={() => refetchAdminCheck()} className="mt-5 bg-[#173247] text-white hover:bg-[#24465e]">إعادة المحاولة</Button>
         </div>
       </div>
     );
   }
 
-  if (!access?.isAdmin && !access?.isForumModerator) {
+  if (!isAuthorizedAdmin) {
     return <div dir="rtl" className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4"><div className="max-w-md rounded-[28px] border border-red-200 bg-white p-8 text-center shadow-sm"><ShieldAlert className="mx-auto mb-4 h-12 w-12 text-red-700" aria-hidden="true" /><h1 className="text-2xl font-bold text-[#173247]">الوصول غير مسموح</h1><p className="mt-3 text-sm leading-7 text-[#68747a]">هذه اللوحة مخصصة لحسابات الإدارة المعتمدة فقط.</p></div></div>;
   }
 
@@ -128,7 +127,7 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth} forumModeratorOnly={access?.isForumModerator === true && access.isAdmin !== true} isOwner={access?.isOwner === true}>
+      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -138,15 +137,11 @@ export default function DashboardLayout({
 type DashboardLayoutContentProps = {
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
-  forumModeratorOnly: boolean;
-  isOwner: boolean;
 };
 
 function DashboardLayoutContent({
   children,
   setSidebarWidth,
-  forumModeratorOnly,
-  isOwner,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
@@ -157,27 +152,20 @@ function DashboardLayoutContent({
   const previousNotificationIdsRef = useRef<Set<number> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const visibleMenuItems = menuItems.filter(item => {
-    if (item.ownerOnly && !isOwner) return false;
-    if (forumModeratorOnly) return item.path === "/admin/forum" || item.path === "/admin/forum/violations";
-    return true;
-  });
-  const activeMenuItem = visibleMenuItems.find(item => item.path === location);
+  const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
   const { data: newFollowUpsCount = 0 } = trpc.admin.newSupportFollowUpCount.useQuery(undefined, {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
-    enabled: !forumModeratorOnly,
   });
   const notificationUtils = trpc.useUtils();
   const { data: notificationUnreadCount = 0 } = trpc.admin.notificationUnreadCount.useQuery(undefined, {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
-    enabled: !forumModeratorOnly,
   });
   const { data: notificationData, isLoading: notificationsLoading } = trpc.admin.notifications.useQuery(
     { page: 1, pageSize: 10 },
-    { refetchInterval: 30_000, refetchOnWindowFocus: true, enabled: !forumModeratorOnly },
+    { refetchInterval: 30_000, refetchOnWindowFocus: true },
   );
   const markNotificationRead = trpc.admin.markNotificationRead.useMutation({
     onSuccess: () => {
@@ -320,7 +308,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {visibleMenuItems.map(item => {
+              {menuItems.map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>

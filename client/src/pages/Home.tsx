@@ -467,6 +467,10 @@ export default function Home() {
                   اكتشف المحتوى
                   <ArrowUpLeft size={16} />
                 </a>
+                <a href="/login" className="inline-flex items-center gap-2 text-sm font-extrabold text-[#173247] transition hover:text-[#b9854a]">
+                  تسجيل الدخول
+                  <ArrowLeft size={16} />
+                </a>
               </div>
               <div className="mt-12 border-t border-[#d9d0c2] pt-6">
                 <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-[12px] font-bold text-[#68747a]">

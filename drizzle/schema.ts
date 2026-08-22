@@ -12,17 +12,6 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
-export const forumModerators = mysqlTable("forum_moderators", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique().references(() => users.id),
-  grantedByUserId: int("grantedByUserId").notNull().references(() => users.id),
-  status: mysqlEnum("status", ["active", "revoked"]).default("active").notNull(),
-  grantedAt: timestamp("grantedAt").defaultNow().notNull(),
-  revokedAt: timestamp("revokedAt"),
-  revokedByUserId: int("revokedByUserId").references(() => users.id),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
 export const purchaseRequests = mysqlTable("purchase_requests", {
   id: int("id").autoincrement().primaryKey(),
   orderNumber: varchar("orderNumber", { length: 32 }).notNull().unique(),
@@ -311,8 +300,6 @@ export const auditLogs = mysqlTable("audit_logs", {
 });
 
 export type User = typeof users.$inferSelect;
-export type ForumModerator = typeof forumModerators.$inferSelect;
-export type InsertForumModerator = typeof forumModerators.$inferInsert;
 export type InsertUser = typeof users.$inferInsert;
 export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
 export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;

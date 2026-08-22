@@ -20,11 +20,11 @@ import AdminNotifications from "./pages/AdminNotifications";
 import AdminForum from "./pages/AdminForum";
 import AdminForumBlockedWords from "./pages/AdminForumBlockedWords";
 import AdminForumViolations from "./pages/AdminForumViolations";
-import AdminForumModeratorAudit from "./pages/AdminForumModeratorAudit";
 import NotFound from "./pages/NotFound";
 import { DigitalFilesPolicyPage, PrivacyPolicyPage, TermsPage } from "./pages/LegalPage";
 import ContactPage from "./pages/ContactPage";
 import Forum from "./pages/Forum";
+import Login from "./pages/Login";
 
 // Design philosophy: Editorial Arabic modernism for a calm, trustworthy study product.
 // This shell keeps the public experience focused: one RTL landing page, one clear CTA,
@@ -41,6 +41,7 @@ function Router() {
       <Route path="/digital-files" component={DigitalFilesPolicyPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/forum" component={Forum} />
+      <Route path="/login" component={Login} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/account" component={AdminAccount} />
@@ -57,7 +58,6 @@ function Router() {
       <Route path="/admin/forum" component={AdminForum} />
       <Route path="/admin/forum/blocked-words" component={AdminForumBlockedWords} />
       <Route path="/admin/forum/violations" component={AdminForumViolations} />
-      <Route path="/admin/forum/moderator-audit" component={AdminForumModeratorAudit} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

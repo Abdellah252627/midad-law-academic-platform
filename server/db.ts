@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, gt, inArray, isNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, forumViolationEvents, forumModerators,
+import { AnalyticsEvent, AppSetting, AuditLog, InsertAuditLog, InsertAnalyticsEvent, InsertLandingChapter, InsertLandingFaq, InsertLandingProduct, InsertProductFile, InsertPurchaseRequest, InsertPurchaseRequestCorrection, InsertReview, InsertSampleDownloadLead, InsertUser, InsertPurchaseRequestNote, InsertPurchaseRequestNoteEvent, InsertSupportFollowUp, InsertAdminNotification, adminNotifications, forumCategories, forumTopics, forumReplies, forumReports, forumRuleAcceptances, forumBlockedWords, forumUserModeration, forumViolationEvents,
 analyticsEvents, appSettings, auditLogs, landingChapters, landingFaqs, landingProducts, productFiles, purchaseRequestCorrections, purchaseRequestNoteEvents, purchaseRequestNotes, purchaseRequests, reviews, complaints, sampleDownloadLeads, supportFollowUps, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { findBlockedForumTerm, normalizeForumText } from "../shared/forumModeration";
@@ -119,7 +119,6 @@ const notificationSettingByType: Record<string, AdminNotificationSettingKey> = {
   complaint: "notificationComplaintEnabled",
   system: "notificationSystemEnabled",
   auth_login_attempt: "notificationAuthLoginAttemptEnabled",
-  forum_violation_threshold: "notificationForumViolationThresholdEnabled",
 };
 
 async function shouldCreateAdminNotification(type: InsertAdminNotification["type"]) {
@@ -210,7 +209,7 @@ export async function deleteDuplicatePurchaseNotifications(entityId: string) {
   return { deleted: duplicateIds.length, kept: rows[0].id };
 }
 
-export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system" | "auth_login_attempt" | "forum_violation_threshold"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+export async function getAdminNotifications(options?: { type?: "purchase_request" | "support_follow_up" | "complaint" | "system" | "auth_login_attempt"; read?: "read" | "unread"; priority?: "high" | "critical"; search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const page = options?.page ?? 1;
@@ -610,7 +609,7 @@ export async function getAppSettingsMap(productCode = DEFAULT_PRODUCT_CODE) {
   }));
 }
 
-export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled" | "notificationAuthLoginAttemptEnabled" | "notificationForumViolationThresholdEnabled";
+export type AdminNotificationSettingKey = "notificationPurchaseRequestEnabled" | "notificationSupportFollowUpEnabled" | "notificationComplaintEnabled" | "notificationSystemEnabled" | "notificationAuthLoginAttemptEnabled";
 
 export async function isAdminNotificationEnabled(settingKey: AdminNotificationSettingKey) {
   try {
@@ -636,71 +635,6 @@ export async function createAuditLog(input: InsertAuditLog) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.insert(auditLogs).values(input);
-}
-
-export type ForumModeratorAuditAction = "forum.moderator.grant" | "forum.moderator.revoke";
-
-export async function getForumModeratorAuditLogs(options?: {
-  action?: ForumModeratorAuditAction;
-  search?: string;
-  from?: string;
-  to?: string;
-  page?: number;
-  pageSize?: number;
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database is not available");
-  const page = Math.max(1, Math.floor(options?.page ?? 1));
-  const pageSize = Math.min(100, Math.max(10, Math.floor(options?.pageSize ?? 25)));
-  const conditions = [
-    or(eq(auditLogs.action, "forum.moderator.grant"), eq(auditLogs.action, "forum.moderator.revoke")),
-  ];
-  if (options?.action) conditions.push(eq(auditLogs.action, options.action));
-  const search = options?.search?.trim().slice(0, 160);
-  if (search) {
-    const term = `%${search}%`;
-    conditions.push(or(
-      like(auditLogs.entityId, term),
-      like(users.name, term),
-      like(users.email, term),
-      like(users.openId, term),
-    ));
-  }
-  if (options?.from) {
-    const date = new Date(`${options.from}T00:00:00.000Z`);
-    if (!Number.isNaN(date.getTime())) conditions.push(gte(auditLogs.createdAt, date));
-  }
-  if (options?.to) {
-    const date = new Date(`${options.to}T00:00:00.000Z`);
-    if (!Number.isNaN(date.getTime())) {
-      date.setUTCDate(date.getUTCDate() + 1);
-      conditions.push(lt(auditLogs.createdAt, date));
-    }
-  }
-  const whereClause = and(...conditions);
-  const [rows, totals] = await Promise.all([
-    db.select({
-      id: auditLogs.id,
-      actorUserId: auditLogs.actorUserId,
-      actorName: users.name,
-      actorEmail: users.email,
-      action: auditLogs.action,
-      entityType: auditLogs.entityType,
-      entityId: auditLogs.entityId,
-      metadataJson: auditLogs.metadataJson,
-      createdAt: auditLogs.createdAt,
-    }).from(auditLogs)
-      .leftJoin(users, eq(users.id, auditLogs.actorUserId))
-      .where(whereClause)
-      .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
-      .limit(pageSize)
-      .offset((page - 1) * pageSize),
-    db.select({ total: count() }).from(auditLogs)
-      .leftJoin(users, eq(users.id, auditLogs.actorUserId))
-      .where(whereClause),
-  ]);
-  const total = Number(totals[0]?.total ?? 0);
-  return { rows, total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
 export async function getAuditLogs(limit = 100) {
@@ -1206,8 +1140,6 @@ type ForumViolationEventOptions = {
   sourceId?: number;
   text?: string;
   matchedTerm?: string;
-  category?: "blocked_word" | "phone" | "email" | "social_media";
-  redactedExcerpt?: string;
 };
 
 function buildRedactedExcerpt(text?: string, matchedTerm?: string) {
@@ -1237,30 +1169,11 @@ export async function recordForumModerationViolation(userId: number, now = new D
     userId,
     sourceType: options.sourceType ?? "topic",
     sourceId: options.sourceId,
-    category: options.category ?? "blocked_word",
-    redactedExcerpt: options.redactedExcerpt ?? buildRedactedExcerpt(options.text, options.matchedTerm),
+    category: "blocked_word",
+    redactedExcerpt: buildRedactedExcerpt(options.text, options.matchedTerm),
     createdAt: now,
   });
-
-  const settings = await getAppSettingsMap();
-  const configuredThreshold = Number(settings.forumViolationAlertThreshold ?? "3");
-  const threshold = Number.isInteger(configuredThreshold) && configuredThreshold >= 1 && configuredThreshold <= 100 ? configuredThreshold : 3;
-  const previousCount = current?.violationCount ?? 0;
-  if (previousCount < threshold && decision.violationCount >= threshold && settings.notificationForumViolationThresholdEnabled !== "false") {
-    const userRows = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
-    const user = userRows[0];
-    const windowKey = decision.windowStartedAt?.getTime() ?? now.getTime();
-    await createAdminNotificationOnce({
-      type: "forum_violation_threshold",
-      title: "بلوغ عتبة مخالفات في المنتدى",
-      message: `بلغ المستخدم ${user?.name || user?.email || `#${userId}`} حد ${threshold} مخالفات ضمن النافذة الحالية ويحتاج إلى مراجعة.`,
-      priority: decision.isBlocked ? "critical" : "high",
-      entityType: "forum_user_moderation",
-      entityId: `${userId}:${windowKey}:${threshold}`,
-      targetPath: "/admin/forum/violations",
-    });
-  }
-  return { ...values, isBlocked: decision.isBlocked, remainingMs: decision.remainingMs, alertThreshold: threshold };
+  return { ...values, isBlocked: decision.isBlocked, remainingMs: decision.remainingMs };
 }
 
 export async function getForumViolationMonitoring(input: { search?: string; includeResolved?: boolean } = {}) {
@@ -1278,69 +1191,6 @@ export async function getForumViolationMonitoring(input: { search?: string; incl
   for (const event of events) grouped.set(event.userId, [...(grouped.get(event.userId) ?? []), event]);
   const offenders = rows.map(row => ({ ...row, events: (grouped.get(row.user.id) ?? []).slice(0, 20) }));
   return { offenders, total: offenders.length, activeBans: offenders.filter(row => row.moderation.blockedUntil && row.moderation.blockedUntil > now).length, totalEvents: offenders.reduce((sum, row) => sum + row.events.length, 0) };
-}
-
-export async function getForumParticipantClassification(input: { search?: string } = {}) {
-  const db = await getDb();
-  if (!db) return { participants: [], total: 0, offenders: 0, nonOffenders: 0 };
-
-  const [topicAuthors, replyAuthors] = await Promise.all([
-    db.select({ userId: forumTopics.authorUserId }).from(forumTopics),
-    db.select({ userId: forumReplies.authorUserId }).from(forumReplies),
-  ]);
-  const participantIds = Array.from(new Set([...topicAuthors, ...replyAuthors].map(row => row.userId)));
-  if (participantIds.length === 0) return { participants: [], total: 0, offenders: 0, nonOffenders: 0 };
-
-  const search = input.search?.trim();
-  const userConditions = [inArray(users.id, participantIds)];
-  if (search) userConditions.push(or(like(users.name, `%${search}%`), like(users.email, `%${search}%`))!);
-  const [participantRows, moderationRows, eventCounts] = await Promise.all([
-    db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(...userConditions)),
-    db.select().from(forumUserModeration).where(inArray(forumUserModeration.userId, participantIds)),
-    db.select({ userId: forumViolationEvents.userId, total: count() }).from(forumViolationEvents).where(inArray(forumViolationEvents.userId, participantIds)).groupBy(forumViolationEvents.userId),
-  ]);
-
-  const moderationByUser = new Map(moderationRows.map(row => [row.userId, row]));
-  const eventsByUser = new Map(eventCounts.map(row => [row.userId, Number(row.total)]));
-  const participants = participantRows
-    .map(user => {
-      const moderation = moderationByUser.get(user.id);
-      const violationEvents = eventsByUser.get(user.id) ?? 0;
-      const isOffender = violationEvents > 0 || (moderation?.violationCount ?? 0) > 0 || Boolean(moderation?.blockedUntil && moderation.blockedUntil > new Date());
-      return { user, status: isOffender ? "offender" as const : "non_offender" as const, violationEvents, violationCount: moderation?.violationCount ?? 0, blockedUntil: moderation?.blockedUntil ?? null, lastViolationAt: moderation?.lastViolationAt ?? null };
-    })
-    .sort((a, b) => (a.status === b.status ? (a.user.name ?? a.user.email ?? "").localeCompare(b.user.name ?? b.user.email ?? "", "ar") : a.status === "offender" ? -1 : 1));
-
-  return { participants, total: participants.length, offenders: participants.filter(item => item.status === "offender").length, nonOffenders: participants.filter(item => item.status === "non_offender").length };
-}
-
-export async function getForumWeeklyViolationReport(now = new Date()) {
-  const db = await getDb();
-  if (!db) return { current: { violations: 0, repeatAccounts: 0, accounts: 0 }, previous: { violations: 0, repeatAccounts: 0, accounts: 0 }, change: { violations: 0, repeatAccounts: 0 }, period: { currentStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), currentEnd: now, previousStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), previousEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } };
-  const currentEnd = now;
-  const currentStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const previousEnd = currentStart;
-  const previousStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  const rows = await db.select({ userId: forumViolationEvents.userId, createdAt: forumViolationEvents.createdAt })
-    .from(forumViolationEvents)
-    .where(gte(forumViolationEvents.createdAt, previousStart));
-  const summarize = (start: Date, end: Date) => {
-    const counts = new Map<number, number>();
-    for (const row of rows) {
-      if (row.createdAt < start || row.createdAt >= end) continue;
-      counts.set(row.userId, (counts.get(row.userId) ?? 0) + 1);
-    }
-    const violations = Array.from(counts.values()).reduce((sum, value) => sum + value, 0);
-    return { violations, repeatAccounts: Array.from(counts.values()).filter(value => value >= 2).length, accounts: counts.size };
-  };
-  const current = summarize(currentStart, currentEnd);
-  const previous = summarize(previousStart, previousEnd);
-  return {
-    current,
-    previous,
-    change: { violations: current.violations - previous.violations, repeatAccounts: current.repeatAccounts - previous.repeatAccounts },
-    period: { currentStart, currentEnd, previousStart, previousEnd },
-  };
 }
 
 export async function resetForumViolationCounter(userId: number) {
@@ -1503,66 +1353,4 @@ export async function updateComplaintAdmin(input: {
     responseUpdatedAt: responseChanged ? new Date() : current.responseUpdatedAt,
   }).where(eq(complaints.id, input.id));
   return getComplaintById(input.id);
-}
-
-
-export async function getForumModerators(includeRevoked = false) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const query = db
-    .select({
-      id: forumModerators.id,
-      userId: forumModerators.userId,
-      userName: users.name,
-      userEmail: users.email,
-      status: forumModerators.status,
-      grantedByUserId: forumModerators.grantedByUserId,
-      grantedAt: forumModerators.grantedAt,
-      revokedAt: forumModerators.revokedAt,
-      revokedByUserId: forumModerators.revokedByUserId,
-      updatedAt: forumModerators.updatedAt,
-    })
-    .from(forumModerators)
-    .innerJoin(users, eq(forumModerators.userId, users.id));
-
-  return includeRevoked
-    ? query.orderBy(desc(forumModerators.updatedAt))
-    : query.where(eq(forumModerators.status, "active")).orderBy(desc(forumModerators.grantedAt));
-}
-
-export async function grantForumModerator(userId: number, grantedByUserId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  if (userId === grantedByUserId) throw new Error("Owner is already authorized");
-
-  const existing = await db.select().from(forumModerators).where(eq(forumModerators.userId, userId)).limit(1);
-  if (existing[0]) {
-    await db.update(forumModerators).set({
-      status: "active",
-      grantedByUserId,
-      grantedAt: new Date(),
-      revokedAt: null,
-      revokedByUserId: null,
-    }).where(eq(forumModerators.id, existing[0].id));
-    return { ...existing[0], status: "active" as const, grantedByUserId, grantedAt: new Date(), revokedAt: null, revokedByUserId: null };
-  }
-
-  const inserted = await db.insert(forumModerators).values({ userId, grantedByUserId, status: "active" });
-  return { id: Number(inserted[0].insertId), userId, grantedByUserId, status: "active" as const };
-}
-
-export async function revokeForumModerator(userId: number, revokedByUserId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  const revokedAt = new Date();
-  await db.update(forumModerators).set({ status: "revoked", revokedAt, revokedByUserId }).where(and(eq(forumModerators.userId, userId), eq(forumModerators.status, "active")));
-  return { userId, status: "revoked" as const, revokedAt, revokedByUserId };
-}
-
-export async function isActiveForumModerator(userId: number) {
-  const db = await getDb();
-  if (!db) return false;
-  const rows = await db.select({ id: forumModerators.id }).from(forumModerators).where(and(eq(forumModerators.userId, userId), eq(forumModerators.status, "active"))).limit(1);
-  return rows.length > 0;
 }

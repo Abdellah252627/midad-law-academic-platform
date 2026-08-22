@@ -13,8 +13,6 @@ describe("admin notification preferences", () => {
     expect(db).toContain("notificationSupportFollowUpEnabled");
     expect(db).toContain("notificationComplaintEnabled");
     expect(db).toContain("notificationSystemEnabled");
-    expect(db).toContain("notificationForumViolationThresholdEnabled");
-    expect(db).toContain('forum_violation_threshold: "notificationForumViolationThresholdEnabled"');
   });
 
   it("protects notification settings with the admin procedure and boolean validation", () => {
@@ -23,8 +21,6 @@ describe("admin notification preferences", () => {
     expect(router).toContain("notificationPurchaseRequestEnabled");
     expect(router).toContain('input.settingValue !== "true" && input.settingValue !== "false"');
     expect(router).toContain('isAdminNotificationEnabled("notificationComplaintEnabled")');
-    expect(router).toContain("forumViolationAlertThreshold");
-    expect(router).toContain("بين 1 و100");
   });
 
   it("protects and validates forum alert message and color settings", () => {
@@ -52,15 +48,6 @@ describe("admin notification preferences", () => {
     expect(settings).toContain("notificationSupportFollowUpEnabled");
     expect(settings).toContain("notificationComplaintEnabled");
     expect(settings).toContain("notificationSystemEnabled");
-    expect(settings).toContain("notificationForumViolationThresholdEnabled");
-    expect(settings).toContain("عتبة تنبيه مخالفات المنتدى");
-  });
-
-  it("exposes the forum violation alert in the notification center", () => {
-    const page = read("client/src/pages/AdminNotifications.tsx");
-    expect(page).toContain("forum_violation_threshold");
-    expect(page).toContain("مخالفات المنتدى");
-    expect(page).toContain("مخالفة منتدى");
   });
 
   it("provides live previews for opening and closing forum alerts", () => {
